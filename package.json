@@ -1,0 +1,22 @@
+{
+  "name": "redle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Un combate Pokémon diario contra Red, estilo Wordle.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --base=./",
+    "preview": "vite preview",
+    "test": "node --test",
+    "test:bundle": "node scripts/test-bundle.mjs"
+  },
+  "dependencies": {
+    "@pkmn/img": "^0.3.4",
+    "@pkmn/randoms": "^0.10.11",
+    "@pkmn/sim": "^0.10.11"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}

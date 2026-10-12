@@ -1,0 +1,95 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Dex} from '@pkmn/sim';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES} from '../src/game.js';
+
+test('el reto del día es igual para todos y cambia cada día', () => {
+  const a = dailyPool('2026-10-12'), b = dailyPool('2026-10-12'), c = dailyPool('2026-10-13');
+  assert.equal(a.length, POOL_SIZE);
+  assert.deepEqual(a, b);
+  assert.notDeepEqual(a.map(s => s.species), c.map(s => s.species));
+  assert.equal(new Set(a.map(s => s.species)).size, POOL_SIZE);
+  assert.equal(dayNumber('2026-10-12'), 1);
+});
+
+test('un combate completo termina y se puede reproducir desde las elecciones', () => {
+  const date = '2026-10-20', team = dailyPool(date).slice(0, 6), choices = [];
+  const battle = newBattle(date, team);
+  play(battle, null);
+  while (!battle.ended && choices.length < 500) {
+    const c = aiChoice(battle, 'p1') || 'default';
+    assert.ok(play(battle, c));
+    choices.push(c);
+  }
+  assert.ok(battle.ended);
+  const again = replay(date, team, choices);
+  assert.equal(again.winner, battle.winner);
+  const noTime = log => log.filter(l => !l.startsWith('|t:|'));
+  assert.deepEqual(noTime(again.log), noTime(battle.log));
+});
+
+test('tus Pokémon van a nivel 100 con IVs, EVs y naturaleza al azar pero válidos', () => {
+  for (const set of dailyPool('2026-10-12')) {
+    assert.equal(set.level, 100);
+    assert.ok(Object.values(set.evs).reduce((a, b) => a + b, 0) <= 508, set.species);
+    assert.ok(Object.values(set.evs).every(v => v <= 252 && v % 4 === 0), set.species);
+    assert.ok(Object.values(set.ivs).every(v => v >= 0 && v <= 31), set.species);
+  }
+});
+
+test('el reto cambia a medianoche hora de España', () => {
+  // Octubre de 2026: España está en UTC+2 (horario de verano).
+  assert.equal(today(new Date('2026-10-12T21:59:00Z')), '2026-10-12'); // 23:59 en Madrid
+  assert.equal(today(new Date('2026-10-12T22:00:00Z')), '2026-10-13'); // 00:00 en Madrid
+  assert.equal(msToNext(new Date('2026-10-12T21:00:00Z')), 3600e3);
+});
+
+test('cada rival tiene su equipo del juego y tu equipo sale de sus generaciones', () => {
+  const dex = Dex.forGen(9);
+  assert.deepEqual(BOSSES.red.team.map(s => s.species), ['Pikachu', 'Lapras', 'Snorlax', 'Venusaur', 'Charizard', 'Blastoise']);
+  assert.deepEqual(BOSSES.cynthia.team.map(s => s.species), ['Spiritomb', 'Roserade', 'Togekiss', 'Lucario', 'Milotic', 'Garchomp']);
+  for (const [boss, [lo, hi]] of [['red', [1, 2]], ['cynthia', [1, 4]]]) {
+    for (let d = 1; d <= 5; d++) {
+      for (const set of dailyPool(`2026-11-0${d}`, boss)) {
+        const sp = dex.species.get(set.species);
+        assert.ok(sp.gen >= lo && sp.gen <= hi, `${boss}: ${sp.name} es de Gen ${sp.gen}`);
+        assert.ok(!sp.tags.length, `${boss}: ${sp.name} es legendario`);
+      }
+    }
+  }
+});
+
+test('los rivales llevan objeto y contra Red empieza granizando', () => {
+  for (const boss of Object.keys(BOSSES)) {
+    assert.ok(BOSSES[boss].team.every(s => s.item), boss);
+    for (let d = 0; d < 15; d++) {
+      const date = `2026-12-${String(d + 1).padStart(2, '0')}`, team = dailyPool(date, boss), b = newBattle(date, team, boss), choices = [];
+      play(b, null);
+      while (!b.ended && choices.length < 500) { const c = aiChoice(b, 'p1') || 'default'; play(b, c); choices.push(c); }
+      if (boss === 'red') assert.equal(b.log.find(l => l.startsWith('|-weather|')), '|-weather|Hail'); // empieza granizando (una habilidad de clima puede cambiarlo)
+      assert.equal(replay(date, team, choices, boss).turn, b.turn, `${boss} ${date} se reproduce igual`);
+    }
+  }
+});
+
+test('200 combates por rival con elecciones al azar terminan sin errores y se reproducen igual', () => {
+  for (const boss of Object.keys(BOSSES)) {
+    for (let d = 0; d < 200; d++) {
+      const date = `azar-${d}`, team = dailyPool(date, boss), b = newBattle(date, team, boss), choices = [];
+      let x = d + 1; // pseudoaleatorio simple y repetible
+      const rand = n => (x = (x * 1103515245 + 12345) % 2147483648) % n;
+      play(b, null);
+      while (!b.ended && choices.length < 1000) {
+        const req = b.p1.activeRequest;
+        const options = [];
+        if (!req.forceSwitch) req.active[0].moves.forEach((m, i) => !m.disabled && options.push(`move ${i + 1}`));
+        if (req.forceSwitch || !req.active[0].trapped) b.p1.pokemon.forEach((p, i) => !p.fainted && !p.isActive && options.push(`switch ${i + 1}`));
+        const c = options.length ? options[rand(options.length)] : 'default';
+        assert.ok(play(b, c), `${boss} ${date}: elección rechazada ${c}`);
+        choices.push(c);
+      }
+      assert.ok(b.ended, `${boss} ${date} no termina`);
+      if (d % 20 === 0) assert.equal(replay(date, team, choices, boss).turn, b.turn);
+    }
+  }
+});

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Redle</title>
+  <meta name="description" content="Un combate Pokémon diario contra Red o Cynthia. Mira los equipos, elige quién empieza y comparte tu resultado.">
+  <meta name="theme-color" content="#dc0a2d">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%23fff' stroke='%23111' stroke-width='1.5'/><path d='M1 8a7 7 0 0 1 14 0z' fill='%23e3350d' stroke='%23111' stroke-width='1.5'/><circle cx='8' cy='8' r='2.2' fill='%23fff' stroke='%23111' stroke-width='1.5'/></svg>">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- Al compartir el enlace (WhatsApp, X, Discord…). Al publicar, poner la URL absoluta en og:image y og:url. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Redle">
+  <meta property="og:title" content="Redle — un combate Pokémon diario contra Red y Cynthia">
+  <meta property="og:description" content="Cada día, un equipo nuevo para todos. Mira los equipos, elige quién empieza y comparte tu resultado. ¿Podrás con ellos?">
+  <meta property="og:image" content="og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
+  <link rel="stylesheet" href="/src/fonts.css">
+  <link rel="stylesheet" href="/src/style.css">
+  <script src="theme.js"></script>
+</head>
+<body>
+  <div id="loading" aria-hidden="true"><span class="ball"></span></div>
+  <div id="bg-mons" aria-hidden="true"></div>
+
+  <header class="dex">
+    <div class="dex-lights" aria-hidden="true"><span class="lens"></span><i class="led r"></i><i class="led y"></i><i class="led g"></i></div>
+    <h1 class="logo">Redle <span id="day-num"></span></h1>
+    <div class="hbtns">
+      <button class="icon" id="btn-help" aria-label="?">?</button>
+      <button class="icon" id="btn-settings" aria-label="⚙">⚙</button>
+      <button class="icon" id="btn-mute" aria-label="♪">♪</button>
+      <button class="icon" id="btn-stats" aria-label="▤">▤</button>
+    </div>
+  </header>
+
+  <nav class="bosses" id="bosses" aria-label="Rival"></nav>
+
+  <main>
+    <!-- Vista previa de los dos equipos -->
+    <section id="draft" hidden>
+      <div class="versus">
+        <figure class="mystery"><span class="who"><img src="https://play.pokemonshowdown.com/sprites/trainers/ethan.png" alt="" width="96" height="96"><b aria-hidden="true">?</b></span><figcaption data-i18n="you2"></figcaption></figure>
+        <span class="vs">VS</span>
+        <figure class="boss"><img class="boss-sprite" alt="" width="96" height="96"><figcaption class="boss-name"></figcaption></figure>
+      </div>
+      <p class="intro-text box" data-i18n="lead"></p>
+      <p class="rules box" id="stage-rules"></p>
+      <div class="parties">
+        <div class="party mine"><h3 data-i18n="yourTeam"></h3><div id="pool" class="slots"></div></div>
+        <div class="party red"><h3 data-i18n="bossTeam"></h3><div id="red-team" class="slots"></div></div>
+      </div>
+      <button id="btn-go" class="ballbtn"><span class="ball" aria-hidden="true"></span><span class="txt"></span></button>
+    </section>
+
+    <!-- Combate -->
+    <section id="battle" hidden>
+      <div class="ds-top">
+        <div class="arena">
+          <img class="mon foe" alt="">
+          <img class="mon me" alt="">
+          <button class="hud foe" id="foe-hud">
+            <div class="row"><b class="name"></b><span class="gender"></span><small class="lvl"></small></div>
+            <div class="types"></div>
+            <div class="hpline"><span class="ps">HP</span><div class="bar"><i></i></div></div>
+            <div class="row meta"><span class="status"></span><span class="hp"></span></div>
+          </button>
+          <div class="hud me">
+            <div class="row"><b class="name"></b><span class="gender"></span><small class="lvl"></small></div>
+            <div class="types"></div>
+            <div class="hpline"><span class="ps">HP</span><div class="bar"><i></i></div></div>
+            <div class="row meta"><span class="status"></span><span class="hp"></span></div>
+            <div class="exp"><i></i></div>
+          </div>
+          <div class="balls foe"></div><div class="balls me"></div>
+          <div class="turn"></div>
+          <div class="weather-badge" hidden></div>
+        </div>
+        <div class="textbox"><p id="msg" role="status" aria-live="polite"></p></div>
+      </div>
+      <div class="ds-bottom">
+        <div class="tabs" role="tablist">
+          <button role="tab" class="on" data-tab="controls" data-i18n="battleTab"></button>
+          <button role="tab" data-tab="team-panel" data-i18n="yourTeam"></button>
+        </div>
+        <div id="team-panel" class="team-panel" hidden></div>
+        <div id="controls">
+          <div id="prompt" class="prompt"></div>
+          <div id="moves" class="moves"></div>
+          <div id="switches" class="switches"></div>
+        </div>
+        <details class="history"><summary data-i18n="history"></summary><div id="log" class="log"></div></details>
+      </div>
+    </section>
+  </main>
+
+  <footer><span data-i18n="footer"></span> <button class="linklike" id="btn-legal" data-i18n="legalTitle"></button></footer>
+
+  <div id="intro" hidden><img class="boss-sprite" alt="" width="160" height="160"><p data-i18n="challenge"></p></div>
+
+  <dialog id="dlg-help">
+    <h2 data-i18n="howTitle"></h2>
+    <ol id="how"></ol>
+    <p class="small" data-i18n="howNote"></p>
+    <button class="primary" data-close data-i18n="gotIt"></button>
+  </dialog>
+
+  <dialog id="dlg-stats">
+    <h2 id="result-title"></h2>
+    <div id="result-body"></div>
+    <div class="stats" id="stats"></div>
+    <div id="summary"></div>
+    <div id="share-box" hidden>
+      <pre id="share-text"></pre>
+      <button class="primary" id="btn-share" data-i18n="share"></button>
+    </div>
+    <div id="result-actions" class="actions"></div>
+    <p class="small" id="next"></p>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-settings">
+    <h2 data-i18n="settings"></h2>
+    <div class="setting"><span data-i18n="language"></span><div class="seg" data-set="lang"><button data-v="es">Español</button><button data-v="en">English</button></div></div>
+    <div class="setting"><span data-i18n="theme"></span><div class="seg" data-set="theme"><button data-v="auto" data-i18n="auto"></button><button data-v="light" data-i18n="light"></button><button data-v="dark" data-i18n="dark"></button></div></div>
+    <div class="setting"><span data-i18n="music"></span><div class="seg" data-set="music"><button data-v="1" data-i18n="on"></button><button data-v="0" data-i18n="off"></button></div></div>
+    <div class="setting"><span data-i18n="sfx"></span><div class="seg" data-set="sfx"><button data-v="1" data-i18n="on"></button><button data-v="0" data-i18n="off"></button></div></div>
+    <div class="setting"><span data-i18n="speed"></span><div class="seg" data-set="speed"><button data-v="1" data-i18n="normal"></button><button data-v="2" data-i18n="fast"></button></div></div>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-legal">
+    <h2 data-i18n="legalTitle"></h2>
+    <div class="legal" data-i18n="legalBody"></div>
+    <button class="secondary danger" id="btn-wipe" data-i18n="wipe"></button>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-foe">
+    <h2 data-i18n="foeInfo"></h2>
+    <div id="foe-body"></div>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

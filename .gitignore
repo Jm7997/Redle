@@ -1,0 +1,14 @@
+# Dependencias y compilación (se regeneran con npm install / npm run build)
+node_modules/
+dist/
+
+# Archivos locales del editor / asistente (no se suben)
+CLAUDE.md
+.claude/
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*

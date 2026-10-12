@@ -1,0 +1,16 @@
+{
+  "name": "Redle — un combate Pokémon diario",
+  "short_name": "Redle",
+  "description": "Un combate Pokémon diario contra Red o Cynthia. Mira los equipos, elige quién empieza y comparte tu resultado.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#dc0a2d",
+  "theme_color": "#dc0a2d",
+  "lang": "es",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

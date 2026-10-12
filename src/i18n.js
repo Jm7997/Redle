@@ -1,0 +1,178 @@
+// Idiomas: textos de la interfaz y del combate en español o inglés.
+// Los nombres de Pokémon son iguales en ambos (en España se usan los ingleses).
+import {Dex} from '@pkmn/sim';
+import ES from './names-es.json';
+
+const dex = Dex.forGen(9);
+const pref = (() => { try { return localStorage.getItem('redle:lang'); } catch { return null; } })();
+export const LANG = pref || (navigator.language?.startsWith('es') ? 'es' : 'en');
+export function setLang(l) { try { localStorage.setItem('redle:lang', l); } catch {} location.reload(); }
+
+const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+const es = LANG === 'es';
+
+const TYPES_ES = {Normal: 'Normal', Fire: 'Fuego', Water: 'Agua', Grass: 'Planta', Electric: 'Eléctrico', Ice: 'Hielo', Fighting: 'Lucha', Poison: 'Veneno', Ground: 'Tierra', Flying: 'Volador', Psychic: 'Psíquico', Bug: 'Bicho', Rock: 'Roca', Ghost: 'Fantasma', Dragon: 'Dragón', Dark: 'Siniestro', Steel: 'Acero', Fairy: 'Hada', Stellar: 'Astral'};
+export const typeName = t => (es ? TYPES_ES[t] : t) || t;
+
+export function moveName(idOrName) {
+  const move = dex.moves.get(idOrName);
+  if (toID(idOrName).startsWith('hiddenpower') && toID(idOrName) !== 'hiddenpower') {
+    return `${es ? 'Poder Oculto' : 'Hidden Power'} ${typeName(move.type)}`;
+  }
+  return (es && ES.moves[move.id]) || move.name || idOrName;
+}
+export const itemName = id => (es && ES.items[toID(id)]) || dex.items.get(id).name || '';
+export const abilityName = id => (es && ES.abilities[toID(id)]) || dex.abilities.get(id).name || id;
+
+const STRINGS = {
+  es: {
+    title: 'Redle',
+    yourTeam: 'Tu equipo', leadTag: '★ Empieza', you2: 'Tú', history: 'Historial',
+    go: '¡Listo, a pelear! ⛰️',
+    footer: 'Proyecto fan no oficial y sin ánimo de lucro. Pokémon © Nintendo, Creatures y GAME FREAK. No afiliado.',
+    legalTitle: 'Aviso legal y privacidad',
+    legalBody: `<p><b>Proyecto fan no oficial y sin ánimo de lucro.</b> Pokémon y todos los nombres, personajes, imágenes y sonidos relacionados son marcas y © de Nintendo, Creatures Inc. y GAME FREAK inc. Redle no está afiliado, patrocinado ni aprobado por ellos. Si eres titular de algún derecho y quieres que se retire algo, escríbenos a <b>seross000sss@gmail.com</b> y lo haremos.</p>
+<p><b>Privacidad.</b> Redle no usa cookies, ni analítica, ni publicidad, ni cuentas. Tu progreso, estadísticas y ajustes se guardan <b>solo en tu navegador</b> (almacenamiento local) y nunca salen de él. Puedes borrarlos con el botón de abajo.</p>
+<p><b>Servicios de terceros.</b> Para mostrar sprites, fondos, efectos, gritos y música, tu navegador los descarga de <b>play.pokemonshowdown.com</b> (Smogon), que recibe tu dirección IP como cualquier web que visitas. Las fuentes tipográficas se sirven desde esta misma web.</p>
+<p><b>Créditos.</b> Combates: simulador de <a href="https://github.com/smogon/pokemon-showdown" target="_blank" rel="noopener">Pokémon Showdown</a> (MIT) vía <a href="https://github.com/pkmn" target="_blank" rel="noopener">@pkmn</a> (MIT). Nombres en español: <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> (BSD-3). Equipos de los rivales: decompilaciones de <a href="https://github.com/pret" target="_blank" rel="noopener">pret</a>. Fuentes: Pixelify Sans y Nunito (OFL), Luckiest Guy (Apache 2.0).</p>`,
+    wipe: 'Borrar mis datos de Redle', wipeConfirm: '¿Seguro? Se borrarán tu progreso de hoy, tus estadísticas, tus rachas y tus ajustes en este navegador.',
+    howTitle: 'Cómo se juega',
+    howNote: 'Mecánicas actuales (Escarlata/Púrpura): tabla de tipos con el tipo Hada y cada movimiento es físico o especial por sí mismo. Pulsa el marcador del rival para ver lo que sabes de él.',
+    gotIt: '¡Entendido!',
+    stats: 'Estadísticas', played: 'Jugadas', winPct: 'Victorias', streak: 'Racha', best: 'Mejor racha',
+    lostSub: 'Vuelve mañana a por la revancha.',
+    share: 'Compartir resultado', copied: '¡Copiado!', close: 'Cerrar', seeResult: 'Ver resultado',
+    next: (h, m, s) => `Nuevo reto en ${h}h ${m}m ${s}s`, you: 'Tú',
+    settings: 'Ajustes', language: 'Idioma', theme: 'Tema', auto: 'Auto', light: 'Claro', dark: 'Oscuro',
+    music: 'Música', sfx: 'Efectos', speed: 'Velocidad', normal: 'Normal', fast: 'Rápida', on: 'Sí', off: 'No',
+    turn: n => `Turno ${n}`, who: 'Elige a quién enviar', what: n => `¿Qué hará ${n}?`,
+    physical: 'Físico', special: 'Especial', status: 'Estado', power: 'Pot.', acc: 'Prec.',
+    superEff: 'Muy eficaz', notVery: 'Poco eficaz', noEffect: 'Sin efecto',
+    foeInfo: 'Lo que sabes del rival', revealed: 'Movimientos vistos', none: 'Ninguno todavía', level: 'Nv.',
+    // combate
+    go1: n => `¡Adelante, ${n}!`,
+    foe: n => `${n} enemigo`, uses: (u, m) => `¡${u} usa ${m}!`,
+    lost_: (w, p) => `${w} pierde un ${p}% de sus PS.`, gained: (w, p) => `${w} recupera un ${p}% de sus PS.`,
+    super: '¡Es muy eficaz!', resisted: 'No es muy eficaz...', immune: w => `No afecta a ${w}...`, crit: '¡Un golpe crítico!',
+    miss: w => `¡${w} esquiva el ataque!`, fail: '¡Pero falla!', faint: w => `¡${w} se ha debilitado!`,
+    st: {brn: w => `¡${w} se ha quemado!`, par: w => `¡${w} está paralizado! Quizás no pueda moverse.`, slp: w => `¡${w} se ha dormido!`, psn: w => `¡${w} ha sido envenenado!`, tox: w => `¡${w} ha sido gravemente envenenado!`, frz: w => `¡${w} se ha congelado!`},
+    cure: {slp: w => `¡${w} se ha despertado!`, frz: w => `¡${w} ya no está congelado!`, _: w => `${w} se ha recuperado de su estado.`},
+    cant: {slp: w => `${w} está dormido como un tronco.`, par: w => `¡${w} está paralizado y no se puede mover!`, frz: w => `¡${w} está congelado!`, flinch: w => `¡${w} retrocede!`, recharge: w => `${w} tiene que recargar.`, _: w => `${w} no puede moverse.`},
+    boost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'sube mucho' : 'sube'}!`, unboost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'baja mucho' : 'baja'}!`,
+    stat: {atk: 'El Ataque', def: 'La Defensa', spa: 'El Ataque Especial', spd: 'La Defensa Especial', spe: 'La Velocidad', accuracy: 'La Precisión', evasion: 'La Evasión'},
+    leftovers: w => `${w} recupera PS gracias a los Restos.`, poisonDmg: w => `El veneno resta PS a ${w}.`, burnDmg: w => `La quemadura resta PS a ${w}.`,
+    recoil: w => `${w} sufre daño de retroceso.`, weatherDmg: w => `El tiempo daña a ${w}.`, hailDmg: w => `¡El granizo golpea a ${w}!`, hailUpkeep: 'Sigue granizando.', aHelp: 'Cómo se juega', aSound: 'Activar o silenciar el sonido', recharge: 'Recargar',
+    weatherBadge: {Hail: '❄ Granizo', SunnyDay: '☀ Sol', RainDance: '☂ Lluvia', Sandstorm: '🌪 Arena'}, drain: w => `${w} absorbe energía.`,
+    weather: {SunnyDay: 'El sol pega con fuerza.', RainDance: 'Ha empezado a llover.', Sandstorm: 'Se ha levantado una tormenta de arena.', Hail: 'Ha empezado a granizar.', none: 'El tiempo vuelve a la normalidad.'},
+    sub: w => `¡${w} ha creado un sustituto!`, subEnd: w => `El sustituto de ${w} ha desaparecido.`, subHit: 'El sustituto recibe el golpe.',
+    confused: w => `¡${w} está confuso!`, confusedAct: w => `${w} está confuso...`, seeded: w => `¡${w} ha sido infectado!`,
+    statusTag: {brn: 'QUE', par: 'PAR', slp: 'DOR', psn: 'ENV', tox: 'ENV', frz: 'CON'},
+    statShort: {atk: 'Atq', def: 'Def', spa: 'AtE', spd: 'DfE', spe: 'Vel', accuracy: 'Pre', evasion: 'Eva'},
+    ate: (w, i) => `¡${w} se ha comido su ${i}!`, usedItem: (w, i) => `${w} ha usado su ${i}.`,
+    prepare: w => `${w} está cogiendo fuerzas...`, protect: w => `¡${w} se está protegiendo!`, hitcount: n => `¡Ha golpeado ${n} veces!`,
+    sideStart: (m, ally) => `¡${m} actúa en el campo ${ally ? 'aliado' : 'rival'}!`, sideEnd: m => `${m} ha dejado de actuar.`,
+    clearBoosts: 'Se han anulado todos los cambios de características.', mimic: w => `${w} se ha transformado.`,
+    ability: (w, a) => `${a} de ${w}`, nothing: 'No ha pasado nada.', youTeam: 'Tu equipo', hpLeft: 'PS',
+    battleTab: 'Combate', noItem: 'Sin objeto',
+    replay: 'Ver repetición', retrySame: 'Reintentar con este equipo', practiceRandom: 'Practicar con equipo aleatorio', newRandom: 'Otro equipo aleatorio',
+    practiceBadge: 'Práctica', backToday: 'Volver al reto de hoy',
+    summary: 'Resumen del combate', kos: 'K.O.', dmg: 'Daño hecho', taken: 'Recibido',
+  },
+  en: {
+    title: 'Redle',
+    yourTeam: 'Your team', leadTag: '★ Lead', you2: 'You', history: 'History',
+    go: 'Ready, battle! ⛰️',
+    footer: 'Unofficial non-profit fan project. Pokémon © Nintendo, Creatures and GAME FREAK. Not affiliated.',
+    legalTitle: 'Legal notice & privacy',
+    legalBody: `<p><b>Unofficial, non-profit fan project.</b> Pokémon and all related names, characters, images and sounds are trademarks and © of Nintendo, Creatures Inc. and GAME FREAK inc. Redle is not affiliated with, sponsored or endorsed by them. If you hold any rights and want something removed, write to <b>seross000sss@gmail.com</b> and we will take it down.</p>
+<p><b>Privacy.</b> Redle uses no cookies, analytics, ads or accounts. Your progress, stats and settings are stored <b>only in your browser</b> (local storage) and never leave it. You can delete them with the button below.</p>
+<p><b>Third-party services.</b> To show sprites, backgrounds, effects, cries and music, your browser downloads them from <b>play.pokemonshowdown.com</b> (Smogon), which receives your IP address like any website you visit. Fonts are served from this site.</p>
+<p><b>Credits.</b> Battles: <a href="https://github.com/smogon/pokemon-showdown" target="_blank" rel="noopener">Pokémon Showdown</a> simulator (MIT) via <a href="https://github.com/pkmn" target="_blank" rel="noopener">@pkmn</a> (MIT). Spanish names: <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> (BSD-3). Rival teams: <a href="https://github.com/pret" target="_blank" rel="noopener">pret</a> decompilations. Fonts: Pixelify Sans and Nunito (OFL), Luckiest Guy (Apache 2.0).</p>`,
+    wipe: 'Delete my Redle data', wipeConfirm: 'Are you sure? This deletes your progress, stats, streaks and settings in this browser.',
+    howTitle: 'How to play',
+    howNote: "Current mechanics (Scarlet/Violet): today's type chart with Fairy, and each move is physical or special on its own. Tap the foe's panel to see what you know about it.",
+    gotIt: 'Got it!',
+    stats: 'Statistics', played: 'Played', winPct: 'Win %', streak: 'Streak', best: 'Best streak',
+    lostSub: 'Come back tomorrow for a rematch.',
+    share: 'Share result', copied: 'Copied!', close: 'Close', seeResult: 'See result',
+    next: (h, m, s) => `New challenge in ${h}h ${m}m ${s}s`, you: 'You',
+    settings: 'Settings', language: 'Language', theme: 'Theme', auto: 'Auto', light: 'Light', dark: 'Dark',
+    music: 'Music', sfx: 'Sound effects', speed: 'Speed', normal: 'Normal', fast: 'Fast', on: 'On', off: 'Off',
+    turn: n => `Turn ${n}`, who: 'Choose who to send out', what: n => `What will ${n} do?`,
+    physical: 'Physical', special: 'Special', status: 'Status', power: 'Pow.', acc: 'Acc.',
+    superEff: 'Super effective', notVery: 'Not very effective', noEffect: 'No effect',
+    foeInfo: 'What you know about the foe', revealed: 'Moves seen', none: 'None yet', level: 'Lv.',
+    go1: n => `Go! ${n}!`,
+    foe: n => `The opposing ${n}`, uses: (u, m) => `${u} used ${m}!`,
+    lost_: (w, p) => `${w} lost ${p}% of its HP.`, gained: (w, p) => `${w} restored ${p}% of its HP.`,
+    super: "It's super effective!", resisted: "It's not very effective...", immune: w => `It doesn't affect ${w}...`, crit: 'A critical hit!',
+    miss: w => `${w} avoided the attack!`, fail: 'But it failed!', faint: w => `${w} fainted!`,
+    st: {brn: w => `${w} was burned!`, par: w => `${w} is paralyzed! It may be unable to move!`, slp: w => `${w} fell asleep!`, psn: w => `${w} was poisoned!`, tox: w => `${w} was badly poisoned!`, frz: w => `${w} was frozen solid!`},
+    cure: {slp: w => `${w} woke up!`, frz: w => `${w} thawed out!`, _: w => `${w} was cured of its status.`},
+    cant: {slp: w => `${w} is fast asleep.`, par: w => `${w} is paralyzed! It can't move!`, frz: w => `${w} is frozen solid!`, flinch: w => `${w} flinched!`, recharge: w => `${w} must recharge!`, _: w => `${w} can't move!`},
+    boost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'rose sharply' : 'rose'}!`, unboost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'harshly fell' : 'fell'}!`,
+    stat: {atk: 'Attack', def: 'Defense', spa: 'Sp. Atk', spd: 'Sp. Def', spe: 'Speed', accuracy: 'accuracy', evasion: 'evasiveness'},
+    leftovers: w => `${w} restored a little HP using its Leftovers!`, poisonDmg: w => `${w} was hurt by poison!`, burnDmg: w => `${w} was hurt by its burn!`,
+    recoil: w => `${w} was damaged by the recoil!`, weatherDmg: w => `${w} is buffeted by the weather!`, hailDmg: w => `${w} is pelted by hail!`, hailUpkeep: 'Hail continues to fall.', aHelp: 'How to play', aSound: 'Toggle sound', recharge: 'Recharge',
+    weatherBadge: {Hail: '❄ Hail', SunnyDay: '☀ Sun', RainDance: '☂ Rain', Sandstorm: '🌪 Sand'}, drain: w => `${w} had its energy drained!`,
+    weather: {SunnyDay: 'The sunlight turned harsh!', RainDance: 'It started to rain!', Sandstorm: 'A sandstorm kicked up!', Hail: 'It started to hail!', none: 'The weather returned to normal.'},
+    sub: w => `${w} put in a substitute!`, subEnd: w => `${w}'s substitute faded!`, subHit: 'The substitute took damage for it!',
+    confused: w => `${w} became confused!`, confusedAct: w => `${w} is confused!`, seeded: w => `${w} was seeded!`,
+    statusTag: {brn: 'BRN', par: 'PAR', slp: 'SLP', psn: 'PSN', tox: 'TOX', frz: 'FRZ'},
+    statShort: {atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe', accuracy: 'Acc', evasion: 'Eva'},
+    ate: (w, i) => `${w} ate its ${i}!`, usedItem: (w, i) => `${w} used its ${i}.`,
+    prepare: w => `${w} is gathering power...`, protect: w => `${w} protected itself!`, hitcount: n => `Hit ${n} times!`,
+    sideStart: (m, ally) => `${m} now protects ${ally ? 'your' : 'the opposing'} team!`, sideEnd: m => `${m} wore off.`,
+    clearBoosts: 'All stat changes were eliminated!', mimic: w => `${w} transformed!`,
+    ability: (w, a) => `${w}'s ${a}`, nothing: 'Nothing happened.', youTeam: 'Your team', hpLeft: 'HP',
+    battleTab: 'Battle', noItem: 'No item',
+    replay: 'Watch replay', retrySame: 'Retry with this team', practiceRandom: 'Practice with a random team', newRandom: 'Another random team',
+    practiceBadge: 'Practice', backToday: "Back to today's challenge",
+    summary: 'Battle summary', kos: 'KOs', dmg: 'Damage dealt', taken: 'Taken',
+  },
+};
+
+export const T = STRINGS[LANG];
+
+// Textos que dependen del rival. `team` es la lista de especies separada por comas.
+const BOSS_TEXT = {
+  es: {
+    red: {place: 'la cima del Monte Plateado', where: 'Monte Plateado', f: false, challenge: '¡Red quiere luchar!', wonSub: 'La cima es tuya. Por hoy.',
+      rule: 'Tus Pokémon son de <b>Kanto y Johto (1.ª y 2.ª gen)</b>.',
+      stage: '❄ <b>En la cima graniza todo el combate</b>: cada turno daña a los Pokémon que no son de tipo Hielo, y la Ventisca (la llevan Lapras, Snorlax y Blastoise) <b>nunca falla</b>.'},
+    cynthia: {place: 'la sala de la Campeona de la Liga Sinnoh', where: 'Liga Sinnoh', f: true, challenge: '¡La Campeona Cynthia quiere luchar!',
+      wonSub: 'Eres el nuevo Campeón de Sinnoh. Por hoy.', rule: 'Tus Pokémon son de las <b>generaciones 1 a 4</b>.', stage: ''},
+  },
+  en: {
+    red: {place: 'the summit of Mt. Silver', where: 'Mt. Silver', challenge: 'Red wants to battle!', wonSub: 'The summit is yours. For today.',
+      rule: 'Your Pokémon are from <b>Kanto and Johto (Gens 1-2)</b>.',
+      stage: '❄ <b>It hails for the whole battle at the summit</b>: every turn it hurts Pokémon that are not Ice-type, and Blizzard (Lapras, Snorlax and Blastoise know it) <b>never misses</b>.'},
+    cynthia: {place: "the Sinnoh League Champion's room", where: 'Sinnoh League', challenge: 'Champion Cynthia wants to battle!',
+      wonSub: "You are Sinnoh's new Champion. For today.", rule: 'Your Pokémon are from <b>Generations 1 to 4</b>.', stage: ''},
+  },
+};
+export function setBoss(id, name, team) {
+  const b = BOSS_TEXT[LANG][id];
+  const itemsText = es ? `🎒 <b>Todos los Pokémon de ${name} llevan objeto</b>.` : `🎒 <b>All of ${name}'s Pokémon hold an item</b>.`;
+  Object.assign(T, es ? {
+    lead: `${name} te espera en ${b.place}. Este es tu equipo de hoy, el mismo para todo el mundo. <b>Toca el Pokémon que quieres que empiece</b> y pulsa ¡Listo!`,
+    stageRules: [b.stage, itemsText].filter(Boolean).join('<br>'),
+    bossTeam: `El equipo de ${name}`, challenge: b.challenge, where: b.where, wonSub: b.wonSub,
+    how: ['Cada día recibes un <b>equipo de 6 Pokémon</b> nuevo, el mismo para todo el mundo.', `Mira tu equipo y el de ${name}, y <b>elige quién empieza</b>.`,
+      `Derrota al equipo de <b>${name}</b>, el mismo que en los juegos: ${team}. Todos a nivel 100 y con objeto.`, b.rule, b.stage,
+      'Solo tienes <b>un intento</b>. Recargar la página no lo reinicia.', 'Comparte tu resultado y vuelve mañana para no romper la racha.'],
+    won: `¡Has ganado a ${name}!`, lost: `${name} sigue ${b.f ? 'invicta' : 'invicto'}...`,
+    shareWin: t => `🏆 ¡${name} ${b.f ? 'derrotada' : 'derrotado'} en ${t} turnos!`, shareLoss: t => `💀 ${name} ganó (turno ${t})`, red: name,
+    redSends: n => `¡${name} envía a ${n}!`, win: `¡Has derrotado a ${name}!`, lose: `${name} te ha derrotado...`,
+  } : {
+    lead: `${name} awaits you at ${b.place}. This is today's team, the same for everyone. <b>Tap the Pokémon you want to lead</b> and press Ready!`,
+    stageRules: [b.stage, itemsText].filter(Boolean).join('<br>'),
+    bossTeam: `${name}'s team`, challenge: b.challenge, where: b.where, wonSub: b.wonSub,
+    how: ['Every day you get a new <b>team of 6 Pokémon</b>, the same for everyone.', `Check your team and ${name}'s, and <b>choose your lead</b>.`,
+      `Defeat <b>${name}</b>'s team, the same as in the games: ${team}. All at level 100 and holding items.`, b.rule, b.stage,
+      'You get <b>one attempt</b>. Reloading the page does not reset it.', 'Share your result and come back tomorrow to keep your streak.'],
+    won: `You beat ${name}!`, lost: `${name} remains undefeated...`,
+    shareWin: t => `🏆 Beat ${name} in ${t} turns!`, shareLoss: t => `💀 ${name} won (turn ${t})`, red: name,
+    redSends: n => `${name} sent out ${n}!`, win: `You defeated ${name}!`, lose: `${name} defeated you...`,
+  });
+}
