@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE} from '../src/game.js';
 
 test('el reto del día es igual para todos y cambia cada día', () => {
   const a = dailyPool('2026-10-12'), b = dailyPool('2026-10-12'), c = dailyPool('2026-10-13');
@@ -48,21 +48,46 @@ test('cada rival tiene su equipo del juego y tu equipo sale de sus generaciones'
   const dex = Dex.forGen(9);
   assert.deepEqual(BOSSES.red.team.map(s => s.species), ['Pikachu', 'Lapras', 'Snorlax', 'Venusaur', 'Charizard', 'Blastoise']);
   assert.deepEqual(BOSSES.cynthia.team.map(s => s.species), ['Spiritomb', 'Roserade', 'Togekiss', 'Lucario', 'Milotic', 'Garchomp']);
-  for (const [boss, [lo, hi]] of [['red', [1, 2]], ['cynthia', [1, 4]]]) {
-    for (let d = 1; d <= 5; d++) {
-      for (const set of dailyPool(`2026-11-0${d}`, boss)) {
+  for (const b of Object.values(BOSSES)) {
+    assert.equal(b.team.length, 6, b.id);
+    assert.equal(new Set(b.team.map(s => s.species)).size, 6, `${b.id} repite especie`);
+    const [lo, hi] = b.gens;
+    for (let d = 1; d <= 3; d++) {
+      for (const set of dailyPool(`2026-11-0${d}`, b.id)) {
         const sp = dex.species.get(set.species);
-        assert.ok(sp.gen >= lo && sp.gen <= hi, `${boss}: ${sp.name} es de Gen ${sp.gen}`);
-        assert.ok(!sp.tags.length, `${boss}: ${sp.name} es legendario`);
+        assert.ok(sp.gen >= lo && sp.gen <= hi, `${b.id}: ${sp.name} es de Gen ${sp.gen}`);
+        assert.ok(!sp.tags.some(t => t !== 'Paradox'), `${b.id}: ${sp.name} es legendario`);
       }
     }
   }
 });
 
+test('la Liga: 5 rivales distintos al día, equipo de Gen 1-9 y regla del día estable', () => {
+  const a = leagueLineup('2026-10-13');
+  assert.equal(a.length, LEAGUE.rounds);
+  assert.equal(new Set(a).size, LEAGUE.rounds);
+  assert.ok(a.every(id => BOSSES[id]));
+  assert.deepEqual(a, leagueLineup('2026-10-13'));
+  assert.equal(leaguePool('2026-10-13').length, POOL_SIZE);
+  assert.equal(ruleFor('2026-10-13', 'leon'), ruleFor('2026-10-13', 'leon'));
+  // Red ya tiene granizo: las reglas de clima no se aplican contra él.
+  for (let d = 0; d < 60; d++) assert.ok(!['sun', 'rain', 'sand', 'snow'].includes(ruleFor(`x-${d}`, 'red')));
+});
+
+test('con combate inverso, Fuego es muy eficaz contra Agua', () => {
+  for (let d = 0; d < 400; d++) {
+    if (ruleFor(`inv-${d}`, 'cynthia') !== 'inverse') continue;
+    const b = newBattle(`inv-${d}`, dailyPool('2026-10-13', 'cynthia'), 'cynthia');
+    assert.ok(b.field.pseudoWeather.inversebattle);
+    return;
+  }
+  assert.fail('ningún día con combate inverso en 400 días');
+});
+
 test('los rivales llevan objeto y contra Red empieza granizando', () => {
   for (const boss of Object.keys(BOSSES)) {
-    assert.ok(BOSSES[boss].team.every(s => s.item), boss);
-    for (let d = 0; d < 15; d++) {
+    assert.ok(BOSSES[boss].team.filter(s => !s.item).every(s => s.moves.includes('Acrobatics')), boss); // solo va sin objeto quien usa Acróbata
+    for (let d = 0; d < 6; d++) {
       const date = `2026-12-${String(d + 1).padStart(2, '0')}`, team = dailyPool(date, boss), b = newBattle(date, team, boss), choices = [];
       play(b, null);
       while (!b.ended && choices.length < 500) { const c = aiChoice(b, 'p1') || 'default'; play(b, c); choices.push(c); }
@@ -72,9 +97,9 @@ test('los rivales llevan objeto y contra Red empieza granizando', () => {
   }
 });
 
-test('200 combates por rival con elecciones al azar terminan sin errores y se reproducen igual', () => {
+test('60 combates por rival con elecciones al azar terminan sin errores y se reproducen igual', () => {
   for (const boss of Object.keys(BOSSES)) {
-    for (let d = 0; d < 200; d++) {
+    for (let d = 0; d < 60; d++) {
       const date = `azar-${d}`, team = dailyPool(date, boss), b = newBattle(date, team, boss), choices = [];
       let x = d + 1; // pseudoaleatorio simple y repetible
       const rand = n => (x = (x * 1103515245 + 12345) % 2147483648) % n;

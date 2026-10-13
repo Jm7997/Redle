@@ -1,8 +1,9 @@
-// Interfaz: vista previa de equipos, combate animado a partir del log de Showdown, resultado, ajustes.
+// Interfaz: rivales diarios, Liga, vista previa de equipos, combate animado a partir del log de Showdown,
+// resultado, repeticiones compartibles y ajustes.
 import {Dex} from '@pkmn/sim';
 import {Sprites, Icons} from '@pkmn/img';
-import {today, msToNext, dayNumber, dailyPool, BOSSES, play, replay, typeMultiplier} from './game.js';
-import {T, LANG, setLang, setBoss, typeName, moveName, itemName, abilityName} from './i18n.js';
+import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
+import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
@@ -13,41 +14,118 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ls = {get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }};
 const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 
-// Rival (?vs=red|cynthia). Cada uno tiene su ambientación, su equipo y sus estadísticas.
-const SD = 'https://play.pokemonshowdown.com/';
+// ---------- ambientación de cada rival ----------
+// colors: cabecera, cabecera oscura, y degradado/borde de las fichas de su equipo.
+const SD = 'https://play.pokemonshowdown.com/', G6 = SD + 'sprites/gen6bgs/';
 const STAGES = {
+  blue: {sprite: 'blue', emoji: '🌿', bg: G6 + 'bg-city.jpg', music: ['hgss-kanto-trainer', 'bw2-kanto-gym-leader'], colors: ['#2f7de1', '#163f80', '#7fb4f0', '#2a64b8', '#123a73']},
   red: {sprite: 'red', emoji: '⛰️', bg: SD + 'fx/bg-icecave.png', music: ['hgss-kanto-trainer', 'hgss-johto-trainer', 'bw2-kanto-gym-leader']},
-  cynthia: {sprite: 'cynthia', emoji: '👑', bg: SD + 'sprites/gen6bgs/bg-elite4drake.jpg', music: ['dpp-rival', 'dpp-trainer']},
+  lance: {sprite: 'lance', emoji: '🐉', bg: G6 + 'bg-skypillar.jpg', music: ['hgss-johto-trainer', 'hgss-kanto-trainer'], colors: ['#c43a22', '#6e1a0e', '#f09a7f', '#b23a24', '#5e140c']},
+  steven: {sprite: 'steven', emoji: '💎', bg: G6 + 'bg-earthycave.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#5d6f8f', '#2b3550', '#a9b8d4', '#56688c', '#27324a']},
+  wallace: {sprite: 'wallace', emoji: '🌊', bg: G6 + 'bg-leaderwallace.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#1d9fcb', '#0b5a78', '#86dcf2', '#1c88b2', '#0a4a63']},
+  cynthia: {sprite: 'cynthia', emoji: '👑', bg: G6 + 'bg-elite4drake.jpg', music: ['dpp-rival', 'dpp-trainer']},
+  iris: {sprite: 'iris', emoji: '🐲', bg: G6 + 'bg-forest.jpg', music: ['bw2-rival', 'bw-rival'], colors: ['#9046cf', '#4d1d7c', '#d4a8f3', '#8140b6', '#43186b']},
+  leon: {sprite: 'leon', emoji: '🔥', bg: G6 + 'bg-darkcity.jpg', music: ['sm-rival', 'xy-rival'], colors: ['#b5142f', '#560715', '#f2c54a', '#a8122b', '#4a0612']},
 };
-const BOSS = BOSSES[new URLSearchParams(location.search).get('vs')] ? new URLSearchParams(location.search).get('vs') : 'red';
-const B = BOSSES[BOSS], STAGE = STAGES[BOSS];
-const keyOf = boss => `redle:v9:${boss}`;
-const KEY = keyOf(BOSS);
-const store = Object.assign({stats: {played: 0, wins: 0, streak: 0, best: 0, last: null}, days: {}}, JSON.parse(ls.get(KEY) || '{}'));
-
-// Modo práctica (?practica=semilla&equipo=hoy|semilla): no se guarda ni cuenta para las estadísticas.
-// Solo tras jugar el reto: si perdiste, con el mismo equipo del día; si ganaste, también con equipos aleatorios.
+const keyOf = mode => `redle:v10:${mode}`;
 const TODAY = today();
 const DAY = dayNumber(TODAY);
 const YESTERDAY = new Date(Date.parse(TODAY + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
 const params = new URLSearchParams(location.search);
+
+// ---------- repeticiones compartibles ----------
+// El combate es determinista: basta con el modo, la fecha, la ronda, el orden del equipo y las elecciones.
+// Se codifican en el #hash del enlace. Todo lo que llega por el enlace se valida antes de usarlo.
+const packChoices = cs => cs.map(c => c === 'default' ? 'd' : c[0] + c.split(' ')[1]).join('.');
+function encodeReplay(data) {
+  const json = JSON.stringify({...data, c: packChoices(data.c)});
+  return btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function parseReplay(hash) {
+  const m = hash.match(/^#r=([\w-]{1,20000})$/);
+  if (!m) return null;
+  try {
+    const raw = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
+    const mode = String(raw.m), date = String(raw.d), round = raw.r | 0, picks = raw.p, tokens = String(raw.c).split('.');
+    if (mode !== 'liga' && !BOSSES[mode]) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > TODAY) return null; // nunca combates de días futuros
+    if (round < 0 || round >= LEAGUE.rounds || (mode !== 'liga' && round)) return null;
+    if (!Array.isArray(picks) || [...picks].sort().join() !== '0,1,2,3,4,5') return null;
+    if (tokens.length > 1000 || !tokens.every(t => /^(m[1-4]|s[1-6]|d)$/.test(t))) return null;
+    const choices = tokens.map(t => t === 'd' ? 'default' : (t[0] === 'm' ? 'move ' : 'switch ') + t[1]);
+    return {mode, date, round, picks: picks.map(Number), choices};
+  } catch { return null; }
+}
+const REPLAY = parseReplay(location.hash);
+
+// ---------- modo, almacenamiento y práctica ----------
+const MODE = REPLAY ? REPLAY.mode : params.get('vs') === 'liga' ? 'liga' : BOSSES[params.get('vs')] ? params.get('vs') : 'red';
+const LIGA = MODE === 'liga';
+const KEY = keyOf(MODE);
+const store = Object.assign({stats: {played: 0, wins: 0, streak: 0, best: 0, bestRound: 0, last: null}, days: {}}, JSON.parse(ls.get(KEY) || '{}'));
+
+// Modo práctica (?practica=semilla&equipo=hoy|semilla): no se guarda ni cuenta para las estadísticas.
+// Solo tras jugar el reto: si perdiste, con el mismo equipo del día; si ganaste, también con equipos aleatorios.
 const dailyResult = store.days[TODAY]?.result;
-const PRACTICE = dailyResult ? params.get('practica') : null;
+const PRACTICE = !REPLAY && dailyResult ? params.get('practica') : null;
 const TEAM = PRACTICE && dailyResult === 'win' ? params.get('equipo') || 'hoy' : 'hoy';
-const DATE = PRACTICE ? 'practica-' + PRACTICE : TODAY;
-const POOL = dailyPool(TEAM === 'hoy' ? TODAY : 'equipo-' + TEAM, BOSS);
+const POOL_DATE = REPLAY ? REPLAY.date : TEAM === 'hoy' ? TODAY : 'equipo-' + TEAM;
+const RULE_DATE = REPLAY ? REPLAY.date : TODAY; // la práctica conserva la regla del día
+const DATE = REPLAY ? REPLAY.date : PRACTICE ? 'practica-' + PRACTICE : TODAY;
+const POOL = LIGA ? leaguePool(POOL_DATE) : dailyPool(POOL_DATE, MODE);
+const LINEUP = LIGA ? leagueLineup(REPLAY ? REPLAY.date : TODAY) : [MODE];
 const rand = () => Math.random().toString(36).slice(2, 8);
-const goPractice = team => { location.search = `?vs=${BOSS}&practica=${rand()}&equipo=${team}`; };
-const goToday = () => { location.search = `?vs=${BOSS}`; };
-if (params.has('practica') && !PRACTICE) history.replaceState(null, '', `${location.pathname}?vs=${BOSS}`);
-const battleTrack = day => STAGE.music[day % STAGE.music.length];
+const goPractice = team => { location.search = `?vs=${MODE}&practica=${rand()}&equipo=${team}`; };
+const goToday = () => { location.href = `${location.pathname}?vs=${MODE}`; };
+if (params.has('practica') && !PRACTICE && !REPLAY) history.replaceState(null, '', `${location.pathname}?vs=${MODE}`);
 let speed = +(ls.get('redle:speed') || 1);
 setSpeed(speed);
 
-// ---------- almacenamiento ----------
-if (PRACTICE) delete store.days[DATE];
-const save = () => { if (!PRACTICE) ls.set(KEY, JSON.stringify(store)); };
-const todayRec = () => store.days[DATE] ||= {picks: POOL.map((_, i) => i), choices: []};
+if (PRACTICE || REPLAY) delete store.days[DATE];
+const save = () => { if (!PRACTICE && !REPLAY) ls.set(KEY, JSON.stringify(store)); };
+const defaultPicks = () => POOL.map((_, i) => i);
+// El día guarda una partida (rival) o varias rondas (Liga); `rec()` es siempre el combate en curso.
+const day = () => store.days[DATE] ||= LIGA ? {round: 0, rounds: []} : {picks: defaultPicks(), choices: []};
+const round = () => LIGA ? day().round : 0;
+const rec = () => LIGA ? (day().rounds[day().round] ||= {picks: defaultPicks(), choices: []}) : day();
+if (REPLAY) Object.assign(LIGA ? (day().round = REPLAY.round, rec()) : day(), {picks: REPLAY.picks, choices: [], started: true});
+const battleKey = () => LIGA ? `liga${round()}:${DATE}` : DATE;
+
+// ---------- rival actual ----------
+let OPP, B, STAGE, RULE;
+function setOpponent(id) {
+  OPP = id; B = BOSSES[id]; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id);
+  setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens);
+  const body = document.body;
+  body.className = body.className.replace(/\bboss-\w+/g, '').trim();
+  body.classList.add('boss-' + id);
+  body.classList.toggle('stage-g6', STAGE.bg.includes('gen6bgs'));
+  for (const [i, v] of ['--dex', '--dex-dark', '--slot-a', '--slot-b', '--slot-edge'].entries()) {
+    if (STAGE.colors) body.style.setProperty(v, STAGE.colors[i]); else body.style.removeProperty(v);
+  }
+  document.querySelectorAll('.boss-sprite').forEach(im => { im.src = `${SD}sprites/trainers/${STAGE.sprite}.png`; im.alt = B.name; });
+  document.querySelectorAll('.boss-name').forEach(e => (e.textContent = B.name));
+  document.documentElement.style.setProperty('--arena-bg', `url(${STAGE.bg})`);
+  document.querySelectorAll('[data-i18n]').forEach(e => (e.innerHTML = T[e.dataset.i18n]));
+  $('#how').innerHTML = T.how.filter(Boolean).map(h => `<li>${h}</li>`).join('');
+}
+setOpponent(LINEUP[round()]);
+document.documentElement.lang = LANG;
+if (LIGA) document.body.classList.add('mode-liga');
+
+// Selector de modo: los 8 rivales y la Liga, con el estado del reto de hoy de cada uno.
+const markOf = id => {
+  const d = JSON.parse(ls.get(keyOf(id)) || '{}').days?.[TODAY];
+  return id === 'liga' && d?.result ? (d.result === 'win' ? '🏆' : `${d.reached}/5`) : d?.result === 'win' ? '🏆' : d?.result === 'loss' ? '✗' : '';
+};
+$('#bosses').innerHTML = [...Object.values(BOSSES).map(b => ({id: b.id, name: b.name, img: `${SD}sprites/trainers/${STAGES[b.id].sprite}.png`})),
+  {id: 'liga', name: T.league, img: ''}].map(b =>
+  `<a href="?vs=${b.id}" class="boss-tab ${b.id}${b.id === MODE ? ' on' : ''}">${b.img ? `<img src="${b.img}" alt="" width="40" height="40">` : '<span class="liga-icon">🏟️</span>'}
+    <span><b>${b.name}</b><small>${b.id === MODE ? (LIGA ? T.leagueWhere : T.where) : ''}</small></span><i>${markOf(b.id)}</i></a>`).join('');
+{ // centrar la pestaña activa sin mover la página
+  const nav = $('#bosses'), on = $('.boss-tab.on');
+  if (on) nav.scrollLeft = on.offsetLeft - (nav.clientWidth - on.clientWidth) / 2;
+}
 
 // ---------- utilidades visuales ----------
 const typeBadge = t => `<span class="type t-${t.toLowerCase()}">${typeName(t)}</span>`;
@@ -55,24 +133,7 @@ const spriteOf = (species, back) => Sprites.getPokemon(species, {gen: 'ani', sid
 const icon = (species, extra = '') => `<span class="icon-mon ${extra}" style="${Icons.getPokemon(species).style}" title="${species}"></span>`;
 const itemIcon = name => `<span class="icon-item" style="${Icons.getItem(name).style}"></span>`;
 const cryId = species => toID(dex.species.get(species).baseSpecies);
-
-// Textos estáticos del HTML y ambientación del rival.
-setBoss(BOSS, B.name, B.team.map(s => s.species).join(', '));
-document.documentElement.lang = LANG;
-document.body.classList.add('boss-' + BOSS);
-document.querySelectorAll('.boss-sprite').forEach(im => { im.src = `${SD}sprites/trainers/${STAGE.sprite}.png`; im.alt = B.name; });
-document.querySelectorAll('.boss-name').forEach(e => (e.textContent = B.name));
-document.documentElement.style.setProperty('--arena-bg', `url(${STAGE.bg})`);
-
-// Selector de rival con el estado del reto de hoy de cada uno.
-$('#bosses').innerHTML = Object.values(BOSSES).map(b => {
-  const res = JSON.parse(ls.get(keyOf(b.id)) || '{}').days?.[TODAY]?.result;
-  const mark = res === 'win' ? '🏆' : res === 'loss' ? '✗' : '';
-  return `<a href="?vs=${b.id}" class="boss-tab ${b.id}${b.id === BOSS ? ' on' : ''}"><img src="${SD}sprites/trainers/${STAGES[b.id].sprite}.png" alt="" width="44" height="44">
-    <span><b>${b.name}</b><small>${b.id === BOSS ? T.where : ''}</small></span><i>${mark}</i></a>`;
-}).join('');
-document.querySelectorAll('[data-i18n]').forEach(e => (e.innerHTML = T[e.dataset.i18n]));
-$('#how').innerHTML = T.how.filter(Boolean).map(h => `<li>${h}</li>`).join('');
+const trainerImg = id => `${SD}sprites/trainers/${STAGES[id].sprite}.png`;
 
 // ---------- fondo con Pokémon ----------
 function backgroundMons() {
@@ -103,55 +164,85 @@ function slot(set, tag) {
   return s;
 }
 
+// Fila de los 5 rivales de la Liga: vencidos, el actual y los que faltan.
+function drawLineup() {
+  const box = $('#lineup');
+  box.hidden = !LIGA;
+  if (!LIGA) return;
+  const d = day();
+  box.innerHTML = LINEUP.map((id, i) => {
+    const r = d.rounds[i]?.result, cls = r === 'win' ? 'beaten' : r === 'loss' ? 'lost' : i === d.round ? 'current' : '';
+    return `<figure class="${cls}"><img src="${trainerImg(id)}" alt="" width="56" height="56"><figcaption><b>${BOSSES[id].name}</b><small>${i === 4 ? T.champion : T.eliteN(i + 1)}</small></figcaption></figure>`;
+  }).join('');
+}
+
 function renderDraft() {
-  const rec = todayRec();
+  const r = rec();
   $('#draft').hidden = false;
+  $('#battle').hidden = true;
+  drawLineup();
+  $('.intro-text').innerHTML = LIGA ? T.leagueLead(round() + 1, B.name) : T.lead;
   $('#pool').replaceChildren(...POOL.map((set, i) => {
     const s = slot(set, 'button');
-    if (rec.picks[0] === i) { s.classList.add('lead'); s.append(el('span', 'ribbon', T.leadTag)); }
-    s.onclick = () => { sfx('click'); rec.picks = [i, ...POOL.map((_, j) => j).filter(j => j !== i)]; renderDraft(); };
+    if (r.picks[0] === i) { s.classList.add('lead'); s.append(el('span', 'ribbon', T.leadTag)); }
+    s.onclick = () => { sfx('click'); r.picks = [i, ...POOL.map((_, j) => j).filter(j => j !== i)]; renderDraft(); };
     return s;
   }));
   $('#red-team').replaceChildren(...B.team.map(set => slot(set, 'div')));
-  $('#stage-rules').innerHTML = T.stageRules;
+  $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
   const go = $('#btn-go');
   go.querySelector('.txt').textContent = T.go;
-  go.onclick = () => { rec.started = true; save(); startBattle(true); };
+  go.onclick = () => { r.started = true; save(); startBattle(true); };
 }
 
 // ---------- combate ----------
 let battle, logIdx = 0, busy = false;
 const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}});
-const view = {p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: ''};
-const team = () => todayRec().picks.map(i => POOL[i]);
+const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: '', field: []});
+const view = freshView();
+const team = () => rec().picks.map(i => POOL[i]);
 const img = side => $(`.mon.${side === 'p1' ? 'me' : 'foe'}`);
 const wait = ms => sleep(ms / speed);
 const seenOf = species => (view.seen[species] ||= {moves: new Set()});
+const battleTrack = () => STAGE.music[(DAY + round()) % STAGE.music.length];
+
+// Deja el escenario como nuevo (siguiente ronda de la Liga o repetición).
+function resetView() {
+  logIdx = 0;
+  Object.assign(view, freshView());
+  drawWeather();
+  for (const side of ['p1', 'p2']) { const im = img(side); im.classList.remove('faint', 'enter'); im.removeAttribute('src'); delete im.dataset.species; }
+  $('#log').innerHTML = $('#msg').innerHTML = '';
+  $('#moves').innerHTML = $('#switches').innerHTML = $('#prompt').textContent = '';
+}
 
 async function startBattle(isNew) {
-  const rec = todayRec();
+  const r = rec();
   $('#draft').hidden = true;
   $('#battle').hidden = false;
   setupFx($('.arena'));
-  battle = replay(DATE, team(), rec.choices, BOSS);
-  if (rec.result) { await consume(false); return showResult(); }
-  playMusic(battleTrack(DAY));
-  if (isNew) {
+  battle = replay(battleKey(), team(), REPLAY ? REPLAY.choices : r.choices, OPP, RULE);
+  $('#replay-banner').hidden = !REPLAY;
+  if (REPLAY) $('#replay-banner').innerHTML = T.replayBanner(B.name, REPLAY.date);
+  if (r.result && !REPLAY) { await consume(false); if (day().result) showResult(); return; } // en la Liga puede quedar el siguiente rival
+  playMusic(battleTrack());
+  if (isNew || REPLAY) {
     // Transición de inicio de combate: destellos, franjas y el rival entrando.
+    $('#intro p').textContent = LIGA ? T.leagueChallenge(round() + 1, B.name) : T.challenge;
     const intro = $('#intro');
     intro.hidden = false;
     sfx('encounter');
     await sleep(2600);
     intro.hidden = true;
   }
-  await consume(isNew);
+  await consume(isNew || !!REPLAY);
 }
 
 async function choose(choice) {
-  if (busy) return;
+  if (busy || REPLAY) return;
   sfx('click');
   if (!play(battle, choice)) return;
-  todayRec().choices.push(choice); // se guarda antes de animar: recargar no da otro intento
+  rec().choices.push(choice); // se guarda antes de animar: recargar no da otro intento
   save();
   await consume(true);
 }
@@ -172,6 +263,7 @@ async function consume(animate) {
   busy = false;
   $('#controls').classList.remove('locked');
   if (battle.ended) finish(animate);
+  else if (REPLAY) replayEnd();
   else drawControls();
 }
 
@@ -325,6 +417,12 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       drawWeather();
       if ([b, c].includes('[upkeep]')) return a === 'Hail' ? say(T.hailUpkeep, animate) : null;
       return T.weather[a] ? say(T.weather[a], animate) : null;
+    case '-fieldstart': case '-fieldend': { // Espacio Raro, Gravedad, combate inverso
+      const id = a.replace('move: ', '');
+      view.field = cmd === '-fieldstart' ? [...view.field, id] : view.field.filter(f => f !== id);
+      drawWeather();
+      return cmd === '-fieldstart' && T.fieldStart[id] ? say(T.fieldStart[id], animate, 'eff') : null;
+    }
     case '-prepare': return say(T.prepare(who(a)), animate, cls);
     case '-singleturn': return /Protect|Detect/.test(b) ? say(T.protect(who(a)), animate, cls) : null;
     case '-sidestart': return say(T.sideStart(moveName(b.replace('move: ', '')), a.startsWith('p1')), animate);
@@ -371,11 +469,12 @@ function animateBar(side, fromPct, toPct, dur, maxhp) {
   anim.id = requestAnimationFrame(tick);
 }
 
-// Indicador y partículas del clima (granizo en el Monte Plateado).
+// Indicador y partículas del clima y de los efectos de campo (Espacio Raro, combate inverso…).
 function drawWeather() {
-  $('.arena').classList.toggle('hail', view.weather === 'Hail');
-  $('.weather-badge').hidden = !view.weather;
-  $('.weather-badge').textContent = T.weatherBadge[view.weather] || '';
+  $('.arena').classList.toggle('hail', view.weather === 'Hail' || view.weather === 'Snowscape');
+  const badges = [T.weatherBadge[view.weather], ...view.field.map(f => T.fieldBadge[f])].filter(Boolean);
+  $('.weather-badge').hidden = !badges.length;
+  $('.weather-badge').textContent = badges.join(' · ');
 }
 
 function drawHud(side, dur = 0, fromHp) {
@@ -410,11 +509,11 @@ function drawHud(side, dur = 0, fromHp) {
 function drawTeamPanel() {
   $('#team-panel').innerHTML = battle.p1.pokemon.map(p => {
     const pct = Math.round(100 * p.hp / p.maxhp);
-    const item = p.item ? `${itemIcon(p.item)}${itemName(p.item)}` : T.noItem;
+    const it = p.item ? `${itemIcon(p.item)}${itemName(p.item)}` : T.noItem;
     return `<div class="tp${p.fainted ? ' out' : ''}${p.isActive ? ' active' : ''}">
       <div class="tp-head">${icon(p.species.name)}<b>${p.name}</b>${p.status ? `<span class="st st-${p.status}">${T.statusTag[p.status]}</span>` : ''}<span class="tp-hp">${p.hp}/${p.maxhp}</span></div>
       <div class="mini-hp"><i class="${pct > 50 ? '' : pct > 20 ? 'mid' : 'low'}" style="width:${pct}%"></i></div>
-      <div class="tp-sub">${item} · ${abilityName(p.ability)}</div>
+      <div class="tp-sub">${it} · ${abilityName(p.ability)}</div>
       <div class="moves4">${p.moveSlots.map(m => `<span class="t-${dex.moves.get(m.id).type.toLowerCase()}">${moveName(m.id)}<small>${m.pp}/${m.maxpp}</small></span>`).join('')}</div>
     </div>`;
   }).join('');
@@ -474,58 +573,93 @@ $('#foe-hud').onclick = () => {
   $('#dlg-foe').showModal();
 };
 
-// ---------- final y estadísticas ----------
+// ---------- final, Liga y estadísticas ----------
+const ballBtn = (txt, fn, cls = 'ballbtn') => { const b = el('button', cls, `<span class="ball" aria-hidden="true"></span><span class="txt">${txt}</span>`); b.onclick = fn; return b; };
+
+// Al acabar el día (rival o Liga completa) se apuntan las estadísticas una sola vez.
+function closeDay(won, reached) {
+  const d = day();
+  if (d.result) return;
+  d.result = won ? 'win' : 'loss';
+  if (LIGA) d.reached = reached;
+  if (PRACTICE || REPLAY) return;
+  const s = store.stats;
+  s.played++;
+  if (won) { s.wins++; s.streak = s.last === YESTERDAY ? s.streak + 1 : 1; s.best = Math.max(s.best, s.streak); s.last = TODAY; }
+  else s.streak = 0;
+  if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
+  save();
+}
+
 function finish(animate) {
-  const rec = todayRec();
+  const r = rec();
   lowHpAlarm(false);
   $('.tabs button[data-tab=controls]').click();
   $('#moves').innerHTML = $('#switches').innerHTML = '';
-  $('#prompt').textContent = '';
-  if (!rec.result) {
-    const won = battle.winner === 'Tú';
-    rec.result = won ? 'win' : 'loss';
-    rec.turns = battle.turn;
-    rec.mine = battle.p1.pokemon.map(p => (p.fainted ? 0 : p.hp / p.maxhp));
-    rec.red = battle.p2.pokemon.map(p => (p.fainted ? 0 : 1));
-    if (!PRACTICE) {
-      const s = store.stats;
-      s.played++;
-      if (won) { s.wins++; s.streak = s.last === YESTERDAY ? s.streak + 1 : 1; s.best = Math.max(s.best, s.streak); s.last = TODAY; }
-      else s.streak = 0;
-      save();
-    }
+  if (REPLAY) return replayEnd();
+  const won = battle.winner === 'Tú';
+  if (!r.result) {
+    r.result = won ? 'win' : 'loss';
+    r.turns = battle.turn;
+    r.mine = battle.p1.pokemon.map(p => (p.fainted ? 0 : p.hp / p.maxhp));
+    r.red = battle.p2.pokemon.map(p => (p.fainted ? 0 : 1));
+    save();
   }
-  if (animate) jingle(rec.result === 'win' ? 'win' : 'lose');
+  // Liga: si gana y quedan rivales, a por el siguiente (el equipo se cura entre combates).
+  if (LIGA && r.result === 'win' && round() < LEAGUE.rounds - 1) {
+    if (animate) jingle('win');
+    $('#prompt').textContent = T.won;
+    const next = LINEUP[round() + 1];
+    $('#moves').append(ballBtn(T.nextRival(BOSSES[next].name), () => {
+      day().round++;
+      save();
+      resetView();
+      setOpponent(next);
+      renderDraft();
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }));
+    return;
+  }
+  closeDay(r.result === 'win', LIGA ? (r.result === 'win' ? LEAGUE.rounds : round()) : 0);
+  if (animate) jingle(r.result === 'win' ? 'win' : 'lose');
   else playMusic(null);
-  $('#prompt').textContent = rec.result === 'win' ? T.won : T.lost;
-  const btn = (txt, fn, cls = 'ballbtn') => { const b = el('button', cls, `<span class="ball" aria-hidden="true"></span><span class="txt">${txt}</span>`); b.onclick = fn; return b; };
-  $('#moves').append(btn((rec.result === 'win' ? '🏆 ' : '') + T.seeResult, showResult),
-    btn('▶ ' + T.replay, watchReplay, 'ballbtn alt'), ...practiceOptions().map(([txt, fn]) => btn(txt, fn, 'ballbtn alt')));
+  $('#prompt').textContent = LIGA ? (day().result === 'win' ? T.leagueWon : T.leagueLost(round() + 1)) : r.result === 'win' ? T.won : T.lost;
+  $('#moves').append(ballBtn((day().result === 'win' ? '🏆 ' : '') + T.seeResult, showResult),
+    ballBtn('▶ ' + T.replay, watchReplay, 'ballbtn alt'), ...practiceOptions().map(([txt, fn]) => ballBtn(txt, fn, 'ballbtn alt')));
   if (animate) setTimeout(showResult, 2500);
 }
 
 // Qué práctica se ofrece al acabar: el mismo equipo siempre; uno aleatorio solo si ya ganaste el reto de hoy.
 function practiceOptions() {
+  if (REPLAY) return [];
   const won = (PRACTICE ? dailyResult : store.days[TODAY]?.result) === 'win';
   const opts = [[T.retrySame, () => goPractice(TEAM)]];
   if (won) opts.push([PRACTICE ? T.newRandom : T.practiceRandom, () => goPractice(rand())]);
   return opts;
 }
 
-// Vuelve a reproducir el combate entero con animaciones (es determinista).
+// Vuelve a reproducir el último combate entero con animaciones (es determinista).
 async function watchReplay() {
   if (busy) return;
   $('#dlg-stats').close();
-  logIdx = 0;
-  Object.assign(view, {p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: ''});
-  drawWeather();
-  for (const side of ['p1', 'p2']) { const im = img(side); im.classList.remove('faint', 'enter'); im.removeAttribute('src'); delete im.dataset.species; }
-  $('#log').innerHTML = '';
-  $('#moves').innerHTML = $('#switches').innerHTML = '';
-  battle = replay(DATE, team(), todayRec().choices, BOSS);
-  playMusic(battleTrack(DAY));
+  resetView();
+  battle = replay(battleKey(), team(), rec().choices, OPP, RULE);
+  playMusic(battleTrack());
   window.scrollTo({top: 0, behavior: 'smooth'});
   await consume(true);
+}
+
+// Fin de una repetición compartida: invitar a jugar el reto de hoy.
+function replayEnd() {
+  $('#prompt').textContent = '';
+  $('#moves').replaceChildren(ballBtn(T.playToday, goToday));
+}
+
+// Enlace que reproduce este combate en cualquier navegador.
+function replayLink() {
+  const r = rec();
+  const hash = encodeReplay({m: MODE, d: DATE, r: round(), p: r.picks, c: r.choices});
+  return `${location.origin}${location.pathname}?vs=${MODE}#r=${hash}`;
 }
 
 // Resumen del combate a partir del log: daño hecho, K.O. y daño recibido por cada uno de tus Pokémon.
@@ -555,23 +689,30 @@ function summary() {
   return [...stats.values()];
 }
 
-function shareText(rec) {
-  const mine = rec.mine.map(f => (f === 0 ? '🟥' : f < 0.5 ? '🟨' : '🟩')).join('');
-  const red = rec.red.map(a => (a ? '🔴' : '⚫')).join('');
-  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}\n${(rec.result === 'win' ? T.shareWin : T.shareLoss)(rec.turns)}\n${T.you}: ${mine}\n${T.red}: ${red}\n${location.origin}${location.pathname}?vs=${BOSS}`;
+function shareText() {
+  const d = day(), url = `${location.origin}${location.pathname}?vs=${MODE}`;
+  if (LIGA) {
+    const marks = LINEUP.map((_, i) => d.rounds[i]?.result === 'win' ? '✅' : d.rounds[i]?.result === 'loss' ? '❌' : '⬜').join('');
+    return `Redle ${T.league} #${DAY} 🏟️\n${T.leagueShare(d.reached)}\n${marks}\n${LINEUP.map(id => BOSSES[id].name).join(' · ')}\n${url}`;
+  }
+  const mine = d.mine.map(f => (f === 0 ? '🟥' : f < 0.5 ? '🟨' : '🟩')).join('');
+  const red = d.red.map(a => (a ? '🔴' : '⚫')).join('');
+  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}\n${(d.result === 'win' ? T.shareWin : T.shareLoss)(d.turns)}\n${T.you}: ${mine}\n${T.red}: ${red}\n${url}`;
 }
 
 function showResult() {
-  const rec = store.days[DATE], done = rec?.result;
-  $('#result-title').textContent = !done ? T.stats : rec.result === 'win' ? T.won : T.lost;
-  $('#result-body').innerHTML = done
-    ? `<img class="result-red ${rec.result}" src="${SD}sprites/trainers/${STAGE.sprite}.png" alt="${B.name}" width="96" height="96"><p>${rec.result === 'win' ? T.wonSub : T.lostSub}</p>`
-    : '';
+  const d = store.days[DATE], done = d?.result;
+  $('#result-title').textContent = !done ? T.stats : LIGA ? (done === 'win' ? T.leagueWon : T.leagueLost(d.reached + 1)) : done === 'win' ? T.won : T.lost;
+  $('#result-body').innerHTML = !done ? '' : LIGA
+    ? `<div class="lineup small-lineup">${LINEUP.map((id, i) => `<figure class="${d.rounds[i]?.result === 'win' ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : ''}"><img src="${trainerImg(id)}" alt="" width="48" height="48"><figcaption><b>${BOSSES[id].name}</b></figcaption></figure>`).join('')}</div><p>${done === 'win' ? T.leagueWonSub : T.leagueLostSub}</p>`
+    : `<img class="result-red ${done}" src="${trainerImg(OPP)}" alt="${B.name}" width="96" height="96"><p>${done === 'win' ? T.wonSub : T.lostSub}</p>`;
   const s = store.stats, streak = s.last === TODAY || s.last === YESTERDAY ? s.streak : 0;
-  $('#stats').innerHTML = [[s.played, T.played], [s.played ? Math.round(100 * s.wins / s.played) + '%' : '—', T.winPct], [streak, T.streak], [s.best, T.best]]
-    .map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
-  $('#share-box').hidden = !done || PRACTICE;
-  if (done) $('#share-text').textContent = shareText(rec);
+  const cells = LIGA
+    ? [[s.played, T.played], [s.wins, T.champions], [`${s.bestRound || 0}/5`, T.bestRound], [streak, T.streak]]
+    : [[s.played, T.played], [s.played ? Math.round(100 * s.wins / s.played) + '%' : '—', T.winPct], [streak, T.streak], [s.best, T.best]];
+  $('#stats').innerHTML = cells.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+  $('#share-box').hidden = !done || !!PRACTICE;
+  if (done) $('#share-text').textContent = shareText();
   $('#summary').innerHTML = '';
   if (done && battle?.ended) {
     const rows = summary(), mvp = rows.reduce((m, r) => (r.kos * 1000 + r.dmg > m.kos * 1000 + m.dmg ? r : m), rows[0]);
@@ -580,8 +721,13 @@ function showResult() {
   }
   $('#result-actions').innerHTML = '';
   if (done) {
-    const add = (txt, fn) => { const b = el('button', 'secondary', txt); b.onclick = fn; $('#result-actions').append(b); };
+    const add = (txt, fn) => { const b = el('button', 'secondary', txt); b.onclick = fn; $('#result-actions').append(b); return b; };
     if (battle?.ended) add('▶ ' + T.replay, watchReplay);
+    if (battle?.ended && !PRACTICE) {
+      const b = add('🔗 ' + T.shareReplay, async () => {
+        try { await navigator.clipboard.writeText(replayLink()); b.textContent = '🔗 ' + T.replayCopied; } catch {}
+      });
+    }
     for (const [txt, fn] of practiceOptions()) add(txt, fn);
     if (PRACTICE) add(T.backToday, goToday);
   }
@@ -590,7 +736,7 @@ function showResult() {
 }
 
 $('#btn-share').onclick = async () => {
-  const text = shareText(store.days[DATE]);
+  const text = shareText();
   try {
     if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({text});
     else { await navigator.clipboard.writeText(text); $('#btn-share').textContent = T.copied; }
@@ -623,7 +769,7 @@ $('#btn-mute').onclick = () => {
 };
 
 // ---------- arranque ----------
-$('#day-num').textContent = PRACTICE ? T.practiceBadge : '#' + DAY;
+$('#day-num').textContent = PRACTICE ? T.practiceBadge : REPLAY ? '▶' : '#' + DAY;
 if (PRACTICE) document.body.classList.add('practice');
 document.querySelectorAll('[data-close]').forEach(b => (b.onclick = () => b.closest('dialog').close()));
 $('#btn-help').onclick = () => $('#dlg-help').showModal();
@@ -642,6 +788,7 @@ backgroundMons();
 for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();
 
-if (!Object.keys(store.days).length && !PRACTICE) $('#dlg-help').showModal();
-if (store.days[DATE]?.started) startBattle(false);
+const firstVisit = !Object.values(BOSSES).concat({id: 'liga'}).some(b => ls.get(keyOf(b.id)));
+if (firstVisit && !PRACTICE && !REPLAY) $('#dlg-help').showModal();
+if (REPLAY || rec().started) startBattle(false);
 else renderDraft();

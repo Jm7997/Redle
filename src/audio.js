@@ -92,7 +92,9 @@ export function cry(speciesId, faint) {
   const a = new Audio(`${SD}cries/${speciesId}.mp3`);
   a.volume = 0.55;
   if (faint) { a.preservesPitch = false; a.playbackRate = 0.75; }
-  return a.play().catch(() => {});
+  // Nunca bloquear el combate esperando al audio: si el navegador no lo deja sonar (sin gesto del
+  // usuario) o el archivo tarda, la promesa de play() puede quedarse pendiente para siempre.
+  return Promise.race([a.play().catch(() => {}), new Promise(r => setTimeout(r, 1500))]);
 }
 
 // Alarma de vida baja (pitido intermitente mientras tu Pokémon tenga ≤ 20 % de PS).

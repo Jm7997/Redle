@@ -8,6 +8,7 @@ export const POOL_SIZE = 6;
 export const TEAM_SIZE = 6;
 const EPOCH = Date.UTC(2026, 9, 12); // día 1 de Redle
 const dex = Dex.forGen(9);
+const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // El reto cambia para todo el mundo a la vez: a medianoche (00:00) hora de España.
 export const RESET_HOUR = 0;
@@ -43,26 +44,68 @@ export function seedFor(text) {
   return out;
 }
 
+// Modo Liga Pokémon: equipo aleatorio de Gen 1-9 y 5 rivales seguidos (4 del Alto Mando y el Campeón)
+// elegidos cada día entre los de Redle. Entre combate y combate tu equipo se cura.
+export const LEAGUE = {id: 'liga', gens: [1, 9], maxEVs: 508, team: [], rounds: 5};
+export function leagueLineup(date) {
+  const r = rng(`liga:${date}`), ids = Object.keys(BOSSES);
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  return ids.slice(0, LEAGUE.rounds);
+}
+export const leaguePool = date => pool(`liga:${date}`, LEAGUE);
+
+// Reglas del día: el mismo giro para todos los combates de ese día (o ninguno). Si el rival trae su
+// propio clima (granizo de Red), las reglas de clima no se aplican contra él.
+export const RULES = ['inverse', 'trickroom', 'gravity', 'sun', 'rain', 'sand', 'snow'];
+const RULE_WEATHER = {sun: 'sunnyday', rain: 'raindance', sand: 'sandstorm', snow: 'snowscape'};
+export function ruleFor(date, boss) {
+  const r = rng(`regla:${date}`)();
+  const rule = r < 0.4 ? 'none' : RULES[Math.floor((r - 0.4) / 0.6 * RULES.length)];
+  return RULE_WEATHER[rule] && BOSSES[boss]?.weather ? 'none' : rule;
+}
+// Combate inverso: la tabla de tipos al revés (regla oficial de Showdown, que @pkmn/sim no trae).
+const INVERSE = {name: 'Inverse Battle', effectType: 'Condition',
+  onFieldStart() { this.add('-fieldstart', 'move: Inverse Battle'); },
+  onNegateImmunity: false, onEffectivenessPriority: 1,
+  onEffectiveness(typeMod, target, type, move) {
+    if (move && move.id === 'freezedry' && type === 'Water') return;
+    if (move && !this.dex.getImmunity(move, type)) return 1;
+    return -typeMod;
+  }};
+function applyRule(battle, rule) {
+  const holder = battle.p2.pokemon[0];
+  if (RULE_WEATHER[rule]) {
+    battle.field.setWeather(RULE_WEATHER[rule], holder);
+    battle.field.weatherState.duration = 0;
+  } else if (rule !== 'none') {
+    if (rule === 'inverse') battle.dex.data.Conditions.inversebattle ||= INVERSE;
+    const id = rule === 'inverse' ? 'inversebattle' : rule;
+    battle.field.addPseudoWeather(id, holder);
+    battle.field.pseudoWeather[id].duration = 0; // 0 = no se acaba
+  }
+}
+
 const NOT_ALLOWED = new Set(['Restricted Legendary', 'Sub-Legendary', 'Mythical', 'Ultra Beast']);
 
 // Los 6 Pokémon del día contra `boss`: sets de Random Battle Gen 9 de Showdown, sin legendarios,
 // solo de las generaciones del rival (Red: Gen 1-2; Cynthia: Gen 1-4), a nivel 100.
-export function dailyPool(date, boss = 'red') {
-  const {gens: [lo, hi], team} = BOSSES[boss];
-  const gen = TeamGenerators.getTeamGenerator('gen9randombattle', seedFor(`pool:${boss}:${date}`));
+export const dailyPool = (date, boss = 'red') => pool(`${boss}:${date}`, BOSSES[boss]);
+
+function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31}) {
+  const gen = TeamGenerators.getTeamGenerator('gen9randombattle', seedFor(`pool:${key}`));
   const taken = new Set(team.map(s => dex.species.get(s.species).baseSpecies));
   // ponytail: corte por stats base; afinar con datos de partidas reales
   const candidates = Object.keys(gen.randomSets).map(id => dex.species.get(id))
     .filter(sp => sp.gen >= lo && sp.gen <= hi && sp.bst >= 420 && !sp.tags.some(t => NOT_ALLOWED.has(t)) && !taken.has(sp.baseSpecies));
-  const r = rng(`pick:${boss}:${date}`), pool = [], seen = new Set();
-  while (pool.length < POOL_SIZE) {
+  const r = rng(`pick:${key}`), out = [], seen = new Set();
+  while (out.length < POOL_SIZE) {
     const sp = candidates[Math.floor(r() * candidates.length)];
     if (seen.has(sp.baseSpecies)) continue;
     seen.add(sp.baseSpecies);
-    const set = gen.randomSet(sp.name, {}, pool.length === 0);
-    pool.push({...set, level: 100, ...wildTraining(set, `${boss}:${date}`, BOSSES[boss].maxEVs)});
+    const set = gen.randomSet(sp.name, {}, out.length === 0);
+    out.push({...set, level: 100, ...wildTraining(set, key, maxEVs, maxIVs)});
   }
-  return pool;
+  return out;
 }
 
 // Generador pseudoaleatorio pequeño y determinista (mulberry32) a partir de un texto.
@@ -82,9 +125,9 @@ const NATURES = ['Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty', 'Bold', 'Doci
 // Tus Pokémon van "sin entrenar a conciencia": IVs al azar (0-31), entre 0 y 508 EVs repartidos al azar
 // en bloques de 4 (máx. 252 por stat) y naturaleza al azar. Red los tiene perfectos y bien colocados:
 // esa es la desventaja, no el nivel. Determinista por día y especie.
-export function wildTraining(set, date, maxEVs = 508) {
+export function wildTraining(set, date, maxEVs = 508, maxIVs = 31) {
   const r = rng(`training:${date}:${set.species}`);
-  const ivs = Object.fromEntries(STATS.map(s => [s, Math.floor(r() * 32)]));
+  const ivs = Object.fromEntries(STATS.map(s => [s, Math.floor(r() * (maxIVs + 1))]));
   const evs = Object.fromEntries(STATS.map(s => [s, 0]));
   for (let left = Math.floor(r() * (maxEVs / 4 + 1)); left > 0;) {
     const s = STATS[Math.floor(r() * 6)];
@@ -97,15 +140,27 @@ const ev = (a, b, c = 'hp') => ({hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0, 
 const IV31 = {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
 const mon = (species, item, ability, nature, evs, moves) => ({name: species, species, item, ability, nature, evs, ivs: IV31, moves, level: 100, gender: ''});
 
-// Equipos de los rivales tal cual en los juegos (especie, habilidad y ataques, sacados de las
-// decompilaciones pret/pokeheartgold y pret/pokeplatinum). Para que sean más duros: nivel 100,
+// Equipos de los rivales tal cual en los juegos (especie, habilidad y ataques: de las decompilaciones
+// de pret para Gen 2-4 y de Serebii para Iris y Leon). Para que sean más duros: nivel 100,
 // IVs 31, EVs y naturaleza acordes a su set (en el juego llevan IVs 30, sin EVs y a nivel 58-88), y un
 // objeto equipado cada uno (en el juego solo Pikachu lleva Bola Luminosa y Garchomp Baya Zidra; se mantienen).
 // `weather`: clima fijo del escenario
 // (en la cima del Monte Plateado de HGSS graniza siempre: daña a los que no son Hielo y Ventisca no falla).
 export const BOSSES = {
+  blue: {
+    // HGSS, líder de Ciudad Verde (pret/pokeheartgold). Antiguo Campeón de Kanto.
+    id: 'blue', name: 'Blue', gens: [1, 1], maxEVs: 252,
+    team: [
+      mon('Pidgeot', 'Sitrus Berry', 'Keen Eye', 'Naive', ev('atk', 'spe', 'spa'), ['Return', 'Whirlwind', 'Air Slash', 'Mirror Move']),
+      mon('Exeggutor', 'Leftovers', 'Chlorophyll', 'Modest', ev('hp', 'spa', 'spd'), ['Leaf Storm', 'Psychic', 'Hypnosis', 'Trick Room']),
+      mon('Arcanine', 'Life Orb', 'Intimidate', 'Adamant', ev('atk', 'spe'), ['Roar', 'Dragon Pulse', 'Flare Blitz', 'Extreme Speed']),
+      mon('Rhydon', 'Eviolite', 'Rock Head', 'Adamant', ev('hp', 'atk', 'def'), ['Megahorn', 'Stone Edge', 'Thunder Fang', 'Earthquake']),
+      mon('Gyarados', 'Leftovers', 'Intimidate', 'Adamant', ev('atk', 'spe'), ['Ice Fang', 'Waterfall', 'Dragon Dance', 'Return']),
+      mon('Machamp', 'Choice Band', 'No Guard', 'Adamant', ev('hp', 'atk'), ['Dynamic Punch', 'Earthquake', 'Stone Edge', 'Thunder Punch']),
+    ],
+  },
   red: {
-    // maxEVs: tope de EVs al azar de tu equipo, la palanca de dificultad por rival.
+    // maxEVs / maxIVs: topes de EVs e IVs al azar de tu equipo, las palancas de dificultad por rival.
     id: 'red', name: 'Red', gens: [1, 2], maxEVs: 252, weather: 'hail',
     team: [
       mon('Pikachu', 'Light Ball', 'Static', 'Hasty', ev('atk', 'spe', 'spa'), ['Volt Tackle', 'Iron Tail', 'Quick Attack', 'Thunderbolt']),
@@ -114,6 +169,42 @@ export const BOSSES = {
       mon('Venusaur', 'Black Sludge', 'Overgrow', 'Modest', ev('hp', 'spa', 'spd'), ['Sludge Bomb', 'Giga Drain', 'Sleep Powder', 'Frenzy Plant']),
       mon('Charizard', 'Life Orb', 'Blaze', 'Naive', ev('spa', 'spe', 'atk'), ['Flare Blitz', 'Air Slash', 'Blast Burn', 'Dragon Pulse']),
       mon('Blastoise', 'Assault Vest', 'Torrent', 'Modest', ev('hp', 'spa', 'spd'), ['Focus Blast', 'Hydro Cannon', 'Blizzard', 'Flash Cannon']),
+    ],
+  },
+  lance: {
+    // HGSS, revancha del Campeón (pret/pokeheartgold): el maestro de los dragones.
+    id: 'lance', name: 'Lance', gens: [1, 2], maxEVs: 100, maxIVs: 24,
+    team: [
+      mon('Gyarados', 'Leftovers', 'Intimidate', 'Adamant', ev('atk', 'spe'), ['Thunder Wave', 'Ice Fang', 'Waterfall', 'Dragon Dance']),
+      mon('Salamence', 'Lum Berry', 'Intimidate', 'Naive', ev('atk', 'spe', 'spa'), ['Flamethrower', 'Shadow Claw', 'Dragon Claw', 'Rest']),
+      mon('Garchomp', 'Life Orb', 'Sand Veil', 'Jolly', ev('atk', 'spe'), ['Swords Dance', 'Outrage', 'Earthquake', 'Roar']),
+      mon('Altaria', 'Leftovers', 'Natural Cure', 'Modest', ev('hp', 'spa', 'def'), ['Perish Song', 'Dragon Breath', 'Double Team', 'Hyper Beam']),
+      mon('Charizard', 'Expert Belt', 'Blaze', 'Naive', ev('spa', 'spe', 'atk'), ['Flamethrower', 'Air Slash', 'Dragon Claw', 'Hyper Beam']),
+      mon('Dragonite', 'Sitrus Berry', 'Inner Focus', 'Modest', ev('spa', 'spe', 'hp'), ['Fire Blast', 'Safeguard', 'Draco Meteor', 'Hyper Beam']),
+    ],
+  },
+  steven: {
+    // Rubí y Zafiro, Campeón de Hoenn (pret/pokeruby).
+    id: 'steven', name: 'Steven', gens: [1, 3], maxEVs: 0, maxIVs: 15,
+    team: [
+      mon('Skarmory', 'Leftovers', 'Keen Eye', 'Impish', ev('hp', 'def', 'atk'), ['Toxic', 'Aerial Ace', 'Spikes', 'Steel Wing']),
+      mon('Claydol', 'Light Clay', 'Levitate', 'Relaxed', ev('hp', 'def', 'atk'), ['Reflect', 'Light Screen', 'Ancient Power', 'Earthquake']),
+      mon('Aggron', 'Expert Belt', 'Sturdy', 'Quiet', ev('hp', 'atk', 'spa'), ['Thunder', 'Earthquake', 'Solar Beam', 'Dragon Claw']),
+      mon('Cradily', 'Leftovers', 'Suction Cups', 'Modest', ev('hp', 'spa', 'spd'), ['Giga Drain', 'Ancient Power', 'Sludge Bomb', 'Confuse Ray']),
+      mon('Armaldo', 'Life Orb', 'Battle Armor', 'Naive', ev('atk', 'spe', 'spa'), ['Water Pulse', 'Ancient Power', 'Aerial Ace', 'Slash']),
+      mon('Metagross', 'Sitrus Berry', 'Clear Body', 'Adamant', ev('hp', 'atk', 'spd'), ['Earthquake', 'Psychic', 'Meteor Mash', 'Hyper Beam']),
+    ],
+  },
+  wallace: {
+    // Esmeralda, Campeón de Hoenn (pret/pokeemerald).
+    id: 'wallace', name: 'Wallace', gens: [1, 3], maxEVs: 100,
+    team: [
+      mon('Wailord', 'Leftovers', 'Water Veil', 'Modest', ev('hp', 'spa', 'def'), ['Rain Dance', 'Water Spout', 'Double-Edge', 'Blizzard']),
+      mon('Tentacruel', 'Black Sludge', 'Clear Body', 'Timid', ev('spa', 'spe'), ['Toxic', 'Hydro Pump', 'Sludge Bomb', 'Ice Beam']),
+      mon('Ludicolo', 'Leftovers', 'Swift Swim', 'Modest', ev('spa', 'spe'), ['Giga Drain', 'Surf', 'Leech Seed', 'Double Team']),
+      mon('Whiscash', 'Leftovers', 'Oblivious', 'Rash', ev('hp', 'atk', 'spa'), ['Earthquake', 'Surf', 'Amnesia', 'Hyper Beam']),
+      mon('Gyarados', 'Life Orb', 'Intimidate', 'Adamant', ev('atk', 'spe'), ['Dragon Dance', 'Earthquake', 'Hyper Beam', 'Surf']),
+      mon('Milotic', 'Sitrus Berry', 'Marvel Scale', 'Bold', ev('hp', 'def', 'spa'), ['Recover', 'Surf', 'Ice Beam', 'Toxic']),
     ],
   },
   cynthia: {
@@ -127,11 +218,37 @@ export const BOSSES = {
       mon('Garchomp', 'Sitrus Berry', 'Sand Veil', 'Jolly', ev('atk', 'spe'), ['Dragon Rush', 'Earthquake', 'Flamethrower', 'Giga Impact']),
     ],
   },
+  iris: {
+    // Negro 2 y Blanco 2, Campeona de Teselia (Serebii; habilidades y objetos del juego).
+    id: 'iris', name: 'Iris', gens: [1, 5], maxEVs: 200,
+    team: [
+      mon('Hydreigon', 'Expert Belt', 'Levitate', 'Modest', ev('spa', 'spe'), ['Flamethrower', 'Charge Beam', 'Dragon Pulse', 'Surf']),
+      mon('Druddigon', 'Life Orb', 'Sheer Force', 'Brave', ev('hp', 'atk', 'spa'), ['Rock Slide', 'Flamethrower', 'Dragon Tail', 'Focus Blast']),
+      // Sin objeto a propósito: Acróbata dobla su potencia si no lleva nada.
+      mon('Archeops', '', 'Defeatist', 'Jolly', ev('atk', 'spe'), ['Acrobatics', 'Rock Slide', 'Dragon Claw', 'Endeavor']),
+      mon('Aggron', 'Leftovers', 'Rock Head', 'Adamant', ev('hp', 'atk', 'spd'), ['Earthquake', 'Double-Edge', 'Rock Slide', 'Autotomize']),
+      mon('Lapras', 'Leftovers', 'Water Absorb', 'Modest', ev('hp', 'spa', 'spd'), ['Surf', 'Ice Beam', 'Thunderbolt', 'Sing']),
+      mon('Haxorus', 'Focus Sash', 'Mold Breaker', 'Jolly', ev('atk', 'spe'), ['Earthquake', 'X-Scissor', 'Dual Chop', 'Dragon Dance']),
+    ],
+  },
+  leon: {
+    // Espada y Escudo, Campeón de Galar (Serebii; variante con Seismitoad y Cinderace).
+    id: 'leon', name: 'Leon', gens: [1, 8], maxEVs: 508,
+    team: [
+      mon('Aegislash', 'Leftovers', 'Stance Change', 'Quiet', ev('hp', 'spa', 'atk'), ["King's Shield", 'Shadow Ball', 'Sacred Sword', 'Flash Cannon']),
+      mon('Dragapult', 'Choice Specs', 'Clear Body', 'Timid', ev('spa', 'spe'), ['Shadow Ball', 'Flamethrower', 'Thunderbolt', 'Dragon Breath']),
+      mon('Haxorus', 'Life Orb', 'Mold Breaker', 'Jolly', ev('atk', 'spe'), ['Poison Jab', 'Iron Tail', 'Outrage', 'Earthquake']),
+      mon('Seismitoad', 'Leftovers', 'Swift Swim', 'Adamant', ev('hp', 'atk', 'spd'), ['Toxic', 'Drain Punch', 'Liquidation', 'Earthquake']),
+      mon('Cinderace', 'Life Orb', 'Blaze', 'Jolly', ev('atk', 'spe'), ['Pyro Ball', 'Feint', 'Acrobatics', 'Quick Attack']),
+      mon('Charizard', 'Power Herb', 'Blaze', 'Timid', ev('spa', 'spe'), ['Fire Blast', 'Air Slash', 'Solar Beam', 'Ancient Power']),
+    ],
+  },
 };
 export const RED_TEAM = BOSSES.red.team;
 
-export function newBattle(date, team, boss = 'red') {
-  const battle = new Battle({formatid: FORMAT, seed: seedFor(`battle:${boss}:${date}`)});
+// `key` identifica el combate (fecha, práctica o ronda de Liga) y da la semilla; `rule` es la regla del día.
+export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
+  const battle = new Battle({formatid: FORMAT, seed: seedFor(`battle:${boss}:${key}`)});
   battle.setPlayer('p1', {name: 'Tú', team});
   battle.setPlayer('p2', {name: BOSSES[boss].name, team: BOSSES[boss].team});
   const weather = BOSSES[boss].weather;
@@ -139,6 +256,7 @@ export function newBattle(date, team, boss = 'red') {
     battle.field.setWeather(weather, battle.p2.pokemon[0]);
     battle.field.weatherState.duration = 0; // 0 = no se acaba
   }
+  applyRule(battle, rule);
   return battle;
 }
 
@@ -152,8 +270,8 @@ export function estimate(user, target, moveId) {
   const move = dex.moves.get(moveId);
   if (move.category === 'Status' || !target || target.fainted) return 0;
   const type = move.type;
-  if (!dex.getImmunity(type, target.getTypes()) || IMMUNE_ABILITY[target.ability && dex.abilities.get(target.ability).name] === type) return 0;
-  const eff = 2 ** dex.getEffectiveness(type, target.getTypes());
+  if (!inverse(target) && !dex.getImmunity(type, target.getTypes()) || IMMUNE_ABILITY[target.ability && dex.abilities.get(target.ability).name] === type) return 0;
+  const eff = typeEff(type, target);
   if (target.ability === 'wonderguard' && eff <= 1) return 0;
   const physical = move.category === 'Physical';
   // Stats con mejoras de combate (sin disparar eventos) y los modificadores más comunes a mano.
@@ -177,15 +295,23 @@ export function estimate(user, target, moveId) {
   return dmg / target.maxhp;
 }
 
+const inverse = target => !!target.battle.field.pseudoWeather.inversebattle;
+// Multiplicador por tipos, teniendo en cuenta el combate inverso (inmunes pasan a recibir el doble).
+function typeEff(type, target) {
+  const types = target.getTypes();
+  if (!inverse(target)) return dex.getImmunity(type, types) ? 2 ** dex.getEffectiveness(type, types) : 0;
+  return types.reduce((m, t) => m * (dex.getImmunity(type, [t]) ? 2 ** -dex.getEffectiveness(type, t) : 2), 1);
+}
+
 // Multiplicador de tipo para las pistas de la interfaz (null = movimiento de estado).
 export function typeMultiplier(user, target, moveId) {
   const move = dex.moves.get(moveId);
   if (move.category === 'Status' || !target) return null;
-  if (!dex.getImmunity(move.type, target.getTypes())) return 0;
-  return 2 ** dex.getEffectiveness(move.type, target.getTypes());
+  return typeEff(move.type, target);
 }
 
-const speed = p => p.getStat('spe', false, true);
+// Bajo Espacio Raro el más lento mueve primero: para la IA, "más rápido" es al revés.
+const speed = p => p.getStat('spe', false, true) * (p.battle.field.pseudoWeather.trickroom ? -1 : 1);
 // Lo máximo que `user` puede quitarle a `target` (fracción de su vida máxima).
 const bestDamage = (user, target) => Math.max(0, ...user.moveSlots.map(m => estimate(user, target, m.id)));
 
@@ -218,6 +344,16 @@ function scoreMove(user, target, slot, threat) {
     // Mejorar solo si el rival no nos puede hacer mucho daño este turno.
     return already < 2 && hp > 0.6 && threat < 0.45 ? 0.9 : 0;
   }
+  // Pantallas y trampas (Reflejo, Pantalla Luz, Púas, Trampa Rocas…): si no están puestas y hay tiempo.
+  if (move.sideCondition) {
+    const side = move.target === 'foeSide' ? target.side : user.side;
+    if (side.sideConditions[toID(move.sideCondition)]) return 0;
+    const physicalFoe = target.getStat('atk', true, true) >= target.getStat('spa', true, true);
+    if (move.id === 'reflect' && !physicalFoe || move.id === 'lightscreen' && physicalFoe) return 0.1;
+    return threat < 0.6 && hp > 0.5 ? 0.55 : 0.05;
+  }
+  // Confusión, Tóxico ya cubierto por `status`: confundir al rival si aún no lo está.
+  if (move.volatileStatus === 'confusion') return target.volatiles.confusion ? 0 : 0.3;
   return 0.05;
 }
 
@@ -282,8 +418,8 @@ export function play(battle, choice) {
 }
 
 // Reconstruye el combate de hoy a partir de las elecciones guardadas.
-export function replay(date, team, choices, boss = 'red') {
-  const battle = newBattle(date, team, boss);
+export function replay(key, team, choices, boss = 'red', rule) {
+  const battle = newBattle(key, team, boss, rule);
   play(battle, null);
   for (const c of choices) play(battle, c);
   return battle;

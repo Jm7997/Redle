@@ -62,8 +62,10 @@ const STRINGS = {
     stat: {atk: 'El Ataque', def: 'La Defensa', spa: 'El Ataque Especial', spd: 'La Defensa Especial', spe: 'La Velocidad', accuracy: 'La Precisión', evasion: 'La Evasión'},
     leftovers: w => `${w} recupera PS gracias a los Restos.`, poisonDmg: w => `El veneno resta PS a ${w}.`, burnDmg: w => `La quemadura resta PS a ${w}.`,
     recoil: w => `${w} sufre daño de retroceso.`, weatherDmg: w => `El tiempo daña a ${w}.`, hailDmg: w => `¡El granizo golpea a ${w}!`, hailUpkeep: 'Sigue granizando.', aHelp: 'Cómo se juega', aSound: 'Activar o silenciar el sonido', recharge: 'Recargar',
-    weatherBadge: {Hail: '❄ Granizo', SunnyDay: '☀ Sol', RainDance: '☂ Lluvia', Sandstorm: '🌪 Arena'}, drain: w => `${w} absorbe energía.`,
-    weather: {SunnyDay: 'El sol pega con fuerza.', RainDance: 'Ha empezado a llover.', Sandstorm: 'Se ha levantado una tormenta de arena.', Hail: 'Ha empezado a granizar.', none: 'El tiempo vuelve a la normalidad.'},
+    weatherBadge: {Hail: '❄ Granizo', SunnyDay: '☀ Sol', RainDance: '☂ Lluvia', Sandstorm: '🌪 Arena', Snowscape: '❄ Nieve', Snow: '❄ Nieve'},
+    fieldStart: {'Inverse Battle': '¡El combate es inverso! La tabla de tipos va al revés.', 'Trick Room': '¡Las dimensiones se han retorcido! Los lentos atacan primero.', Gravity: '¡La gravedad se ha intensificado!'},
+    fieldBadge: {'Inverse Battle': '🔄 Inverso', 'Trick Room': '🌀 Espacio Raro', Gravity: '⬇ Gravedad'}, drain: w => `${w} absorbe energía.`,
+    weather: {SunnyDay: 'El sol pega con fuerza.', RainDance: 'Ha empezado a llover.', Sandstorm: 'Se ha levantado una tormenta de arena.', Hail: 'Ha empezado a granizar.', Snowscape: 'Ha empezado a nevar.', Snow: 'Ha empezado a nevar.', none: 'El tiempo vuelve a la normalidad.'},
     sub: w => `¡${w} ha creado un sustituto!`, subEnd: w => `El sustituto de ${w} ha desaparecido.`, subHit: 'El sustituto recibe el golpe.',
     confused: w => `¡${w} está confuso!`, confusedAct: w => `${w} está confuso...`, seeded: w => `¡${w} ha sido infectado!`,
     statusTag: {brn: 'QUE', par: 'PAR', slp: 'DOR', psn: 'ENV', tox: 'ENV', frz: 'CON'},
@@ -114,8 +116,10 @@ const STRINGS = {
     stat: {atk: 'Attack', def: 'Defense', spa: 'Sp. Atk', spd: 'Sp. Def', spe: 'Speed', accuracy: 'accuracy', evasion: 'evasiveness'},
     leftovers: w => `${w} restored a little HP using its Leftovers!`, poisonDmg: w => `${w} was hurt by poison!`, burnDmg: w => `${w} was hurt by its burn!`,
     recoil: w => `${w} was damaged by the recoil!`, weatherDmg: w => `${w} is buffeted by the weather!`, hailDmg: w => `${w} is pelted by hail!`, hailUpkeep: 'Hail continues to fall.', aHelp: 'How to play', aSound: 'Toggle sound', recharge: 'Recharge',
-    weatherBadge: {Hail: '❄ Hail', SunnyDay: '☀ Sun', RainDance: '☂ Rain', Sandstorm: '🌪 Sand'}, drain: w => `${w} had its energy drained!`,
-    weather: {SunnyDay: 'The sunlight turned harsh!', RainDance: 'It started to rain!', Sandstorm: 'A sandstorm kicked up!', Hail: 'It started to hail!', none: 'The weather returned to normal.'},
+    weatherBadge: {Hail: '❄ Hail', SunnyDay: '☀ Sun', RainDance: '☂ Rain', Sandstorm: '🌪 Sand', Snowscape: '❄ Snow', Snow: '❄ Snow'},
+    fieldStart: {'Inverse Battle': 'This is an inverse battle! The type chart is flipped.', 'Trick Room': 'The dimensions were twisted! Slower Pokémon move first.', Gravity: 'Gravity intensified!'},
+    fieldBadge: {'Inverse Battle': '🔄 Inverse', 'Trick Room': '🌀 Trick Room', Gravity: '⬇ Gravity'}, drain: w => `${w} had its energy drained!`,
+    weather: {SunnyDay: 'The sunlight turned harsh!', RainDance: 'It started to rain!', Sandstorm: 'A sandstorm kicked up!', Hail: 'It started to hail!', Snowscape: 'It started to snow!', Snow: 'It started to snow!', none: 'The weather returned to normal.'},
     sub: w => `${w} put in a substitute!`, subEnd: w => `${w}'s substitute faded!`, subHit: 'The substitute took damage for it!',
     confused: w => `${w} became confused!`, confusedAct: w => `${w} is confused!`, seeded: w => `${w} was seeded!`,
     statusTag: {brn: 'BRN', par: 'PAR', slp: 'SLP', psn: 'PSN', tox: 'TOX', frz: 'FRZ'},
@@ -135,44 +139,110 @@ const STRINGS = {
 export const T = STRINGS[LANG];
 
 // Textos que dependen del rival. `team` es la lista de especies separada por comas.
+// Textos que dependen del rival: lugar, frases y la regla de su escenario (stage).
 const BOSS_TEXT = {
   es: {
-    red: {place: 'la cima del Monte Plateado', where: 'Monte Plateado', f: false, challenge: '¡Red quiere luchar!', wonSub: 'La cima es tuya. Por hoy.',
-      rule: 'Tus Pokémon son de <b>Kanto y Johto (1.ª y 2.ª gen)</b>.',
+    blue: {place: 'el Gimnasio de Ciudad Verde', where: 'Ciudad Verde', f: false, challenge: '¡Blue quiere luchar!', wonSub: '¿Quién es ahora el mejor entrenador del mundo?', title: 'el Líder'},
+    red: {place: 'la cima del Monte Plateado', where: 'Monte Plateado', f: false, challenge: '¡Red quiere luchar!', wonSub: 'La cima es tuya. Por hoy.', title: 'la leyenda',
       stage: '❄ <b>En la cima graniza todo el combate</b>: cada turno daña a los Pokémon que no son de tipo Hielo, y la Ventisca (la llevan Lapras, Snorlax y Blastoise) <b>nunca falla</b>.'},
-    cynthia: {place: 'la sala de la Campeona de la Liga Sinnoh', where: 'Liga Sinnoh', f: true, challenge: '¡La Campeona Cynthia quiere luchar!',
-      wonSub: 'Eres el nuevo Campeón de Sinnoh. Por hoy.', rule: 'Tus Pokémon son de las <b>generaciones 1 a 4</b>.', stage: ''},
+    lance: {place: 'la sala del Campeón de la Liga Johto', where: 'Liga Johto', f: false, challenge: '¡El Campeón Lance quiere luchar!', wonSub: 'Has domado a los dragones. Por hoy.', title: 'el Campeón'},
+    steven: {place: 'la sala del Campeón de la Liga Hoenn', where: 'Liga Hoenn', f: false, challenge: '¡El Campeón Steven quiere luchar!', wonSub: 'Hasta el acero se rompe. Por hoy.', title: 'el Campeón'},
+    wallace: {place: 'la sala del Campeón de la Liga Hoenn', where: 'Arrecípolis', f: false, challenge: '¡El Campeón Wallace quiere luchar!', wonSub: 'Has superado su elegancia. Por hoy.', title: 'el Campeón'},
+    cynthia: {place: 'la sala de la Campeona de la Liga Sinnoh', where: 'Liga Sinnoh', f: true, challenge: '¡La Campeona Cynthia quiere luchar!', wonSub: 'Eres el nuevo Campeón de Sinnoh. Por hoy.', title: 'la Campeona'},
+    iris: {place: 'la sala de la Campeona de la Liga Teselia', where: 'Liga Teselia', f: true, challenge: '¡La Campeona Iris quiere luchar!', wonSub: 'Los dragones de Iris han caído. Por hoy.', title: 'la Campeona'},
+    leon: {place: 'el Estadio Puntera de Galar', where: 'Galar', f: false, challenge: '¡El Campeón Leon quiere luchar!', wonSub: 'Has acabado con el reinado de Leon. Por hoy.', title: 'el Campeón'},
   },
   en: {
-    red: {place: 'the summit of Mt. Silver', where: 'Mt. Silver', challenge: 'Red wants to battle!', wonSub: 'The summit is yours. For today.',
-      rule: 'Your Pokémon are from <b>Kanto and Johto (Gens 1-2)</b>.',
+    blue: {place: 'the Viridian City Gym', where: 'Viridian City', challenge: 'Blue wants to battle!', wonSub: "Who's the best trainer in the world now?", title: 'the Leader'},
+    red: {place: 'the summit of Mt. Silver', where: 'Mt. Silver', challenge: 'Red wants to battle!', wonSub: 'The summit is yours. For today.', title: 'the legend',
       stage: '❄ <b>It hails for the whole battle at the summit</b>: every turn it hurts Pokémon that are not Ice-type, and Blizzard (Lapras, Snorlax and Blastoise know it) <b>never misses</b>.'},
-    cynthia: {place: "the Sinnoh League Champion's room", where: 'Sinnoh League', challenge: 'Champion Cynthia wants to battle!',
-      wonSub: "You are Sinnoh's new Champion. For today.", rule: 'Your Pokémon are from <b>Generations 1 to 4</b>.', stage: ''},
+    lance: {place: "the Johto League Champion's room", where: 'Johto League', challenge: 'Champion Lance wants to battle!', wonSub: 'You tamed the dragons. For today.', title: 'the Champion'},
+    steven: {place: "the Hoenn League Champion's room", where: 'Hoenn League', challenge: 'Champion Steven wants to battle!', wonSub: 'Even steel breaks. For today.', title: 'the Champion'},
+    wallace: {place: "the Hoenn League Champion's room", where: 'Sootopolis', challenge: 'Champion Wallace wants to battle!', wonSub: 'You outshone his elegance. For today.', title: 'the Champion'},
+    cynthia: {place: "the Sinnoh League Champion's room", where: 'Sinnoh League', challenge: 'Champion Cynthia wants to battle!', wonSub: "You are Sinnoh's new Champion. For today.", title: 'the Champion'},
+    iris: {place: "the Unova League Champion's room", where: 'Unova League', challenge: 'Champion Iris wants to battle!', wonSub: "Iris's dragons have fallen. For today.", title: 'the Champion'},
+    leon: {place: 'Wyndon Stadium in Galar', where: 'Galar', challenge: 'Champion Leon wants to battle!', wonSub: "You ended Leon's reign. For today.", title: 'the Champion'},
   },
 };
-export function setBoss(id, name, team) {
+const ORD = n => (es ? `${n}.ª` : `${n}`);
+const gensText = ([lo, hi]) => es
+  ? (lo === hi ? `Tus Pokémon son de la <b>${ORD(lo)} generación</b>.` : `Tus Pokémon son de las <b>generaciones ${lo} a ${hi}</b>.`)
+  : (lo === hi ? `Your Pokémon are from <b>Generation ${lo}</b>.` : `Your Pokémon are from <b>Generations ${lo} to ${hi}</b>.`);
+
+// Reglas del día (mismas para todos los combates de ese día).
+export const RULE_TEXT = es ? {
+  inverse: ['🔄 Combate inverso', 'la tabla de tipos va al revés: lo muy eficaz es poco eficaz y las inmunidades reciben el doble.'],
+  trickroom: ['🌀 Espacio Raro', 'todo el combate: <b>los más lentos atacan primero</b>.'],
+  gravity: ['⬇ Gravedad', 'todo el combate: nadie levita, los ataques aciertan más y no se pueden usar movimientos que vuelan o saltan.'],
+  sun: ['☀ Sol abrasador', 'todo el combate: potencia el Fuego y debilita el Agua.'],
+  rain: ['☂ Lluvia', 'todo el combate: potencia el Agua y debilita el Fuego.'],
+  sand: ['🌪 Tormenta de arena', 'todo el combate: daña a los que no son Roca, Tierra o Acero.'],
+  snow: ['❄ Nevada', 'todo el combate: sube la Defensa de los tipo Hielo.'],
+} : {
+  inverse: ['🔄 Inverse battle', 'the type chart is flipped: super effective becomes not very effective and immunities take double.'],
+  trickroom: ['🌀 Trick Room', 'all battle long: <b>slower Pokémon move first</b>.'],
+  gravity: ['⬇ Gravity', 'all battle long: nothing levitates, moves are more accurate and flying or jumping moves cannot be used.'],
+  sun: ['☀ Harsh sunlight', 'all battle long: powers up Fire and weakens Water.'],
+  rain: ['☂ Rain', 'all battle long: powers up Water and weakens Fire.'],
+  sand: ['🌪 Sandstorm', 'all battle long: hurts anything that is not Rock, Ground or Steel.'],
+  snow: ['❄ Snow', 'all battle long: raises the Defense of Ice types.'],
+};
+export const ruleHtml = rule => RULE_TEXT[rule] ? `<b>${es ? 'Regla del día' : "Today's rule"}: ${RULE_TEXT[rule][0]}</b> — ${RULE_TEXT[rule][1]}` : '';
+
+export function setBoss(id, name, team, gens) {
   const b = BOSS_TEXT[LANG][id];
   const itemsText = es ? `🎒 <b>Todos los Pokémon de ${name} llevan objeto</b>.` : `🎒 <b>All of ${name}'s Pokémon hold an item</b>.`;
+  const rule = gensText(gens);
   Object.assign(T, es ? {
     lead: `${name} te espera en ${b.place}. Este es tu equipo de hoy, el mismo para todo el mundo. <b>Toca el Pokémon que quieres que empiece</b> y pulsa ¡Listo!`,
     stageRules: [b.stage, itemsText].filter(Boolean).join('<br>'),
-    bossTeam: `El equipo de ${name}`, challenge: b.challenge, where: b.where, wonSub: b.wonSub,
+    bossTeam: `El equipo de ${name}`, challenge: b.challenge, where: b.where, wonSub: b.wonSub, bossTitle: b.title,
     how: ['Cada día recibes un <b>equipo de 6 Pokémon</b> nuevo, el mismo para todo el mundo.', `Mira tu equipo y el de ${name}, y <b>elige quién empieza</b>.`,
-      `Derrota al equipo de <b>${name}</b>, el mismo que en los juegos: ${team}. Todos a nivel 100 y con objeto.`, b.rule, b.stage,
-      'Solo tienes <b>un intento</b>. Recargar la página no lo reinicia.', 'Comparte tu resultado y vuelve mañana para no romper la racha.'],
+      `Derrota al equipo de <b>${name}</b>, el mismo que en los juegos: ${team}. Todos a nivel 100 y con objeto.`, rule, b.stage,
+      'Algunos días hay una <b>regla del día</b> (combate inverso, Espacio Raro, clima…).',
+      'Solo tienes <b>un intento</b>. Recargar la página no lo reinicia.', 'Comparte tu resultado y vuelve mañana para no romper la racha.',
+      'En <b>Liga</b> te enfrentas a 5 rivales seguidos con otro equipo (Gen 1-9).'],
     won: `¡Has ganado a ${name}!`, lost: `${name} sigue ${b.f ? 'invicta' : 'invicto'}...`,
     shareWin: t => `🏆 ¡${name} ${b.f ? 'derrotada' : 'derrotado'} en ${t} turnos!`, shareLoss: t => `💀 ${name} ganó (turno ${t})`, red: name,
     redSends: n => `¡${name} envía a ${n}!`, win: `¡Has derrotado a ${name}!`, lose: `${name} te ha derrotado...`,
   } : {
     lead: `${name} awaits you at ${b.place}. This is today's team, the same for everyone. <b>Tap the Pokémon you want to lead</b> and press Ready!`,
     stageRules: [b.stage, itemsText].filter(Boolean).join('<br>'),
-    bossTeam: `${name}'s team`, challenge: b.challenge, where: b.where, wonSub: b.wonSub,
+    bossTeam: `${name}'s team`, challenge: b.challenge, where: b.where, wonSub: b.wonSub, bossTitle: b.title,
     how: ['Every day you get a new <b>team of 6 Pokémon</b>, the same for everyone.', `Check your team and ${name}'s, and <b>choose your lead</b>.`,
-      `Defeat <b>${name}</b>'s team, the same as in the games: ${team}. All at level 100 and holding items.`, b.rule, b.stage,
-      'You get <b>one attempt</b>. Reloading the page does not reset it.', 'Share your result and come back tomorrow to keep your streak.'],
+      `Defeat <b>${name}</b>'s team, the same as in the games: ${team}. All at level 100 and holding items.`, rule, b.stage,
+      'Some days there is a <b>rule of the day</b> (inverse battle, Trick Room, weather…).',
+      'You get <b>one attempt</b>. Reloading the page does not reset it.', 'Share your result and come back tomorrow to keep your streak.',
+      'In <b>League</b> you face 5 rivals in a row with another team (Gens 1-9).'],
     won: `You beat ${name}!`, lost: `${name} remains undefeated...`,
     shareWin: t => `🏆 Beat ${name} in ${t} turns!`, shareLoss: t => `💀 ${name} won (turn ${t})`, red: name,
     redSends: n => `${name} sent out ${n}!`, win: `You defeated ${name}!`, lose: `${name} defeated you...`,
   });
 }
+
+// Modo Liga y repeticiones.
+Object.assign(T, es ? {
+  league: 'Liga', leagueWhere: 'Alto Mando y Campeón',
+  leagueLead: (round, name, title) => `<b>Ronda ${round} de 5</b>: ${round === 5 ? `el <b>Campeón</b> de hoy es ${name}` : `Alto Mando: <b>${name}</b>`}. Este es tu equipo de Liga (Gen 1-9), el mismo para todo el mundo; se cura entre combates. <b>Toca el Pokémon que quieres que empiece</b> y pulsa ¡Listo!`,
+  eliteN: n => `Alto Mando ${n}`, champion: 'Campeón',
+  leagueChallenge: (round, name) => round === 5 ? `¡El Campeón ${name} quiere luchar!` : `¡${name}, del Alto Mando, quiere luchar!`,
+  nextRival: name => `Siguiente rival: ${name}`,
+  leagueWon: '¡Eres el Campeón de la Liga!', leagueLost: n => `Fin de la Liga en la ronda ${n}`,
+  leagueWonSub: 'Has vencido a los 5. Hoy la Liga es tuya.', leagueLostSub: 'Vuelve mañana a por otro intento.',
+  leagueShare: n => n === 5 ? '🏆 ¡Campeón de la Liga!' : `🏅 ${n}/5 rivales vencidos`,
+  bestRound: 'Mejor ronda', champions: 'Veces campeón',
+  shareReplay: 'Compartir repetición', replayCopied: '¡Enlace copiado!',
+  replayBanner: (name, date) => `▶ Repetición de un combate contra <b>${name}</b> del ${date}.`, playToday: 'Jugar el reto de hoy',
+} : {
+  league: 'League', leagueWhere: 'Elite Four & Champion',
+  leagueLead: (round, name, title) => `<b>Round ${round} of 5</b>: ${round === 5 ? `today's <b>Champion</b> is ${name}` : `Elite Four: <b>${name}</b>`}. This is your League team (Gens 1-9), the same for everyone; it is healed between battles. <b>Tap the Pokémon you want to lead</b> and press Ready!`,
+  eliteN: n => `Elite Four ${n}`, champion: 'Champion',
+  leagueChallenge: (round, name) => round === 5 ? `Champion ${name} wants to battle!` : `Elite Four ${name} wants to battle!`,
+  nextRival: name => `Next rival: ${name}`,
+  leagueWon: 'You are the League Champion!', leagueLost: n => `League over in round ${n}`,
+  leagueWonSub: 'You beat all 5. Today the League is yours.', leagueLostSub: 'Come back tomorrow for another run.',
+  leagueShare: n => n === 5 ? '🏆 League Champion!' : `🏅 ${n}/5 rivals beaten`,
+  bestRound: 'Best round', champions: 'Times champion',
+  shareReplay: 'Share replay', replayCopied: 'Link copied!',
+  replayBanner: (name, date) => `▶ Replay of a battle against <b>${name}</b> on ${date}.`, playToday: "Play today's challenge",
+});

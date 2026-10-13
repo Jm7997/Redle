@@ -12,7 +12,7 @@ Redle no está afiliado, patrocinado ni aprobado por ellos.
 | [`@pkmn/randoms`](https://github.com/pkmn/ps) | Sets de Random Battle (equipo diario) | MIT |
 | [`@pkmn/img`](https://github.com/pkmn/img) | Rutas de sprites e iconos de Showdown | MIT |
 | [PokéAPI](https://github.com/PokeAPI/pokeapi) (CSV) | Nombres en español de movimientos, objetos y habilidades (`src/names-es.json`) | BSD-3-Clause |
-| [pret/pokeheartgold](https://github.com/pret/pokeheartgold), [pret/pokeplatinum](https://github.com/pret/pokeplatinum) | Referencia de los equipos de Red y Cynthia (solo especie, habilidad y ataques; no se copia código) | — |
+| [pret/pokeheartgold](https://github.com/pret/pokeheartgold), [pret/pokeplatinum](https://github.com/pret/pokeplatinum), [pret/pokeemerald](https://github.com/pret/pokeemerald), [pret/pokeruby](https://github.com/pret/pokeruby), [Serebii](https://www.serebii.net) | Referencia de los equipos de los rivales (solo especie, habilidad y ataques; no se copia código) | — |
 | Pixelify Sans, Nunito (`public/fonts`) | Tipografía | SIL Open Font License 1.1 |
 | Luckiest Guy (`public/fonts`) | Logo | Apache 2.0 |
 

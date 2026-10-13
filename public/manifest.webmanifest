@@ -1,7 +1,7 @@
 {
   "name": "Redle — un combate Pokémon diario",
   "short_name": "Redle",
-  "description": "Un combate Pokémon diario contra Red o Cynthia. Mira los equipos, elige quién empieza y comparte tu resultado.",
+  "description": "Un combate Pokémon diario contra los campeones (Red, Blue, Lance, Steven, Wallace, Cynthia, Iris y Leon) y un modo Liga de 5 rivales seguidos.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

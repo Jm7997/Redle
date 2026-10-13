@@ -2,7 +2,7 @@
   "name": "redle",
   "version": "0.1.0",
   "private": true,
-  "description": "Un combate Pokémon diario contra Red, estilo Wordle.",
+  "description": "Un combate Pokémon diario contra los campeones, estilo Wordle.",
   "type": "module",
   "scripts": {
     "dev": "vite",

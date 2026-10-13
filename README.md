@@ -1,14 +1,17 @@
 # Redle ⛰️
 
-Un combate Pokémon diario contra **Red** (Monte Plateado) o **Cynthia** (Liga Sinnoh), al estilo Wordle. Sus equipos son los mismos que en los juegos.
+Un combate Pokémon diario al estilo Wordle contra los campeones de verdad, con **sus equipos de los juegos**:
+Red, Blue, Lance, Steven, Wallace, Cynthia, Iris y Leon.
 
-1. Cada día recibes un equipo de 6 Pokémon, el mismo para todo el mundo.
+1. Cada día recibes un equipo de 6 Pokémon por rival, el mismo para todo el mundo.
 2. Ves tu equipo y el del rival, y eliges quién empieza.
-3. Luchas contra Red o Cynthia. Tienes un solo intento por rival.
-4. Compartes el resultado:
+3. Tienes un solo intento por rival. Algunos días hay una **regla del día** (combate inverso, Espacio Raro, clima…).
+4. Compartes el resultado y, si quieres, un **enlace a la repetición** de tu combate.
+
+**Modo Liga**: otro equipo (Gen 1-9) contra 5 rivales seguidos, 4 del Alto Mando y el Campeón, elegidos cada día.
 
 ```
-Redle #12 ⛰️
+Redle #12 ⛰️ vs Red
 🏆 ¡Red derrotado en 23 turnos!
 Tú:  🟩🟩🟨🟥🟥🟥
 Red: ⚫⚫⚫⚫⚫⚫
