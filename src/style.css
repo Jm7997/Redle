@@ -256,6 +256,12 @@ footer .linklike { border: 0; background: none; padding: 0; color: inherit; text
 .legal p { margin: 0 0 10px; }
 .legal a { color: #3d8be0; }
 .secondary.danger { width: 100%; margin-top: 8px; background: linear-gradient(#ff7a6b, #c7392b); }
+#global h3 { margin: 12px 0 4px; font: 700 16px var(--pixel); }
+#global p { margin: 2px 0; font-size: 13.5px; }
+#global .dist { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; height: 70px; margin: 6px 0; align-items: end; }
+#global .dist div { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; text-align: center; font: 700 11px var(--pixel); }
+#global .dist i { display: block; border-radius: 4px 4px 0 0; background: var(--line); }
+#global .dist .me i { background: #ffd23f; }
 #summary h3 { margin: 12px 0 6px; font: 700 16px var(--pixel); }
 #summary table { width: 100%; border-collapse: collapse; font-size: 13px; }
 #summary th { font: 700 12px var(--pixel); color: var(--muted); text-align: right; }

@@ -5,6 +5,7 @@ import {Sprites, Icons} from '@pkmn/img';
 import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
+import {sendResult, dailyStats} from './stats.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
 const dex = Dex.forGen(9);
@@ -589,6 +590,7 @@ function closeDay(won, reached) {
   else s.streak = 0;
   if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
   save();
+  sendResult({day: TODAY, mode: MODE, won, turns: LIGA ? null : rec().turns, reached: LIGA ? reached : null});
 }
 
 function finish(animate) {
@@ -731,8 +733,27 @@ function showResult() {
     for (const [txt, fn] of practiceOptions()) add(txt, fn);
     if (PRACTICE) add(T.backToday, goToday);
   }
+  drawGlobal(done);
   tickCountdown();
   if (!$('#dlg-stats').open) $('#dlg-stats').showModal();
+}
+
+// Estadísticas de todos los jugadores de hoy en este modo (solo tras jugar, para no condicionar).
+async function drawGlobal(done) {
+  const box = $('#global');
+  box.innerHTML = '';
+  if (!done || PRACTICE || REPLAY) return;
+  const g = (await dailyStats(TODAY))?.[MODE];
+  if (!g || !g.players) return;
+  const pct = n => Math.round(100 * n / g.players);
+  if (LIGA) {
+    const mine = day().reached, worse = g.reached.slice(0, mine).reduce((a, b) => a + b, 0);
+    box.innerHTML = `<h3>🌍 ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalChampions(g.wins, pct(g.wins))}</p>
+      <div class="dist">${g.reached.map((n, i) => `<div class="${i === mine ? 'me' : ''}"><i style="height:${Math.max(4, pct(n))}%"></i><span>${i}/5</span></div>`).join('')}</div>
+      <p>${T.globalBetter(pct(worse))}</p>`;
+  } else {
+    box.innerHTML = `<h3>🌍 ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalWins(pct(g.wins))}${g.avgTurns ? ` · ${T.globalTurns(g.avgTurns)}` : ''}</p>`;
+  }
 }
 
 $('#btn-share').onclick = async () => {

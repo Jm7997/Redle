@@ -18,6 +18,10 @@ Redle no está afiliado, patrocinado ni aprobado por ellos.
 
 `public/og.png` y los iconos `public/icon-*.png` son dibujo propio (Pokéball y texto).
 
+## Servicios
+
+- [Supabase](https://supabase.com) (UE, Irlanda): guarda los resultados anónimos para las estadísticas globales.
+
 ## Recursos que NO están en el repositorio
 
 Sprites, iconos, fondos de combate, efectos de ataques, gritos y música se cargan en el navegador

@@ -32,7 +32,7 @@ const STRINGS = {
     footer: 'Proyecto fan no oficial y sin ánimo de lucro. Pokémon © Nintendo, Creatures y GAME FREAK. No afiliado.',
     legalTitle: 'Aviso legal y privacidad',
     legalBody: `<p><b>Proyecto fan no oficial y sin ánimo de lucro.</b> Pokémon y todos los nombres, personajes, imágenes y sonidos relacionados son marcas y © de Nintendo, Creatures Inc. y GAME FREAK inc. Redle no está afiliado, patrocinado ni aprobado por ellos. Si eres titular de algún derecho y quieres que se retire algo, escríbenos a <b>seross000sss@gmail.com</b> y lo haremos.</p>
-<p><b>Privacidad.</b> Redle no usa cookies, ni analítica, ni publicidad, ni cuentas. Tu progreso, estadísticas y ajustes se guardan <b>solo en tu navegador</b> (almacenamiento local) y nunca salen de él. Puedes borrarlos con el botón de abajo.</p>
+<p><b>Privacidad.</b> Redle no usa cookies, ni analítica, ni publicidad, ni cuentas. Tu progreso, estadísticas y ajustes se guardan en tu navegador (almacenamiento local) y puedes borrarlos con el botón de abajo. Para las <b>estadísticas globales</b>, al terminar cada reto se envía de forma anónima solo el resultado (día, modo, si ganaste, turnos o ronda) junto a un identificador aleatorio de este navegador, a nuestra base de datos en <b>Supabase</b> (UE, Irlanda). No incluye nombre, email ni nada que te identifique.</p>
 <p><b>Servicios de terceros.</b> Para mostrar sprites, fondos, efectos, gritos y música, tu navegador los descarga de <b>play.pokemonshowdown.com</b> (Smogon), que recibe tu dirección IP como cualquier web que visitas. Las fuentes tipográficas se sirven desde esta misma web.</p>
 <p><b>Créditos.</b> Combates: simulador de <a href="https://github.com/smogon/pokemon-showdown" target="_blank" rel="noopener">Pokémon Showdown</a> (MIT) vía <a href="https://github.com/pkmn" target="_blank" rel="noopener">@pkmn</a> (MIT). Nombres en español: <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> (BSD-3). Equipos de los rivales: decompilaciones de <a href="https://github.com/pret" target="_blank" rel="noopener">pret</a>. Fuentes: Pixelify Sans y Nunito (OFL), Luckiest Guy (Apache 2.0).</p>`,
     wipe: 'Borrar mis datos de Redle', wipeConfirm: '¿Seguro? Se borrarán tu progreso de hoy, tus estadísticas, tus rachas y tus ajustes en este navegador.',
@@ -87,7 +87,7 @@ const STRINGS = {
     footer: 'Unofficial non-profit fan project. Pokémon © Nintendo, Creatures and GAME FREAK. Not affiliated.',
     legalTitle: 'Legal notice & privacy',
     legalBody: `<p><b>Unofficial, non-profit fan project.</b> Pokémon and all related names, characters, images and sounds are trademarks and © of Nintendo, Creatures Inc. and GAME FREAK inc. Redle is not affiliated with, sponsored or endorsed by them. If you hold any rights and want something removed, write to <b>seross000sss@gmail.com</b> and we will take it down.</p>
-<p><b>Privacy.</b> Redle uses no cookies, analytics, ads or accounts. Your progress, stats and settings are stored <b>only in your browser</b> (local storage) and never leave it. You can delete them with the button below.</p>
+<p><b>Privacy.</b> Redle uses no cookies, analytics, ads or accounts. Your progress, stats and settings are stored in your browser (local storage) and you can delete them with the button below. For the <b>global stats</b>, after each challenge only the result (day, mode, whether you won, turns or round) is sent anonymously with a random ID for this browser to our database on <b>Supabase</b> (EU, Ireland). It contains no name, email or anything that identifies you.</p>
 <p><b>Third-party services.</b> To show sprites, backgrounds, effects, cries and music, your browser downloads them from <b>play.pokemonshowdown.com</b> (Smogon), which receives your IP address like any website you visit. Fonts are served from this site.</p>
 <p><b>Credits.</b> Battles: <a href="https://github.com/smogon/pokemon-showdown" target="_blank" rel="noopener">Pokémon Showdown</a> simulator (MIT) via <a href="https://github.com/pkmn" target="_blank" rel="noopener">@pkmn</a> (MIT). Spanish names: <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> (BSD-3). Rival teams: <a href="https://github.com/pret" target="_blank" rel="noopener">pret</a> decompilations. Fonts: Pixelify Sans and Nunito (OFL), Luckiest Guy (Apache 2.0).</p>`,
     wipe: 'Delete my Redle data', wipeConfirm: 'Are you sure? This deletes your progress, stats, streaks and settings in this browser.',
@@ -222,6 +222,9 @@ export function setBoss(id, name, team, gens) {
 
 // Modo Liga y repeticiones.
 Object.assign(T, es ? {
+  globalTitle: 'Hoy, entre todos', globalPlayers: n => `${n.toLocaleString('es')} ${n === 1 ? 'jugador' : 'jugadores'}`,
+  globalWins: p => `ha ganado el <b>${p}%</b>`, globalTurns: t => `media de ${t} turnos al ganar`,
+  globalChampions: (n, p) => `<b>${n}</b> ${n === 1 ? 'campeón' : 'campeones'} (${p}%)`, globalBetter: p => `Has llegado más lejos que el <b>${p}%</b>.`,
   league: 'Liga', leagueWhere: 'Alto Mando y Campeón',
   leagueLead: (round, name, title) => `<b>Ronda ${round} de 5</b>: ${round === 5 ? `el <b>Campeón</b> de hoy es ${name}` : `Alto Mando: <b>${name}</b>`}. Este es tu equipo de Liga (Gen 1-9), el mismo para todo el mundo; se cura entre combates. <b>Toca el Pokémon que quieres que empiece</b> y pulsa ¡Listo!`,
   eliteN: n => `Alto Mando ${n}`, champion: 'Campeón',
@@ -234,6 +237,9 @@ Object.assign(T, es ? {
   shareReplay: 'Compartir repetición', replayCopied: '¡Enlace copiado!',
   replayBanner: (name, date) => `▶ Repetición de un combate contra <b>${name}</b> del ${date}.`, playToday: 'Jugar el reto de hoy',
 } : {
+  globalTitle: 'Today, everyone', globalPlayers: n => `${n.toLocaleString('en')} ${n === 1 ? 'player' : 'players'}`,
+  globalWins: p => `<b>${p}%</b> won`, globalTurns: t => `${t} turns on average to win`,
+  globalChampions: (n, p) => `<b>${n}</b> ${n === 1 ? 'champion' : 'champions'} (${p}%)`, globalBetter: p => `You got further than <b>${p}%</b>.`,
   league: 'League', leagueWhere: 'Elite Four & Champion',
   leagueLead: (round, name, title) => `<b>Round ${round} of 5</b>: ${round === 5 ? `today's <b>Champion</b> is ${name}` : `Elite Four: <b>${name}</b>`}. This is your League team (Gens 1-9), the same for everyone; it is healed between battles. <b>Tap the Pokémon you want to lead</b> and press Ready!`,
   eliteN: n => `Elite Four ${n}`, champion: 'Champion',

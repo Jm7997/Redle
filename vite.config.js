@@ -20,7 +20,7 @@ export const stripUnusedData = {
 // Va como <meta> solo en la compilación (en desarrollo rompería la recarga en caliente de Vite).
 // 'unsafe-inline' en estilos hace falta por los style="" que pinta el juego (iconos, variables CSS).
 export const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://play.pokemonshowdown.com; " +
-  "media-src https://play.pokemonshowdown.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'";
+  "media-src https://play.pokemonshowdown.com; font-src 'self'; connect-src 'self' https://abliyzbjjkkbabmihfey.supabase.co; object-src 'none'; base-uri 'self'; form-action 'none'";
 const cspMeta = {
   name: 'csp-meta',
   apply: 'build',
