@@ -14,13 +14,24 @@ function playerId() {
 }
 
 // Envía el resultado (si ya se envió, Supabase responde 409 y no pasa nada). Nunca rompe el juego si falla.
-export async function sendResult({day, mode, won, turns, reached}) {
+export async function sendResult({day, mode, won, turns, reached, kos}) {
   try {
     await fetch(`${URL}/rest/v1/results`, {
       method: 'POST', headers: {...headers, Prefer: 'return=minimal'},
-      body: JSON.stringify({day, mode, player: playerId(), won, turns: turns || null, reached: reached ?? null}),
+      body: JSON.stringify({day, mode, player: playerId(), won, turns: turns || null, reached: reached ?? null, kos: kos ?? null}),
     });
   } catch {}
+}
+
+// Tu puesto del día en ese modo (sin nombres): {pos, total} o null si no hay conexión.
+export async function dailyRank({day, mode, won, turns, reached, kos}) {
+  try {
+    const res = await fetch(`${URL}/rest/v1/rpc/daily_rank`, {method: 'POST', headers,
+      body: JSON.stringify({p_day: day, p_mode: mode, p_won: won, p_turns: turns || 0, p_kos: kos ?? 0, p_reached: reached ?? 0})});
+    if (!res.ok) return null;
+    const [r] = await res.json();
+    return r?.total ? {pos: r.better + 1, total: r.total} : null;
+  } catch { return null; }
 }
 
 // Totales del día por modo: {red: {players, wins, avgTurns, reached: [n0..n5]}, …} o null si no hay conexión.

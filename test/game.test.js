@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan} from '../src/game.js';
 
 test('el reto del día es igual para todos y cambia cada día', () => {
   const a = dailyPool('2026-10-12'), b = dailyPool('2026-10-12'), c = dailyPool('2026-10-13');
@@ -117,4 +117,49 @@ test('60 combates por rival con elecciones al azar terminan sin errores y se rep
       if (d % 20 === 0) assert.equal(replay(date, team, choices, boss).turn, b.turn);
     }
   }
+});
+
+test('teracristalizar (Liga) y rendirse funcionan y se reproducen igual', () => {
+  const date = '2026-10-14', key = `liga0:${date}`, team = leaguePool(date), boss = leagueLineup(date)[0], b = newBattle(key, team, boss);
+  play(b, null);
+  assert.ok(b.p1.activeRequest.active[0].canTerastallize);
+  const choices = ['move 1 terastallize', 'forfeit'];
+  for (const c of choices) assert.ok(play(b, c));
+  assert.ok(b.log.some(l => l.startsWith('|-terastallize|p1a:')));
+  assert.ok(b.ended);
+  assert.equal(b.winner, BOSSES[boss].name);
+  assert.equal(replay(key, team, choices, boss).turn, b.turn);
+});
+
+test('mecanismos por combate: Liga los tres, Leon Dinamax en Gen 8, el resto ninguno', () => {
+  const req = b => (play(b, null), b.p1.activeRequest.active[0]);
+  const liga = req(newBattle('liga0:2026-10-14', leaguePool('2026-10-14'), 'red'));
+  assert.ok(liga.canTerastallize && liga.canDynamax);
+  const leon = newBattle('2026-10-14', dailyPool('2026-10-14', 'leon'), 'leon');
+  assert.equal(leon.gen, 8);
+  const lr = req(leon);
+  assert.ok(lr.canDynamax && !lr.canTerastallize);
+  for (const boss of ['blue', 'red', 'lance', 'steven', 'wallace', 'cynthia', 'iris']) {
+    const r = req(newBattle('2026-10-14', dailyPool('2026-10-14', boss), boss));
+    assert.ok(!r.canTerastallize && !r.canDynamax && !r.canMegaEvo, boss);
+  }
+});
+
+test('en la Liga los rivales usan como mucho un mecanismo por combate (≈10 %) y Leon siempre gigamaxiza', () => {
+  let plans = 0, n = 0;
+  for (let d = 0; d < 80; d++) {
+    const date = `M${d}`, team = leaguePool(date);
+    for (const [i, boss] of leagueLineup(date).entries()) {
+      const key = `liga${i}:${date}`;
+      if (boss === 'leon') { assert.deepEqual(bossPlan(key, boss), {kind: 'dynamax', species: 'Charizard'}); continue; }
+      n++; if (bossPlan(key, boss)) plans++;
+      if (d % 4) continue;
+      const b = newBattle(key, team, boss); play(b, null); let g = 0;
+      while (!b.ended && g++ < 500) play(b, aiChoice(b, 'p1') || 'default');
+      const used = [/^\|-mega\|p2a/, /^\|-start\|p2a: [^|]+\|Dynamax/, /^\|-terastallize\|p2a/].filter(re => b.log.some(l => re.test(l))).length;
+      assert.ok(used <= 1, `${boss} ${key} usó ${used} mecanismos`);
+    }
+  }
+  assert.ok(plans / n > 0.04 && plans / n < 0.2, `planes ${plans}/${n}`);
+  assert.equal(bossPlan('2026-10-14', 'red'), null); // fuera de la Liga, nada
 });

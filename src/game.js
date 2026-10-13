@@ -46,7 +46,7 @@ export function seedFor(text) {
 
 // Modo Liga Pokémon: equipo aleatorio de Gen 1-9 y 5 rivales seguidos (4 del Alto Mando y el Campeón)
 // elegidos cada día entre los de Redle. Entre combate y combate tu equipo se cura.
-export const LEAGUE = {id: 'liga', gens: [1, 9], maxEVs: 508, team: [], rounds: 5};
+export const LEAGUE = {id: 'liga', gens: [1, 9], maxEVs: 508, team: [], rounds: 5, gimmicks: ['tera', 'mega', 'dynamax']};
 export function leagueLineup(date) {
   const r = rng(`liga:${date}`), ids = Object.keys(BOSSES);
   for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
@@ -91,8 +91,9 @@ const NOT_ALLOWED = new Set(['Restricted Legendary', 'Sub-Legendary', 'Mythical'
 // solo de las generaciones del rival (Red: Gen 1-2; Cynthia: Gen 1-4), a nivel 100.
 export const dailyPool = (date, boss = 'red') => pool(`${boss}:${date}`, BOSSES[boss]);
 
-function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31}) {
-  const gen = TeamGenerators.getTeamGenerator('gen9randombattle', seedFor(`pool:${key}`));
+function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmicks = []}) {
+  const gen = TeamGenerators.getTeamGenerator(`gen${format}randombattle`, seedFor(`pool:${key}`));
+  const dex = Dex.forGen(format);
   const taken = new Set(team.map(s => dex.species.get(s.species).baseSpecies));
   // ponytail: corte por stats base; afinar con datos de partidas reales
   const candidates = Object.keys(gen.randomSets).map(id => dex.species.get(id))
@@ -103,9 +104,25 @@ function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31}) {
     if (seen.has(sp.baseSpecies)) continue;
     seen.add(sp.baseSpecies);
     const set = gen.randomSet(sp.name, {}, out.length === 0);
-    out.push({...set, level: 100, ...wildTraining(set, key, maxEVs, maxIVs)});
+    out.push({...set, level: 100, gigantamax: false, ...wildTraining(set, key, maxEVs, maxIVs)});
   }
+  luckyGimmick(out, key, gimmicks, dex);
   return out;
+}
+
+// Un 5 % de que a uno de tus Pokémon le toque su megapiedra o su forma Gigamax (según lo que permita el
+// combate). Como mucho un Pokémon así por equipo.
+export const GIMMICK_CHANCE = 0.05;
+function luckyGimmick(team, key, gimmicks, dex) {
+  const r = rng(`gimmick:${key}`);
+  if (r() >= GIMMICK_CHANCE) return;
+  const megaOf = set => dex.species.get(set.species).otherFormes?.map(f => dex.species.get(f)).find(f => f.isMega && f.requiredItem);
+  const gmaxOf = set => dex.species.get(`${set.species}-Gmax`).exists;
+  const options = [
+    ...(gimmicks.includes('mega') ? team.filter(megaOf).map(set => () => { set.item = megaOf(set).requiredItem; }) : []),
+    ...(gimmicks.includes('dynamax') ? team.filter(gmaxOf).map(set => () => { set.gigantamax = true; }) : []),
+  ];
+  if (options.length) options[Math.floor(r() * options.length)]();
 }
 
 // Generador pseudoaleatorio pequeño y determinista (mulberry32) a partir de un texto.
@@ -233,7 +250,8 @@ export const BOSSES = {
   },
   leon: {
     // Espada y Escudo, Campeón de Galar (Serebii; variante con Seismitoad y Cinderace).
-    id: 'leon', name: 'Leon', gens: [1, 8], maxEVs: 508,
+    // format: reglas del combate (Gen 8 = con Dinamax). gimmicks: lo que se puede usar en sus combates.
+    id: 'leon', name: 'Leon', gens: [1, 8], maxEVs: 508, format: 8, gimmicks: ['dynamax'],
     team: [
       mon('Aegislash', 'Leftovers', 'Stance Change', 'Quiet', ev('hp', 'spa', 'atk'), ["King's Shield", 'Shadow Ball', 'Sacred Sword', 'Flash Cannon']),
       mon('Dragapult', 'Choice Specs', 'Clear Body', 'Timid', ev('spa', 'spe'), ['Shadow Ball', 'Flamethrower', 'Thunderbolt', 'Dragon Breath']),
@@ -247,10 +265,51 @@ export const BOSSES = {
 export const RED_TEAM = BOSSES.red.team;
 
 // `key` identifica el combate (fecha, práctica o ronda de Liga) y da la semilla; `rule` es la regla del día.
+// Plan de mecanismo del rival: un solo mecanismo por combate.
+// - Leon siempre gigamaxiza a su as, Charizard (como en Espada/Escudo), también en la Liga.
+// - En la Liga, el resto tiene un 10 % de usar uno: Mega (si alguno de su equipo puede), Dinamax o Tera.
+//   Mega y Dinamax van reservados a un Pokémon concreto; si cae antes de usarlo, puede teracristalizar a otro.
+export const BOSS_GIMMICK_CHANCE = 0.1;
+export function bossPlan(key, boss) {
+  if (boss === 'leon') return {kind: 'dynamax', species: 'Charizard'};
+  if (!String(key).startsWith('liga')) return null;
+  const r = rng(`plan:${boss}:${key}`);
+  if (r() >= BOSS_GIMMICK_CHANCE) return null;
+  const team = BOSSES[boss].team;
+  const megas = team.flatMap(s => (dex.species.get(s.species).otherFormes || []).map(f => dex.species.get(f))
+    .filter(f => f.isMega && f.requiredItem).map(f => ({kind: 'mega', species: s.species, item: f.requiredItem})));
+  const kinds = [...(megas.length ? ['mega'] : []), 'dynamax', 'tera'];
+  const kind = kinds[Math.floor(r() * kinds.length)];
+  if (kind === 'mega') return megas[Math.floor(r() * megas.length)];
+  if (kind === 'dynamax') return {kind, species: team[Math.floor(r() * team.length)].species};
+  return {kind};
+}
+// El equipo del rival con lo que necesita su plan: la megapiedra o la marca de Dinamax (y Gigamax si existe).
+function bossTeam(boss, plan) {
+  return BOSSES[boss].team.map(s => {
+    if (!plan || s.species !== plan.species) return s;
+    if (plan.kind === 'mega') return {...s, item: plan.item};
+    return {...s, dynamax: true, gigantamax: dex.species.get(`${s.species}-Gmax`).exists};
+  });
+}
+
+// Mecanismos por combate: en la Liga, todos (Tera, Mega y Dinamax); contra un rival, los de su generación.
+// Las rondas de la Liga se reconocen porque su clave empieza por "liga".
+export function battleGimmicks(key, boss) {
+  return String(key).startsWith('liga') ? LEAGUE.gimmicks : BOSSES[boss].gimmicks || [];
+}
 export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
-  const battle = new Battle({formatid: FORMAT, seed: seedFor(`battle:${boss}:${key}`)});
+  const gimmicks = battleGimmicks(key, boss), league = String(key).startsWith('liga');
+  const format = league ? 9 : BOSSES[boss].format || 9;
+  const formatid = `gen${format}customgame${format === 9 && !gimmicks.includes('tera') ? '@@@Terastal Clause' : ''}`;
+  const battle = new Battle({formatid, seed: seedFor(`battle:${boss}:${key}`)});
   battle.setPlayer('p1', {name: 'Tú', team});
-  battle.setPlayer('p2', {name: BOSSES[boss].name, team: BOSSES[boss].team});
+  battle.bossPlan = bossPlan(key, boss);
+  battle.setPlayer('p2', {name: BOSSES[boss].name, team: bossTeam(boss, battle.bossPlan)});
+  // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
+  if (format !== 8 && gimmicks.includes('dynamax')) {
+    for (const side of battle.sides) { side.dynamaxUsed = false; side.canDynamaxNow = function () { return !this.dynamaxUsed; }; }
+  }
   const weather = BOSSES[boss].weather;
   if (weather) {
     battle.field.setWeather(weather, battle.p2.pokemon[0]);
@@ -383,7 +442,30 @@ export function aiChoice(battle, sideId = 'p2') {
     const i = bestSwitch(side, foe) - 1, p = side.pokemon[i];
     if (p && !p.isActive && !p.fainted && bestDamage(foe, p) <= Math.min(threat * 0.6, 0.5 * p.hp / p.maxhp) && bestDamage(p, foe) >= 0.25) return 'switch ' + (i + 1);
   }
-  return best < 0 ? 'default' : 'move ' + (best + 1);
+  if (best < 0) return 'default';
+  const r = req.active[0];
+  const gimmick = r.canMegaEvo ? ' mega' : r.canDynamax && me.set.dynamax ? ' dynamax'
+    : r.canTerastallize && sideId === 'p2' && teraNow(battle, side, me, foe) ? ' terastallize' : '';
+  return 'move ' + (best + 1) + gimmick;
+}
+
+// ¿Teracristaliza ahora el rival? Solo si su plan es Tera, o si el Pokémon reservado para Mega/Dinamax
+// cayó sin llegar a usarlo. Lo hace cuando el tipo Tera le protege del mejor ataque del rival o si es el último.
+function teraNow(battle, side, me, foe) {
+  const plan = battle.bossPlan;
+  if (!plan) return false;
+  if (plan.kind !== 'tera') {
+    const ace = side.pokemon.find(p => p.set.species === plan.species);
+    const used = battle.log.some(l => l.startsWith('|-mega|p2a') || /^\|-start\|p2a: [^|]+\|Dynamax/.test(l));
+    if (!ace?.fainted || used) return false;
+  }
+  const last = side.pokemon.filter(p => !p.fainted).length === 1;
+  const worst = foe.moveSlots.map(m => dex.moves.get(m.id)).filter(m => m.category !== 'Status')
+    .sort((a, b) => estimate(foe, me, b.id) - estimate(foe, me, a.id))[0];
+  if (!worst) return last;
+  const types = me.getTypes(), tera = [me.teraType];
+  const eff = t => dex.getImmunity(worst.type, t) ? 2 ** dex.getEffectiveness(worst.type, t) : 0;
+  return last || eff(tera) < eff(types);
 }
 
 function bestSwitch(side, foe) {
@@ -407,6 +489,8 @@ function bestSwitch(side, foe) {
 // Aplica una elección del jugador y deja que Red responda hasta que vuelva a tocarle al jugador.
 export function play(battle, choice) {
   if (!choice && battle.p1.activeRequest?.teamPreview) battle.choose('p1', 'default');
+  // Rendirse: el combate acaba como derrota (queda en las elecciones, así que también se reproduce).
+  if (choice === 'forfeit') { if (!battle.ended) battle.lose('p1'); return true; }
   if (choice && !battle.choose('p1', choice)) return false;
   for (let guard = 0; guard < 10 && !battle.ended; guard++) {
     const c = aiChoice(battle, 'p2');

@@ -122,6 +122,7 @@ button.slot:hover { transform: translateX(4px); }
 .icon-mon.out { filter: grayscale(1); opacity: .4; }
 .icon-mon.unseen { filter: brightness(0); opacity: .5; }
 .icon-item { display: inline-block; vertical-align: middle; }
+#btn-mute.off { text-decoration: line-through; opacity: .6; }
 
 /* botón con Pokéball */
 .ballbtn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; margin-top: 18px; padding: 14px; border-radius: 40px;
@@ -210,7 +211,40 @@ button.slot:hover { transform: translateX(4px); }
 .weather-badge { position: absolute; z-index: 6; left: 50%; top: 8px; transform: translateX(-50%); font: 700 13px var(--pixel); color: #fff;
   background: #2a7fc1dd; border: 2px solid #fff; padding: 1px 10px; border-radius: 10px; text-shadow: 1px 1px 0 #0006; }
 .rules { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; border-color: #8fc4ee; background: color-mix(in srgb, var(--panel) 85%, #bfe3ff); }
-.rules:empty { display: none; }
+.rules summary { cursor: pointer; font-weight: 800; }
+.rules p { margin: 8px 0 0; }
+.welcome { margin: 0 0 14px; text-align: center; border-color: #ffd23f; }
+.welcome p { margin: 0 0 10px; line-height: 1.5; }
+.details-toggle { display: block; margin: 0 auto 10px; border: 0; background: none; color: var(--ink, inherit); text-decoration: underline; font: 800 14px var(--body); cursor: pointer; }
+/* Fichas compactas: solo sprite, nombre, tipos y objeto; dos columnas también en móvil */
+.parties.compact { grid-template-columns: 1fr 1fr; gap: 10px; }
+.parties.compact .slots { gap: 6px; }
+.parties.compact .slot { grid-template-columns: 44px 1fr; gap: 0 6px; padding: 5px 8px; }
+.parties.compact .slot .sp { grid-row: span 3; width: 44px; height: 44px; }
+.parties.compact .slot .top { font-size: 14px; }
+.parties.compact .slot .top small, .parties.compact .stats6, .parties.compact .moves4, .parties.compact .mini-hp, .parties.compact .ab { display: none; }
+.parties.compact .slot .sub { font-size: 11px; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+.parties.compact .party h3 { font-size: 15px; }
+.parties.compact .slot .types { flex-wrap: nowrap; gap: 3px; }
+.parties.compact .slot .type { font-size: 9px; padding: 0 4px; }
+body:not(.mode-liga) .welcome:not([hidden]) ~ .intro-text { display: none; }
+.parties.compact > .party, .parties.compact .slot > * { min-width: 0; }
+.parties.compact .slot .top { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+#btn-go { position: sticky; bottom: 12px; z-index: 5; }
+/* Liga: progreso hacia el Campeón durante el combate */
+.league-bar { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 0 0 8px; }
+.league-bar .steps { display: flex; align-items: center; }
+.league-bar .steps i { width: 14px; height: 3px; background: var(--line); }
+.league-bar .steps span { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); overflow: hidden; }
+.league-bar .steps img { image-rendering: pixelated; filter: grayscale(1) opacity(.5); }
+.league-bar .steps .champ { border-color: #c9a24a; }
+.league-bar .steps .current { width: 48px; height: 48px; border: 3px solid #ffd23f; box-shadow: 0 0 0 3px #ffd23f55; }
+.league-bar .steps .current img { filter: none; }
+.league-bar .steps .beaten img { filter: grayscale(1) opacity(.35); }
+.league-bar .steps .lost { border-color: #e8402f; }
+.league-bar .steps .lost img { filter: none; }
+.league-bar .steps .beaten::after { content: '✓'; position: absolute; font: 900 22px var(--body); color: #2fae4f; text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
+.league-bar small { font: 800 12px var(--body); color: var(--muted); }
 
 /* efectos */
 .fx { position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none; max-width: none; }
@@ -228,6 +262,38 @@ button.slot:hover { transform: translateX(4px); }
 /* ================= combate: pantalla de abajo ================= */
 .ds-bottom { margin-top: 12px; padding: 12px; border-radius: 20px; background: repeating-linear-gradient(135deg, var(--ds) 0 14px, var(--ds-2) 14px 28px); border: 3px solid #2b2b2b; box-shadow: 0 6px 0 #0004; }
 #controls.locked { opacity: .45; pointer-events: none; }
+/* botones de mecanismo, cada uno con el estilo de su juego */
+.gimmicks { grid-column: 1 / -1; display: flex; gap: 8px; }
+.gimmick { flex: 1; padding: 9px 10px; border-radius: 14px; border: 3px solid #ffffff99; color: #fff; font: 700 16px var(--pixel); text-shadow: 1px 1px 0 #0009;
+  box-shadow: inset 0 2px 0 #fff6, 0 3px 0 #0005; display: flex; align-items: center; justify-content: center; gap: 8px; filter: saturate(.7) brightness(.9); }
+.gimmick .type { font-size: 11px; }
+.gimmick.on { filter: none; border-color: #fff; animation: gimmick-pulse .9s ease-in-out infinite alternate; }
+@keyframes gimmick-pulse { to { box-shadow: inset 0 2px 0 #fff6, 0 0 0 3px #fff8, 0 0 20px var(--glow); } }
+/* Teracristal: cristal facetado celeste (Escarlata/Púrpura) */
+.gimmick.tera { --glow: #9ff3ff; background: conic-gradient(from 210deg at 50% 50%, #8fe9ff, #e9fdff, #5fc8f0, #c9f6ff, #7ad8f5, #8fe9ff); color: #10385a; text-shadow: 0 1px 0 #ffffffaa; }
+/* Megaevolución: el arcoíris del símbolo Mega (X/Y) */
+.gimmick.mega { --glow: #ffcf4a; background: linear-gradient(135deg, #f04a8c, #f7a33c 30%, #f4e04d 50%, #4fd18b 70%, #4a8ef0 85%, #9a5cf0); }
+/* Dinamax: energía roja y rosa de Galar */
+.gimmick.dmax { --glow: #ff2a6d; background: radial-gradient(circle at 30% 30%, #ff8fb3, #e8124f 55%, #8a0a35); }
+.gmax-tag { font: 700 9px/1.5 var(--pixel); padding: 0 5px; border-radius: 5px; color: #fff; background: radial-gradient(circle at 30% 30%, #ff8fb3, #e8124f); border: 1.5px solid #8a0a35; }
+/* Pokémon dinamaxizado: gigante y con aura roja */
+.mon.dynamax { scale: 1.45; filter: drop-shadow(0 0 6px #ff2a6d) drop-shadow(0 0 16px #ff2a6daa) saturate(1.15); }
+.tera-tag { font: 700 9px/1.5 var(--pixel); padding: 0 5px; border-radius: 5px; color: #12324a; background: linear-gradient(135deg, #e4fbff, #9ff3ff); border: 1.5px solid #4fb6d6; }
+.forfeit-btn { display: block; margin: 10px auto 0; padding: 4px 14px; border-radius: 10px; border: 2px solid #ffffff55; background: transparent; color: #dfe6ff; font: 700 13px var(--pixel); opacity: .75; }
+.forfeit-btn:hover { opacity: 1; border-color: #ff8a7a; color: #ffb4a8; }
+/* estadísticas finales de cada Pokémon */
+.stats6 { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; margin-top: 5px; }
+/* casillas blancas como la pantalla de datos; rojo = sube por naturaleza, azul = baja */
+.stats6 span { display: flex; flex-direction: column; align-items: center; padding: 2px 0 2px; border-radius: 6px; background: #f7f7f2; color: #1f1f1f;
+  text-shadow: none; border: 1.5px solid #00000030; font: 900 15px/1.15 var(--body); font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+.stats6 small { font: 800 10px/1.2 var(--body); color: #5a5a5a; text-transform: uppercase; letter-spacing: .3px; }
+.stats6 .up { background: #ffe3de; border-color: #e8402f; }
+.stats6 .up small { color: #e0301e; }
+.stats6 .down { background: #dde8ff; border-color: #2f6fe0; }
+.stats6 .down small { color: #1f5fd6; }
+.stats6 em { font: 900 10px/1 var(--body); font-style: normal; padding: 1px 4px; border-radius: 4px; color: #fff; text-shadow: none; }
+.stats6 em.bup { background: #e8402f; } .stats6 em.bdown { background: #2f6fe0; }
+.hud.me { cursor: pointer; }
 .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
 .tabs button { flex: 1; padding: 7px; border-radius: 12px; border: 3px solid #1a2238; background: #ffffff22; color: #fff; font: 700 15px var(--pixel); text-shadow: 1px 1px 0 #0008; }
 .tabs button.on { background: linear-gradient(#ffd96a, #f2b51f); color: #3a2a00; text-shadow: none; }
@@ -276,9 +342,13 @@ body.practice .logo span { background: #ffd23f; color: #3a2a00; }
 .move:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
 .move:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 0 0 2px #fff6, 0 1px 0 #0005; }
 .move b { display: block; font: 700 21px/1.15 var(--pixel); }
-.move .line { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; font: 600 13px var(--pixel); }
+.move .line { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; font: 800 14px var(--body); font-variant-numeric: tabular-nums; }
 .move .line .type { box-shadow: 0 0 0 1.5px #fff8; }
-.move .info { display: block; font: 500 12px var(--pixel); opacity: .9; margin-top: 2px; }
+.move .line > span:last-child { white-space: nowrap; }
+.move .info { display: block; font: 700 13px var(--body); font-variant-numeric: tabular-nums; opacity: .9; margin-top: 2px; }
+/* descripción del ataque: texto normal (legible), dos líneas como máximo */
+.move .desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 4px; padding-top: 4px;
+  border-top: 1px solid #ffffff55; font: 600 13px/1.35 var(--body); font-variant-numeric: tabular-nums; text-shadow: 0 1px 1px #0009; }
 .move em { position: absolute; right: 10px; top: 9px; font: 700 11px var(--pixel); font-style: normal; padding: 1px 7px; border-radius: 8px; background: #000b; }
 .move em.good { color: #9cffbe; } .move em.bad { color: #ffb4b4; }
 .move:disabled { filter: grayscale(1) brightness(.6); }
@@ -347,7 +417,7 @@ pre { white-space: pre-wrap; font: 13px/1.5 ui-monospace, monospace; background:
 .boss-tab.on { border-color: var(--dex); box-shadow: 0 3px 0 var(--dex-dark); }
 .boss-tab.liga { background: linear-gradient(#5a46c8, #2e2180); color: #fff; border-color: #ffd23f; }
 .boss-tab.liga small { color: #e6ddff; }
-.liga-icon { font-size: 26px; line-height: 1; }
+.liga-icon .icon-item { scale: 1.6; }
 
 /* Liga: los 5 rivales del día */
 .lineup { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 0 0 12px; }

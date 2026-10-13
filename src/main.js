@@ -2,10 +2,10 @@
 // resultado, repeticiones compartibles y ajustes.
 import {Dex} from '@pkmn/sim';
 import {Sprites, Icons} from '@pkmn/img';
-import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
-import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName} from './i18n.js';
+import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
+import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
-import {sendResult, dailyStats} from './stats.js';
+import {sendResult, dailyStats, dailyRank} from './stats.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
 const dex = Dex.forGen(9);
@@ -16,19 +16,19 @@ const ls = {get: k => { try { return localStorage.getItem(k); } catch { return n
 const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // ---------- ambientación de cada rival ----------
-// colors: cabecera, cabecera oscura, y degradado/borde de las fichas de su equipo.
+// era: carpeta de sprites de Showdown del juego del rival. colors: cabecera, cabecera oscura, y degradado/borde de las fichas de su equipo.
 const SD = 'https://play.pokemonshowdown.com/', G6 = SD + 'sprites/gen6bgs/';
 const STAGES = {
-  blue: {sprite: 'blue', emoji: '🌿', bg: G6 + 'bg-city.jpg', music: ['hgss-kanto-trainer', 'bw2-kanto-gym-leader'], colors: ['#2f7de1', '#163f80', '#7fb4f0', '#2a64b8', '#123a73']},
-  red: {sprite: 'red', emoji: '⛰️', bg: SD + 'fx/bg-icecave.png', music: ['hgss-kanto-trainer', 'hgss-johto-trainer', 'bw2-kanto-gym-leader']},
-  lance: {sprite: 'lance', emoji: '🐉', bg: G6 + 'bg-skypillar.jpg', music: ['hgss-johto-trainer', 'hgss-kanto-trainer'], colors: ['#c43a22', '#6e1a0e', '#f09a7f', '#b23a24', '#5e140c']},
-  steven: {sprite: 'steven', emoji: '💎', bg: G6 + 'bg-earthycave.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#5d6f8f', '#2b3550', '#a9b8d4', '#56688c', '#27324a']},
-  wallace: {sprite: 'wallace', emoji: '🌊', bg: G6 + 'bg-leaderwallace.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#1d9fcb', '#0b5a78', '#86dcf2', '#1c88b2', '#0a4a63']},
-  cynthia: {sprite: 'cynthia', emoji: '👑', bg: G6 + 'bg-elite4drake.jpg', music: ['dpp-rival', 'dpp-trainer']},
-  iris: {sprite: 'iris', emoji: '🐲', bg: G6 + 'bg-forest.jpg', music: ['bw2-rival', 'bw-rival'], colors: ['#9046cf', '#4d1d7c', '#d4a8f3', '#8140b6', '#43186b']},
-  leon: {sprite: 'leon', emoji: '🔥', bg: G6 + 'bg-darkcity.jpg', music: ['sm-rival', 'xy-rival'], colors: ['#b5142f', '#560715', '#f2c54a', '#a8122b', '#4a0612']},
+  blue: {era: 'gen4', sprite: 'blue', emoji: '🌿', bg: G6 + 'bg-city.jpg', music: ['hgss-kanto-trainer', 'bw2-kanto-gym-leader'], colors: ['#2f7de1', '#163f80', '#7fb4f0', '#2a64b8', '#123a73']},
+  red: {era: 'gen4', sprite: 'red', emoji: '⛰️', bg: SD + 'fx/bg-icecave.png', music: ['hgss-kanto-trainer', 'hgss-johto-trainer', 'bw2-kanto-gym-leader']},
+  lance: {era: 'gen4', sprite: 'lance', emoji: '🐉', bg: G6 + 'bg-skypillar.jpg', music: ['hgss-johto-trainer', 'hgss-kanto-trainer'], colors: ['#c43a22', '#6e1a0e', '#f09a7f', '#b23a24', '#5e140c']},
+  steven: {era: 'gen3', sprite: 'steven', emoji: '💎', bg: G6 + 'bg-earthycave.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#5d6f8f', '#2b3550', '#a9b8d4', '#56688c', '#27324a']},
+  wallace: {era: 'gen3', sprite: 'wallace', emoji: '🌊', bg: G6 + 'bg-leaderwallace.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#1d9fcb', '#0b5a78', '#86dcf2', '#1c88b2', '#0a4a63']},
+  cynthia: {era: 'gen4', sprite: 'cynthia', emoji: '👑', bg: G6 + 'bg-elite4drake.jpg', music: ['dpp-rival', 'dpp-trainer']},
+  iris: {era: 'gen5ani', sprite: 'iris', emoji: '🐲', bg: G6 + 'bg-forest.jpg', music: ['bw2-rival', 'bw-rival'], colors: ['#9046cf', '#4d1d7c', '#d4a8f3', '#8140b6', '#43186b']},
+  leon: {era: 'ani', sprite: 'leon', emoji: '🔥', bg: G6 + 'bg-darkcity.jpg', music: ['sm-rival', 'xy-rival'], colors: ['#b5142f', '#560715', '#f2c54a', '#a8122b', '#4a0612']},
 };
-const keyOf = mode => `redle:v10:${mode}`;
+const keyOf = mode => `redle:v11:${mode}`;
 const TODAY = today();
 const DAY = dayNumber(TODAY);
 const YESTERDAY = new Date(Date.parse(TODAY + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
@@ -37,7 +37,8 @@ const params = new URLSearchParams(location.search);
 // ---------- repeticiones compartibles ----------
 // El combate es determinista: basta con el modo, la fecha, la ronda, el orden del equipo y las elecciones.
 // Se codifican en el #hash del enlace. Todo lo que llega por el enlace se valida antes de usarlo.
-const packChoices = cs => cs.map(c => c === 'default' ? 'd' : c[0] + c.split(' ')[1]).join('.');
+const GIMMICK_TOKEN = {terastallize: 't', mega: 'm', dynamax: 'x'};
+const packChoices = cs => cs.map(c => c === 'default' ? 'd' : c === 'forfeit' ? 'f' : c[0] + c.split(' ')[1] + (GIMMICK_TOKEN[c.split(' ')[2]] || '')).join('.');
 function encodeReplay(data) {
   const json = JSON.stringify({...data, c: packChoices(data.c)});
   return btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -52,8 +53,9 @@ function parseReplay(hash) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > TODAY) return null; // nunca combates de días futuros
     if (round < 0 || round >= LEAGUE.rounds || (mode !== 'liga' && round)) return null;
     if (!Array.isArray(picks) || [...picks].sort().join() !== '0,1,2,3,4,5') return null;
-    if (tokens.length > 1000 || !tokens.every(t => /^(m[1-4]|s[1-6]|d)$/.test(t))) return null;
-    const choices = tokens.map(t => t === 'd' ? 'default' : (t[0] === 'm' ? 'move ' : 'switch ') + t[1]);
+    if (tokens.length > 1000 || !tokens.every(t => /^(m[1-4][tmx]?|s[1-6]|d|f)$/.test(t))) return null;
+    const fromToken = Object.fromEntries(Object.entries(GIMMICK_TOKEN).map(([k, v]) => [v, ' ' + k]));
+    const choices = tokens.map(t => t === 'd' ? 'default' : t === 'f' ? 'forfeit' : (t[0] === 'm' ? 'move ' : 'switch ') + t[1] + (fromToken[t[2]] || ''));
     return {mode, date, round, picks: picks.map(Number), choices};
   } catch { return null; }
 }
@@ -79,7 +81,7 @@ const rand = () => Math.random().toString(36).slice(2, 8);
 const goPractice = team => { location.search = `?vs=${MODE}&practica=${rand()}&equipo=${team}`; };
 const goToday = () => { location.href = `${location.pathname}?vs=${MODE}`; };
 if (params.has('practica') && !PRACTICE && !REPLAY) history.replaceState(null, '', `${location.pathname}?vs=${MODE}`);
-let speed = +(ls.get('redle:speed') || 1);
+let speed = +(ls.get('redle:speed') || 2); // rápido por defecto: quien repite quiere ir al grano
 setSpeed(speed);
 
 if (PRACTICE || REPLAY) delete store.days[DATE];
@@ -93,9 +95,9 @@ if (REPLAY) Object.assign(LIGA ? (day().round = REPLAY.round, rec()) : day(), {p
 const battleKey = () => LIGA ? `liga${round()}:${DATE}` : DATE;
 
 // ---------- rival actual ----------
-let OPP, B, STAGE, RULE;
+let OPP, B, STAGE, RULE, GIMMICKS = [];
 function setOpponent(id) {
-  OPP = id; B = BOSSES[id]; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id);
+  OPP = id; B = BOSSES[id]; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
   setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens);
   const body = document.body;
   body.className = body.className.replace(/\bboss-\w+/g, '').trim();
@@ -117,11 +119,11 @@ if (LIGA) document.body.classList.add('mode-liga');
 // Selector de modo: los 8 rivales y la Liga, con el estado del reto de hoy de cada uno.
 const markOf = id => {
   const d = JSON.parse(ls.get(keyOf(id)) || '{}').days?.[TODAY];
-  return id === 'liga' && d?.result ? (d.result === 'win' ? '🏆' : `${d.reached}/5`) : d?.result === 'win' ? '🏆' : d?.result === 'loss' ? '✗' : '';
+  return id === 'liga' && d?.result ? (d.result === 'win' ? itemIcon('Poke Ball') : `${d.reached}/5`) : d?.result === 'win' ? itemIcon('Poke Ball') : d?.result === 'loss' ? '✗' : '';
 };
 $('#bosses').innerHTML = [...Object.values(BOSSES).map(b => ({id: b.id, name: b.name, img: `${SD}sprites/trainers/${STAGES[b.id].sprite}.png`})),
   {id: 'liga', name: T.league, img: ''}].map(b =>
-  `<a href="?vs=${b.id}" class="boss-tab ${b.id}${b.id === MODE ? ' on' : ''}">${b.img ? `<img src="${b.img}" alt="" width="40" height="40">` : '<span class="liga-icon">🏟️</span>'}
+  `<a href="?vs=${b.id}" class="boss-tab ${b.id}${b.id === MODE ? ' on' : ''}">${b.img ? `<img src="${b.img}" alt="" width="40" height="40">` : `<span class="liga-icon">${itemIcon('Master Ball')}</span>`}
     <span><b>${b.name}</b><small>${b.id === MODE ? (LIGA ? T.leagueWhere : T.where) : ''}</small></span><i>${markOf(b.id)}</i></a>`).join('');
 { // centrar la pestaña activa sin mover la página
   const nav = $('#bosses'), on = $('.boss-tab.on');
@@ -130,9 +132,11 @@ $('#bosses').innerHTML = [...Object.values(BOSSES).map(b => ({id: b.id, name: b.
 
 // ---------- utilidades visuales ----------
 const typeBadge = t => `<span class="type t-${t.toLowerCase()}">${typeName(t)}</span>`;
-const spriteOf = (species, back) => Sprites.getPokemon(species, {gen: 'ani', side: back ? 'p1' : 'p2'});
+// Sprites del juego de cada rival (HGSS, RSE, Platino, NB2…); la Liga mezcla generaciones y usa los animados.
+// Los Pokémon posteriores a esa generación salen con el sprite más antiguo que exista.
+const spriteOf = (species, back) => Sprites.getPokemon(species, {gen: LIGA ? 'ani' : STAGE.era, side: back ? 'p1' : 'p2'});
 const icon = (species, extra = '') => `<span class="icon-mon ${extra}" style="${Icons.getPokemon(species).style}" title="${species}"></span>`;
-const itemIcon = name => `<span class="icon-item" style="${Icons.getItem(name).style}"></span>`;
+
 const cryId = species => toID(dex.species.get(species).baseSpecies);
 const trainerImg = id => `${SD}sprites/trainers/${STAGES[id].sprite}.png`;
 
@@ -152,6 +156,28 @@ function backgroundMons() {
 }
 
 // ---------- vista previa de equipos (pantalla de equipo estilo juego) ----------
+// Estadísticas finales (nivel, IVs, EVs y naturaleza ya aplicados), sin enseñar IVs ni EVs.
+const STAT_IDS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+function finalStats(set) {
+  const base = dex.species.get(set.species).baseStats, nat = dex.natures.get(set.nature || 'Serious'), L = set.level || 100;
+  return Object.fromEntries(STAT_IDS.map(s => {
+    const raw = Math.floor((2 * base[s] + (set.ivs?.[s] ?? 31) + Math.floor((set.evs?.[s] ?? 0) / 4)) * L / 100);
+    if (s === 'hp') return [s, set.species === 'Shedinja' ? 1 : raw + L + 10];
+    return [s, Math.floor((raw + 5) * (nat.plus === s ? 1.1 : nat.minus === s ? 0.9 : 1))];
+  }));
+}
+// Como en la pantalla de datos de los juegos: la estadística que la naturaleza sube va en rojo (▲)
+// y la que baja en azul (▼). No se muestra el nombre de la naturaleza ni IVs/EVs.
+// En combate, el Pokémon activo muestra además sus cambios de características (+2, −1…).
+const statsRow = (stats, nature, boosts = {}) => {
+  const n = dex.natures.get(nature || 'Serious');
+  return `<div class="stats6">${STAT_IDS.map(s => {
+    const mod = n.plus === s && n.minus !== s ? 'up' : n.minus === s && n.plus !== s ? 'down' : '';
+    const b = boosts[s] ? `<em class="${boosts[s] > 0 ? 'bup' : 'bdown'}">${boosts[s] > 0 ? '+' : '−'}${Math.abs(boosts[s])}</em>` : '';
+    return `<span class="${mod}"><small>${s === 'hp' ? T.hpShort : T.statShort[s]}${mod === 'up' ? '▲' : mod === 'down' ? '▼' : ''}</small>${stats[s]}${b}</span>`;
+  }).join('')}</div>`;
+};
+
 function slot(set, tag) {
   const sp = dex.species.get(set.species);
   const s = el(tag, 'slot');
@@ -160,7 +186,8 @@ function slot(set, tag) {
     <div class="top">${sp.name}<small>${T.level}${set.level}</small></div>
     <div class="types">${sp.types.map(typeBadge).join('')}</div>
     <div class="mini-hp"><i></i></div>
-    <div class="sub">${set.item ? itemIcon(set.item) + itemName(set.item) + ' · ' : ''}${abilityName(set.ability)}</div>
+    <div class="sub">${set.item ? itemIcon(set.item) + itemName(set.item) : ''}<span class="ab">${set.item ? ' · ' : ''}${abilityName(set.ability)}</span>${set.teraType && GIMMICKS.includes('tera') && !B.team.includes(set) ? ` · ${T.teraLabel} ${typeBadge(set.teraType)}` : ''}${set.gigantamax ? ` <span class="gmax-tag">${T.gmaxTag}</span>` : ''}</div>
+    ${statsRow(finalStats(set), set.nature)}
     <div class="moves4">${set.moves.map(m => `<span class="t-${dex.moves.get(m).type.toLowerCase()}">${moveName(m)}</span>`).join('')}</div>`;
   return s;
 }
@@ -177,6 +204,18 @@ function drawLineup() {
   }).join('');
 }
 
+// Durante el combate de la Liga: el camino a la cima (vencidos, el actual y los que quedan).
+function drawLeagueBar() {
+  const bar = $('#league-bar');
+  bar.hidden = !LIGA;
+  if (!LIGA) return;
+  const d = day(), n = round();
+  // En una repetición solo existe la ronda que se ve: las anteriores se ganaron por fuerza.
+  const state = i => d.rounds[i]?.result === 'win' || (REPLAY && i < n) ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : i === n ? 'current' : '';
+  bar.innerHTML = `<div class="steps">${LINEUP.map((id, i) => `<span class="${state(i)}${i === 4 ? ' champ' : ''}"><img src="${trainerImg(id)}" alt="${BOSSES[id].name}" width="36" height="36"></span>`).join('<i></i>')}</div>
+    <small>${T.leagueProgress(n + 1, LEAGUE.rounds - 1 - n)}</small>`;
+}
+
 function renderDraft() {
   const r = rec();
   $('#draft').hidden = false;
@@ -191,6 +230,14 @@ function renderDraft() {
   }));
   $('#red-team').replaceChildren(...B.team.map(set => slot(set, 'div')));
   $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
+  $('#rules').hidden = !$('#stage-rules').innerHTML;
+  // Fichas compactas por defecto (sprite, tipos y objeto); estadísticas, habilidad y ataques se despliegan con un toque.
+  const details = ls.get('redle:details') === '1';
+  $('#parties').classList.toggle('compact', !details);
+  $('#btn-details').textContent = details ? T.hideDetails : T.showDetails;
+  $('#btn-details').onclick = () => { ls.set('redle:details', details ? '0' : '1'); renderDraft(); };
+  $('#welcome').hidden = !!ls.get('redle:welcome') || !!PRACTICE;
+  $('#btn-welcome').onclick = () => { ls.set('redle:welcome', '1'); $('#welcome').hidden = true; };
   const go = $('#btn-go');
   go.querySelector('.txt').textContent = T.go;
   go.onclick = () => { r.started = true; save(); startBattle(true); };
@@ -198,8 +245,8 @@ function renderDraft() {
 
 // ---------- combate ----------
 let battle, logIdx = 0, busy = false;
-const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}});
-const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: '', field: []});
+const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}, dmax: false, gmax: false});
+const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: '', field: [], tera: {p1: {}, p2: {}}});
 const view = freshView();
 const team = () => rec().picks.map(i => POOL[i]);
 const img = side => $(`.mon.${side === 'p1' ? 'me' : 'foe'}`);
@@ -224,6 +271,7 @@ async function startBattle(isNew) {
   setupFx($('.arena'));
   battle = replay(battleKey(), team(), REPLAY ? REPLAY.choices : r.choices, OPP, RULE);
   $('#replay-banner').hidden = !REPLAY;
+  drawLeagueBar();
   if (REPLAY) $('#replay-banner').innerHTML = T.replayBanner(B.name, REPLAY.date);
   if (r.result && !REPLAY) { await consume(false); if (day().result) showResult(); return; } // en la Liga puede quedar el siguiente rival
   playMusic(battleTrack());
@@ -243,13 +291,20 @@ async function choose(choice) {
   if (busy || REPLAY) return;
   sfx('click');
   if (!play(battle, choice)) return;
+  gimmickOn = '';
+  $('.forfeit-btn')?.remove();
   rec().choices.push(choice); // se guarda antes de animar: recargar no da otro intento
   save();
   await consume(true);
 }
 
+// Tocar el escenario o la caja de texto salta lo que queda de animación del turno.
+let skipping = false;
+for (const s of ['.arena', '.textbox']) $(s).addEventListener('click', e => { if (busy && !e.target.closest('.hud')) skipping = true; });
+
 async function consume(animate) {
   busy = true;
+  skipping = false;
   $('#controls').classList.add('locked');
   $('#prompt').textContent = '';
   const lines = battle.log.slice(logIdx);
@@ -257,7 +312,8 @@ async function consume(animate) {
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
     if (line.startsWith('|split|')) { line = lines[i + 1]; i += 2; } // línea privada = PS exactos
-    await step(line.split('|').slice(1), animate);
+    if (line.startsWith('|turn|')) skipping = false; // en una repetición, el toque salta solo ese turno
+    await step(line.split('|').slice(1), animate && !skipping);
   }
   drawHud('p1'); drawHud('p2');
   drawTeamPanel();
@@ -347,7 +403,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     }
     case '-damage': case '-heal': case '-sethp': {
       const {delta, pct, dur} = setHp(side, b, animate);
-      if (!delta) return;
+      if (!delta || tags.includes('[silent]')) return;
       if (animate) {
         const heal = delta > 0;
         floatText(img(side), side === 'p1' ? `${heal ? '+' : '−'}${Math.abs(delta)}` : `${heal ? '+' : '−'}${pct}%`, heal);
@@ -429,12 +485,45 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     case '-sidestart': return say(T.sideStart(moveName(b.replace('move: ', '')), a.startsWith('p1')), animate);
     case '-sideend': return say(T.sideEnd(moveName(b.replace('move: ', ''))), animate);
     case '-transform': return say(T.mimic(who(a)), animate, cls);
+    case 'detailschange': { // forma nueva (Megaevolución)
+      view[side].species = b.split(', ')[0];
+      drawHud(side);
+      return;
+    }
+    case '-mega':
+      if (animate) {
+        sfx('boost'); flash('#ffffff', 450);
+        img(side).animate([{filter: 'brightness(4) saturate(0)'}, {filter: 'brightness(4) saturate(0)', offset: 0.3}, {filter: 'none'}], {duration: 1300 / speed});
+      }
+      return say(T.megaEvolved(who(a), dex.species.get(view[side].species).name), animate, cls);
+    case '-terastallize': {
+      view.tera[side][parseId(a).name] = b;
+      drawHud(side);
+      if (animate) {
+        sfx('boost');
+        flash('#ffffff', 300);
+        img(side).animate([{filter: 'none'}, {filter: 'brightness(2.2) saturate(1.6) drop-shadow(0 0 16px #9ff3ff)', offset: 0.4}, {filter: 'drop-shadow(0 0 6px #9ff3ff)'}], {duration: 1200 / speed});
+      }
+      return say(T.terastallized(who(a), typeName(b)), animate, cls);
+    }
     case '-start':
+      if (b === 'Dynamax') {
+        Object.assign(view[side], {dmax: true, gmax: c === 'Gmax'});
+        drawHud(side);
+        if (animate) { sfx('boost'); flash('#ff2a6d', 600); }
+        return say((c === 'Gmax' ? T.gigantamaxed : T.dynamaxed)(who(a)), animate, cls);
+      }
       if (b.includes('Substitute')) return say(T.sub(who(a)), animate, cls);
       if (b.includes('confusion')) return say(T.confused(who(a)), animate, cls);
       if (b.includes('Leech Seed')) return say(T.seeded(who(a)), animate, cls);
       return;
-    case '-end': return b.includes('Substitute') ? say(T.subEnd(who(a)), animate, cls) : null;
+    case '-end':
+      if (b === 'Dynamax') {
+        Object.assign(view[side], {dmax: false, gmax: false});
+        drawHud(side);
+        return say(T.dynamaxEnd(who(a)), animate, cls);
+      }
+      return b.includes('Substitute') ? say(T.subEnd(who(a)), animate, cls) : null;
     case '-activate':
       if (b.includes('confusion')) return say(T.confusedAct(who(a)), animate, cls);
       if (b.includes('Substitute')) return say(T.subHit, animate);
@@ -473,20 +562,23 @@ function animateBar(side, fromPct, toPct, dur, maxhp) {
 // Indicador y partículas del clima y de los efectos de campo (Espacio Raro, combate inverso…).
 function drawWeather() {
   $('.arena').classList.toggle('hail', view.weather === 'Hail' || view.weather === 'Snowscape');
-  const badges = [T.weatherBadge[view.weather], ...view.field.map(f => T.fieldBadge[f])].filter(Boolean);
+  const badges = [[view.weather, T.weatherBadge[view.weather]], ...view.field.map(f => [f, T.fieldBadge[f]])]
+    .filter(([, txt]) => txt).map(([id, txt]) => `${itemIcon(FIELD_ICON[id])}${txt}`);
   $('.weather-badge').hidden = !badges.length;
-  $('.weather-badge').textContent = badges.join(' · ');
+  $('.weather-badge').innerHTML = badges.join(' · ');
 }
 
 function drawHud(side, dur = 0, fromHp) {
   const v = view[side], cls = side === 'p1' ? 'me' : 'foe';
   if (!v.species) return;
   const im = img(side);
-  if (im.dataset.species !== v.species) {
-    const s = spriteOf(v.species, side === 'p1');
+  const shown = v.gmax && dex.species.get(`${v.species}-Gmax`).exists ? `${v.species}-Gmax` : v.species;
+  im.classList.toggle('dynamax', v.dmax);
+  if (im.dataset.species !== shown) {
+    const s = spriteOf(shown, side === 'p1');
     im.src = s.url;
     im.alt = v.species;
-    im.dataset.species = v.species;
+    im.dataset.species = shown;
     im.style.setProperty('--w', s.w);
   }
   const hud = $(`.hud.${cls}`);
@@ -495,7 +587,8 @@ function drawHud(side, dur = 0, fromHp) {
   g.textContent = v.gender === 'M' ? '♂' : v.gender === 'F' ? '♀' : '';
   g.className = 'gender ' + v.gender.toLowerCase();
   hud.querySelector('.lvl').textContent = T.level + v.level;
-  hud.querySelector('.types').innerHTML = dex.species.get(v.species).types.map(typeBadge).join('');
+  const tera = view.tera[side][v.name];
+  hud.querySelector('.types').innerHTML = tera ? `<span class="tera-tag">${T.teraLabel}</span>${typeBadge(tera)}` : dex.species.get(v.species).types.map(typeBadge).join('');
   const pct = Math.max(0, 100 * v.hp / v.maxhp);
   animateBar(side, fromHp != null ? Math.max(0, 100 * fromHp / v.maxhp) : pct, pct, dur, v.maxhp);
   const boosts = Object.entries(v.boosts).filter(([, n]) => n)
@@ -514,7 +607,8 @@ function drawTeamPanel() {
     return `<div class="tp${p.fainted ? ' out' : ''}${p.isActive ? ' active' : ''}">
       <div class="tp-head">${icon(p.species.name)}<b>${p.name}</b>${p.status ? `<span class="st st-${p.status}">${T.statusTag[p.status]}</span>` : ''}<span class="tp-hp">${p.hp}/${p.maxhp}</span></div>
       <div class="mini-hp"><i class="${pct > 50 ? '' : pct > 20 ? 'mid' : 'low'}" style="width:${pct}%"></i></div>
-      <div class="tp-sub">${it} · ${abilityName(p.ability)}</div>
+      <div class="tp-sub">${it} · ${abilityName(p.ability)} · ${T.teraLabel} ${typeBadge(p.teraType)}${p.terastallized ? ' ✓' : ''}</div>
+      ${statsRow({...p.storedStats, hp: p.maxhp}, p.set.nature, p.isActive ? p.boosts : {})}
       <div class="moves4">${p.moveSlots.map(m => `<span class="t-${dex.moves.get(m.id).type.toLowerCase()}">${moveName(m.id)}<small>${m.pp}/${m.maxpp}</small></span>`).join('')}</div>
     </div>`;
   }).join('');
@@ -526,24 +620,50 @@ document.querySelectorAll('.tabs button').forEach(b => (b.onclick = () => {
   $('#team-panel').hidden = b.dataset.tab !== 'team-panel';
 }));
 
+// Mecanismo elegido para el próximo ataque: '' | 'terastallize' | 'mega' | 'dynamax'.
+let gimmickOn = '';
+const GIMMICK_BTN = [['canTerastallize', 'terastallize', 'tera'], ['canMegaEvo', 'mega', 'mega'], ['canDynamax', 'dynamax', 'dmax']];
 function drawControls() {
+  $('.forfeit-btn')?.remove();
   const req = battle.p1.activeRequest;
   const moves = $('#moves'), switches = $('#switches');
   moves.innerHTML = switches.innerHTML = '';
   if (!req || req.wait) return;
   const me = battle.p1.active[0], foe = battle.p2.active[0];
   $('#prompt').textContent = req.forceSwitch ? T.who : T.what(me.name);
+  const r = req.active?.[0];
+  if (!req.forceSwitch) {
+    const avail = GIMMICK_BTN.filter(([flag]) => r[flag]);
+    if (gimmickOn && !avail.some(([, g]) => g === gimmickOn)) gimmickOn = '';
+    if (avail.length) {
+      const row = el('div', 'gimmicks');
+      for (const [, g, cls] of avail) {
+        const label = g === 'terastallize' ? `${T.teraBtn} <span class="type t-${me.teraType.toLowerCase()}">${typeName(me.teraType)}</span>`
+          : g === 'mega' ? T.megaBtn : r.maxMoves?.gigantamax ? T.gmaxBtn : T.dmaxBtn;
+        const gb = el('button', `gimmick ${cls}${gimmickOn === g ? ' on' : ''}`, label);
+        gb.onclick = () => { gimmickOn = gimmickOn === g ? '' : g; sfx('click'); drawControls(); };
+        row.append(gb);
+      }
+      moves.append(row);
+    }
+  }
+  // Con Dinamax (activo o a punto de usarse) los botones muestran los Maxiataques.
+  const maxMode = !req.forceSwitch && (me.volatiles.dynamax || gimmickOn === 'dynamax');
   if (!req.forceSwitch) {
     req.active[0].moves.forEach((m, i) => {
-      const move = dex.moves.get(m.id);
+      const move = dex.moves.get(maxMode && r.maxMoves?.maxMoves?.[i] ? r.maxMoves.maxMoves[i].move : m.id);
       const cat = move.category === 'Status' ? T.status : move.category === 'Physical' ? T.physical : T.special;
       const mult = typeMultiplier(me, foe, m.id);
       const hint = mult === null ? '' : mult === 0 ? T.noEffect : mult > 1 ? T.superEff : mult < 1 ? T.notVery : '';
-      const info = [cat, move.basePower ? `${T.power} ${move.basePower}` : '', move.accuracy === true ? '' : `${T.acc} ${move.accuracy}`].filter(Boolean).join(' · ');
+      const power = move.isMax ? dex.moves.get(m.id).maxMove?.basePower : move.basePower; // potencia real del Maxiataque
+      const info = [cat, power && move.category !== 'Status' ? `${T.power} ${power}` : '', move.accuracy === true ? '' : `${T.acc} ${move.accuracy}`].filter(Boolean).join(' · ');
+      // Descripción como en los juegos al elegir un ataque (los Maxiataques no tienen texto oficial).
+      const desc = move.isMax ? (move.id === 'maxguard' ? T.maxGuardDesc : T.maxDesc(typeName(move.type))) : moveDesc(move.id);
       const b = el('button', `move t-${move.type.toLowerCase()}`,
-        `<b>${m.id === 'recharge' ? T.recharge : moveName(m.id)}</b><span class="line">${typeBadge(move.type)}<span>PP ${m.pp ?? '-'}/${m.maxpp ?? '-'}</span></span><span class="info">${info}</span>${hint ? `<em class="${mult > 1 ? 'good' : 'bad'}">${hint}</em>` : ''}`);
+        `<b>${m.id === 'recharge' ? T.recharge : moveName(move.id)}</b><span class="line">${typeBadge(move.type)}<span>PP ${m.pp ?? '-'}/${m.maxpp ?? '-'}</span></span><span class="info">${info}</span>${desc ? `<span class="desc">${desc}</span>` : ''}${hint ? `<em class="${mult > 1 ? 'good' : 'bad'}">${hint}</em>` : ''}`);
       b.disabled = !!m.disabled || m.pp === 0;
-      b.onclick = () => choose(`move ${i + 1}`);
+      if (desc) b.title = desc;
+      b.onclick = () => choose(`move ${i + 1}${gimmickOn ? ' ' + gimmickOn : ''}`);
       moves.append(b);
     });
   }
@@ -556,7 +676,16 @@ function drawControls() {
     b.onclick = () => choose(`switch ${i + 1}`);
     switches.append(b);
   });
+  // Rendirse: cuenta como derrota y deja practicar con el mismo equipo enseguida.
+  if (!REPLAY) {
+    const f = el('button', 'forfeit-btn', T.forfeit);
+    f.onclick = () => { if (confirm(T.forfeitConfirm)) choose('forfeit'); };
+    switches.after(f);
+  }
 }
+
+// Tu marcador abre la pestaña "Tu equipo" (estadísticas, cambios de características, objeto y PP).
+$('.hud.me').onclick = () => { $('.tabs button[data-tab=team-panel]').click(); $('.tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); };
 
 // Ficha del rival: solo lo que se ha visto en combate.
 $('#foe-hud').onclick = () => {
@@ -580,7 +709,9 @@ const ballBtn = (txt, fn, cls = 'ballbtn') => { const b = el('button', cls, `<sp
 // Al acabar el día (rival o Liga completa) se apuntan las estadísticas una sola vez.
 function closeDay(won, reached) {
   const d = day();
-  if (d.result) return;
+  // Contra un rival, `finish` ya apunta el resultado en el día (es el mismo registro): por eso la marca aparte.
+  if (LIGA ? d.result : d.closed) return;
+  d.closed = true;
   d.result = won ? 'win' : 'loss';
   if (LIGA) d.reached = reached;
   if (PRACTICE || REPLAY) return;
@@ -590,8 +721,15 @@ function closeDay(won, reached) {
   else s.streak = 0;
   if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
   save();
-  sendResult({day: TODAY, mode: MODE, won, turns: LIGA ? null : rec().turns, reached: LIGA ? reached : null});
+  bumpStreak();
+  sendResult(myResult());
 }
+// Resultado de hoy tal y como se envía (y se compara para el puesto del día).
+const myResult = () => {
+  const d = day();
+  return LIGA ? {day: TODAY, mode: MODE, won: d.result === 'win', turns: null, reached: d.reached, kos: null}
+    : {day: TODAY, mode: MODE, won: d.result === 'win', turns: d.turns, reached: null, kos: d.red.filter(a => !a).length};
+};
 
 function finish(animate) {
   const r = rec();
@@ -605,6 +743,8 @@ function finish(animate) {
     r.turns = battle.turn;
     r.mine = battle.p1.pokemon.map(p => (p.fainted ? 0 : p.hp / p.maxhp));
     r.red = battle.p2.pokemon.map(p => (p.fainted ? 0 : 1));
+    const mvp = mvpOf(summary());
+    if (mvp && (mvp.kos || mvp.dmg >= 1)) r.mvp = mvp.species;
     save();
   }
   // Liga: si gana y quedan rivales, a por el siguiente (el equipo se cura entre combates).
@@ -626,7 +766,7 @@ function finish(animate) {
   if (animate) jingle(r.result === 'win' ? 'win' : 'lose');
   else playMusic(null);
   $('#prompt').textContent = LIGA ? (day().result === 'win' ? T.leagueWon : T.leagueLost(round() + 1)) : r.result === 'win' ? T.won : T.lost;
-  $('#moves').append(ballBtn((day().result === 'win' ? '🏆 ' : '') + T.seeResult, showResult),
+  $('#moves').append(ballBtn(T.seeResult, showResult),
     ballBtn('▶ ' + T.replay, watchReplay, 'ballbtn alt'), ...practiceOptions().map(([txt, fn]) => ballBtn(txt, fn, 'ballbtn alt')));
   if (animate) setTimeout(showResult, 2500);
 }
@@ -666,7 +806,8 @@ function replayLink() {
 
 // Resumen del combate a partir del log: daño hecho, K.O. y daño recibido por cada uno de tus Pokémon.
 function summary() {
-  const stats = new Map(team().map(s => [s.species, {species: s.species, dmg: 0, kos: 0, taken: 0}]));
+  // Por mote (el del set), no por especie: Palafin-Hero, Minior-Meteor o una Mega cambian de especie al volver a salir.
+  const stats = new Map(team().map(s => [s.name || s.species, {species: s.species, dmg: 0, kos: 0, taken: 0}]));
   const hp = {}, active = {};
   let attacker = null;
   const lines = battle.log;
@@ -675,7 +816,7 @@ function summary() {
     if (line.startsWith('|split|')) { line = lines[i + 1]; i += 2; }
     const [, cmd, a = '', b = '', c = ''] = line.split('|');
     const side = a.slice(0, 2);
-    if (cmd === 'switch' || cmd === 'drag') { active[side] = dex.species.get(b.split(', ')[0]).name; const [h, m] = c.split(' ')[0].split('/').map(Number); hp[side] = [h, m]; }
+    if (cmd === 'switch' || cmd === 'drag') { active[side] = parseId(a).name; const [h, m] = c.split(' ')[0].split('/').map(Number); hp[side] = [h, m]; }
     else if (cmd === 'move') attacker = side;
     else if (cmd === '-damage' || cmd === '-heal') {
       const [h, m] = b.split(' ')[0].split('/').map(Number), [prev, max] = hp[side] || [h, m];
@@ -691,15 +832,34 @@ function summary() {
   return [...stats.values()];
 }
 
+const mvpOf = rows => rows.reduce((m, r) => (r.kos * 1000 + r.dmg > m.kos * 1000 + m.dmg ? r : m), rows[0]);
+
 function shareText() {
   const d = day(), url = `${location.origin}${location.pathname}?vs=${MODE}`;
   if (LIGA) {
     const marks = LINEUP.map((_, i) => d.rounds[i]?.result === 'win' ? '✅' : d.rounds[i]?.result === 'loss' ? '❌' : '⬜').join('');
-    return `Redle ${T.league} #${DAY} 🏟️\n${T.leagueShare(d.reached)}\n${marks}\n${LINEUP.map(id => BOSSES[id].name).join(' · ')}\n${url}`;
+    return `Redle ${T.league} #${DAY} 🏟️\n${T.leagueShare(d.reached)}\n${marks}\n${LINEUP.map(id => BOSSES[id].name).join(' · ')}\n${streakLine()}${url}`;
   }
   const mine = d.mine.map(f => (f === 0 ? '🟥' : f < 0.5 ? '🟨' : '🟩')).join('');
   const red = d.red.map(a => (a ? '🔴' : '⚫')).join('');
-  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}\n${(d.result === 'win' ? T.shareWin : T.shareLoss)(d.turns)}\n${T.you}: ${mine}\n${T.red}: ${red}\n${url}`;
+  const left = d.red.filter(Boolean).length;
+  const head = d.result === 'win' ? T.shareWin(d.turns) : `${T.shareLoss(d.turns)} · ${T.shareLeft(left)}`;
+  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${streakLine()}${url}`;
+}
+const streakLine = () => { const s = playStreak(); return s.n > 1 ? T.shareStreak(s.n) + '\n' : ''; };
+
+// Racha de días seguidos jugando (cualquier modo). Con esta dificultad, la racha de victorias casi nunca pasa de 1.
+const playStreak = () => {
+  const s = JSON.parse(ls.get('redle:streak') || '{}');
+  return s.last === TODAY || s.last === YESTERDAY ? {n: s.n || 0, best: s.best || 0} : {n: 0, best: s.best || 0};
+};
+function bumpStreak() {
+  const s = JSON.parse(ls.get('redle:streak') || '{}');
+  if (s.last === TODAY) return;
+  s.n = s.last === YESTERDAY ? (s.n || 0) + 1 : 1;
+  s.best = Math.max(s.best || 0, s.n);
+  s.last = TODAY;
+  ls.set('redle:streak', JSON.stringify(s));
 }
 
 function showResult() {
@@ -708,26 +868,26 @@ function showResult() {
   $('#result-body').innerHTML = !done ? '' : LIGA
     ? `<div class="lineup small-lineup">${LINEUP.map((id, i) => `<figure class="${d.rounds[i]?.result === 'win' ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : ''}"><img src="${trainerImg(id)}" alt="" width="48" height="48"><figcaption><b>${BOSSES[id].name}</b></figcaption></figure>`).join('')}</div><p>${done === 'win' ? T.leagueWonSub : T.leagueLostSub}</p>`
     : `<img class="result-red ${done}" src="${trainerImg(OPP)}" alt="${B.name}" width="96" height="96"><p>${done === 'win' ? T.wonSub : T.lostSub}</p>`;
-  const s = store.stats, streak = s.last === TODAY || s.last === YESTERDAY ? s.streak : 0;
+  const s = store.stats, days = playStreak().n;
   const cells = LIGA
-    ? [[s.played, T.played], [s.wins, T.champions], [`${s.bestRound || 0}/5`, T.bestRound], [streak, T.streak]]
-    : [[s.played, T.played], [s.played ? Math.round(100 * s.wins / s.played) + '%' : '—', T.winPct], [streak, T.streak], [s.best, T.best]];
+    ? [[s.played, T.played], [s.wins, T.champions], [`${s.bestRound || 0}/5`, T.bestRound], [days, T.playStreak]]
+    : [[s.played, T.played], [s.played ? Math.round(100 * s.wins / s.played) + '%' : '—', T.winPct], [days, T.playStreak], [s.best, T.best]];
   $('#stats').innerHTML = cells.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
   $('#share-box').hidden = !done || !!PRACTICE;
   if (done) $('#share-text').textContent = shareText();
   $('#summary').innerHTML = '';
   if (done && battle?.ended) {
-    const rows = summary(), mvp = rows.reduce((m, r) => (r.kos * 1000 + r.dmg > m.kos * 1000 + m.dmg ? r : m), rows[0]);
+    const rows = summary(), mvp = mvpOf(rows);
     $('#summary').innerHTML = `<h3>${T.summary}</h3><table><tr><th></th><th>${T.kos}</th><th>${T.dmg}</th><th>${T.taken}</th></tr>${rows.map(r =>
-      `<tr class="${r === mvp ? 'mvp' : ''}"><td>${icon(r.species)}${r.species}${r === mvp ? ' <b>MVP</b>' : ''}</td><td>${r.kos}</td><td>${Math.round(r.dmg)}%</td><td>${Math.round(r.taken)}%</td></tr>`).join('')}</table>`;
+      `<tr class="${r === mvp ? 'mvp' : ''}"><td>${icon(r.species)}${r.species}${r === mvp ? ` <b>${T.mvp}</b>` : ''}</td><td>${r.kos}</td><td>${Math.round(r.dmg)}%</td><td>${Math.round(r.taken)}%</td></tr>`).join('')}</table>`;
   }
   $('#result-actions').innerHTML = '';
   if (done) {
     const add = (txt, fn) => { const b = el('button', 'secondary', txt); b.onclick = fn; $('#result-actions').append(b); return b; };
     if (battle?.ended) add('▶ ' + T.replay, watchReplay);
     if (battle?.ended && !PRACTICE) {
-      const b = add('🔗 ' + T.shareReplay, async () => {
-        try { await navigator.clipboard.writeText(replayLink()); b.textContent = '🔗 ' + T.replayCopied; } catch {}
+      const b = add(T.shareReplay, async () => {
+        try { await navigator.clipboard.writeText(replayLink()); b.textContent = T.replayCopied; } catch {}
       });
     }
     for (const [txt, fn] of practiceOptions()) add(txt, fn);
@@ -743,17 +903,19 @@ async function drawGlobal(done) {
   const box = $('#global');
   box.innerHTML = '';
   if (!done || PRACTICE || REPLAY) return;
-  const g = (await dailyStats(TODAY))?.[MODE];
+  const [all, rank] = await Promise.all([dailyStats(TODAY), dailyRank(myResult())]);
+  const g = all?.[MODE];
   if (!g || !g.players) return;
   const pct = n => Math.round(100 * n / g.players);
   if (LIGA) {
     const mine = day().reached, worse = g.reached.slice(0, mine).reduce((a, b) => a + b, 0);
-    box.innerHTML = `<h3>🌍 ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalChampions(g.wins, pct(g.wins))}</p>
+    box.innerHTML = `<h3>${itemIcon('Poke Ball')} ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalChampions(g.wins, pct(g.wins))}</p>
       <div class="dist">${g.reached.map((n, i) => `<div class="${i === mine ? 'me' : ''}"><i style="height:${Math.max(4, pct(n))}%"></i><span>${i}/5</span></div>`).join('')}</div>
       <p>${T.globalBetter(pct(worse))}</p>`;
   } else {
-    box.innerHTML = `<h3>🌍 ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalWins(pct(g.wins))}${g.avgTurns ? ` · ${T.globalTurns(g.avgTurns)}` : ''}</p>`;
+    box.innerHTML = `<h3>${itemIcon('Poke Ball')} ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalWins(pct(g.wins))}${g.avgTurns ? ` · ${T.globalTurns(g.avgTurns)}` : ''}</p>`;
   }
+  if (rank) box.insertAdjacentHTML('beforeend', `<p class="rank">${T.rankLine(rank.pos, rank.total)}</p>`);
 }
 
 $('#btn-share').onclick = async () => {
@@ -781,7 +943,7 @@ const apply = {
 };
 function drawSettings() {
   document.querySelectorAll('.seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === current[seg.dataset.set]())));
-  $('#btn-mute').textContent = audio.music || audio.sfx ? '♪' : '🔇';
+  $('#btn-mute').classList.toggle('off', !(audio.music || audio.sfx));
 }
 document.querySelectorAll('.seg button').forEach(b => (b.onclick = () => { apply[b.parentElement.dataset.set](b.dataset.v); sfx('click'); drawSettings(); }));
 $('#btn-mute').onclick = () => {
@@ -808,8 +970,8 @@ backgroundMons();
 // Etiquetas accesibles de los botones de iconos y fin de la pantalla de carga.
 for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();
+// Las descripciones llegan aparte: si ya hay botones de ataque en pantalla, se repintan con ellas.
+loadMoveDescs().then(() => { if (battle && !busy && !battle.ended && !REPLAY) drawControls(); }).catch(() => {});
 
-const firstVisit = !Object.values(BOSSES).concat({id: 'liga'}).some(b => ls.get(keyOf(b.id)));
-if (firstVisit && !PRACTICE && !REPLAY) $('#dlg-help').showModal();
 if (REPLAY || rec().started) startBattle(false);
 else renderDraft();

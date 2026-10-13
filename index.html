@@ -45,6 +45,7 @@
   <main>
     <!-- Vista previa de los dos equipos -->
     <section id="draft" hidden>
+      <div id="welcome" class="welcome box" hidden><p data-i18n="welcome"></p><button class="primary" id="btn-welcome" data-i18n="gotIt"></button></div>
       <div class="versus">
         <figure class="mystery"><span class="who"><img src="https://play.pokemonshowdown.com/sprites/trainers/ethan.png" alt="" width="96" height="96"><b aria-hidden="true">?</b></span><figcaption data-i18n="you2"></figcaption></figure>
         <span class="vs">VS</span>
@@ -52,8 +53,9 @@
       </div>
       <div id="lineup" class="lineup" hidden></div>
       <p class="intro-text box" data-i18n="lead"></p>
-      <p class="rules box" id="stage-rules"></p>
-      <div class="parties">
+      <details class="rules box" id="rules"><summary data-i18n="rulesTitle"></summary><p id="stage-rules"></p></details>
+      <button class="linklike details-toggle" id="btn-details"></button>
+      <div class="parties compact" id="parties">
         <div class="party mine"><h3 data-i18n="yourTeam"></h3><div id="pool" class="slots"></div></div>
         <div class="party red"><h3 data-i18n="bossTeam"></h3><div id="red-team" class="slots"></div></div>
       </div>
@@ -63,6 +65,7 @@
     <!-- Combate -->
     <section id="battle" hidden>
       <p id="replay-banner" class="replay-banner box" hidden></p>
+      <div id="league-bar" class="league-bar" hidden></div>
       <div class="ds-top">
         <div class="arena">
           <img class="mon foe" alt="">

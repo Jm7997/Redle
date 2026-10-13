@@ -1,3 +1,5 @@
+// Nota: PokéAPI no trae los movimientos Gigamax; sus nombres (de WikiDex) se añadieron a mano a
+// src/names-es.json. Si se vuelve a ejecutar este script, hay que volver a añadirlos.
 // Genera src/names-es.json (movimientos, habilidades y objetos en español) a partir de los CSV
 // de PokéAPI (BSD-3). Solo hace falta volver a ejecutarlo si se amplía a otras generaciones.
 //   node scripts/build-names.mjs
