@@ -1,5 +1,7 @@
 # Redle ⛰️
 
+**Juega en https://redle.pages.dev**
+
 Un combate Pokémon diario al estilo Wordle contra los campeones de verdad, con **sus equipos de los juegos**:
 Red, Blue, Lance, Steven, Wallace, Cynthia, Iris y Leon.
 
@@ -28,15 +30,14 @@ npm run dev
 
 ## Publicarlo
 
-Es una web estática: `npm run build` genera la carpeta `dist/`.
+Es una web estática que se publica en **Cloudflare Pages** conectada a este repositorio:
 
-- **GitHub Pages** (incluido): sube el repo a GitHub, ve a *Settings → Pages → Source: GitHub Actions* y
-  cada push a `main` pasa los tests y publica (`.github/workflows/deploy.yml`).
-- **Netlify / Cloudflare Pages**: conecta el repo; la configuración está en `netlify.toml` y las cabeceras
-  de seguridad en `public/_headers`.
+- Comando de compilación: `npm test && npm run test:bundle && npm run build`
+- Carpeta de salida: `dist`
+- Variable de entorno: `NODE_VERSION = 22`
 
-Antes de publicar: pon la URL absoluta
-de la web en `og:image` de `index.html`.
+Cada push a `main` se publica solo. Las cabeceras de seguridad están en `public/_headers`. GitHub Actions
+(`.github/workflows/tests.yml`) pasa los tests en cada push.
 
 ## Créditos y aviso
 

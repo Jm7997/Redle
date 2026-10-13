@@ -1,8 +1,0 @@
-# Alternativa a GitHub Pages: Netlify (también sirve como guía para Cloudflare Pages).
-# Las cabeceras de seguridad están en public/_headers.
-[build]
-  command = "npm test && npm run test:bundle && npm run build"
-  publish = "dist"
-
-[build.environment]
-  NODE_VERSION = "22"
