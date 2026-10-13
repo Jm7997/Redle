@@ -1,21 +1,26 @@
 // Sonido: música de combate y gritos desde el CDN de Showdown; golpes y efectos sintetizados con WebAudio.
-let ctx, master, musicGain, sfxGain, track, alarm;
+let ctx, master, musicGain, sfxGain, alarm;
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('redle:audio')) || {}; } catch { return {}; } })();
 export const audio = {music: prefs.music ?? true, sfx: prefs.sfx ?? true};
 const savePrefs = () => { try { localStorage.setItem('redle:audio', JSON.stringify(audio)); } catch {} };
 const MUSIC_VOL = 0.3, SFX_VOL = 0.8;
 
-// El navegador solo permite sonido tras un gesto del usuario.
+// El navegador solo permite sonido tras un gesto del usuario: en cada toque se reanuda lo que se quedó bloqueado
+// (en iOS el contexto queda 'interrupted' tras una llamada o al cambiar de app, no 'suspended').
 function init() {
-  if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+  tryPlay();
+  if (ctx) { if (ctx.state !== 'running') ctx.resume().catch(() => {}); return; }
   ctx = new (window.AudioContext || window.webkitAudioContext)();
   master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination);
   musicGain = ctx.createGain(); musicGain.gain.value = audio.music ? MUSIC_VOL : 0; musicGain.connect(master);
   sfxGain = ctx.createGain(); sfxGain.gain.value = audio.sfx ? SFX_VOL : 0; sfxGain.connect(master);
 }
-addEventListener('pointerdown', init, {passive: true});
+for (const ev of ['pointerdown', 'click', 'keydown']) addEventListener(ev, init, {passive: true});
+// Sin música con la pestaña oculta (en el móvil seguiría sonando en segundo plano).
+document.addEventListener('visibilitychange', () => (document.hidden ? bgm?.pause() : tryPlay()));
 
-export function setMusic(on) { audio.music = on; savePrefs(); if (musicGain) musicGain.gain.value = on ? MUSIC_VOL : 0; if (bgm) { bgm.volume = on ? MUSIC_EL_VOL : 0; if (on) bgm.play().catch(() => {}); } }
+// iOS ignora el volumen de los <audio> (siempre es 1): para silenciar hay que usar muted o pausar.
+export function setMusic(on) { audio.music = on; savePrefs(); if (musicGain) musicGain.gain.value = on ? MUSIC_VOL : 0; if (bgm) { bgm.muted = !on; on ? tryPlay() : bgm.pause(); } }
 export function setSfx(on) { audio.sfx = on; savePrefs(); if (sfxGain) sfxGain.gain.value = on ? SFX_VOL : 0; }
 
 const hz = n => 440 * 2 ** ((n - 69) / 12);
@@ -41,23 +46,32 @@ function noise(dest, t, dur, vol, freq = 1000, type = 'highpass') {
 
 // ---------- música ----------
 // Música de combate de los juegos, servida por Pokémon Showdown (igual que los sprites).
-// Cada rival tiene su lista de pistas (STAGES en main.js) y va cambiando cada día.
+// Cada rival tiene su lista de pistas (STAGES en main.js): empieza por una distinta cada día y, al terminar
+// una, suena la siguiente, en vez de repetir la misma con su intro una y otra vez.
 const SD = 'https://play.pokemonshowdown.com/audio/';
 const MUSIC_EL_VOL = 0.4;
-let bgm;
+let bgm, list = [], idx = 0, playing = '';
 
-// ponytail: bucle de la pista entera (incluida la intro); usar los loopstart/loopend de Showdown si se nota.
-export function playMusic(name) {
+export function playMusic(tracks, start = 0) {
   init();
-  if (track === name) return;
-  track = name;
-  if (bgm) { const old = bgm; fade(old, 0, 600).then(() => old.pause()); bgm = null; }
-  if (!name) return;
-  bgm = new Audio(SD + name + '.mp3');
-  bgm.loop = true;
-  bgm.volume = audio.music ? MUSIC_EL_VOL : 0;
-  bgm.play().catch(() => {});
+  const key = tracks?.length ? tracks.join() + '@' + start : '';
+  if (key === playing) return;
+  playing = key;
+  if (bgm) { const old = bgm; old.onended = null; fade(old, 0, 600).then(() => old.pause()); bgm = null; }
+  if (!key) return;
+  list = tracks; idx = start % tracks.length;
+  startTrack();
 }
+function startTrack() {
+  bgm = new Audio(SD + list[idx] + '.mp3');
+  bgm.volume = MUSIC_EL_VOL;
+  bgm.muted = !audio.music;
+  bgm.loop = list.length === 1;
+  bgm.onended = () => { idx = (idx + 1) % list.length; startTrack(); };
+  tryPlay();
+}
+// Solo suena con la música activada y la pestaña visible; si el navegador lo bloquea, el próximo toque lo reintenta.
+function tryPlay() { if (bgm && bgm.paused && audio.music && !document.hidden) bgm.play().catch(() => {}); }
 function fade(el, to, ms) {
   const from = el.volume, t0 = performance.now();
   return new Promise(res => {

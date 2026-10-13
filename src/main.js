@@ -19,14 +19,14 @@ const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 // era: carpeta de sprites de Showdown del juego del rival. colors: cabecera, cabecera oscura, y degradado/borde de las fichas de su equipo.
 const SD = 'https://play.pokemonshowdown.com/', G6 = SD + 'sprites/gen6bgs/';
 const STAGES = {
-  blue: {era: 'gen4', sprite: 'blue', emoji: '🌿', bg: G6 + 'bg-city.jpg', music: ['hgss-kanto-trainer', 'bw2-kanto-gym-leader'], colors: ['#2f7de1', '#163f80', '#7fb4f0', '#2a64b8', '#123a73']},
-  red: {era: 'gen4', sprite: 'red', emoji: '⛰️', bg: SD + 'fx/bg-icecave.png', music: ['hgss-kanto-trainer', 'hgss-johto-trainer', 'bw2-kanto-gym-leader']},
-  lance: {era: 'gen4', sprite: 'lance', emoji: '🐉', bg: G6 + 'bg-skypillar.jpg', music: ['hgss-johto-trainer', 'hgss-kanto-trainer'], colors: ['#c43a22', '#6e1a0e', '#f09a7f', '#b23a24', '#5e140c']},
-  steven: {era: 'gen3', sprite: 'steven', emoji: '💎', bg: G6 + 'bg-earthycave.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#5d6f8f', '#2b3550', '#a9b8d4', '#56688c', '#27324a']},
-  wallace: {era: 'gen3', sprite: 'wallace', emoji: '🌊', bg: G6 + 'bg-leaderwallace.jpg', music: ['oras-rival', 'oras-trainer'], colors: ['#1d9fcb', '#0b5a78', '#86dcf2', '#1c88b2', '#0a4a63']},
-  cynthia: {era: 'gen4', sprite: 'cynthia', emoji: '👑', bg: G6 + 'bg-elite4drake.jpg', music: ['dpp-rival', 'dpp-trainer']},
-  iris: {era: 'gen5ani', sprite: 'iris', emoji: '🐲', bg: G6 + 'bg-forest.jpg', music: ['bw2-rival', 'bw-rival'], colors: ['#9046cf', '#4d1d7c', '#d4a8f3', '#8140b6', '#43186b']},
-  leon: {era: 'ani', sprite: 'leon', emoji: '🔥', bg: G6 + 'bg-darkcity.jpg', music: ['sm-rival', 'xy-rival'], colors: ['#b5142f', '#560715', '#f2c54a', '#a8122b', '#4a0612']},
+  blue: {era: 'gen4', sprite: 'blue', emoji: '🌿', bg: G6 + 'bg-city.jpg', music: ['bw2-kanto-gym-leader', 'hgss-kanto-trainer', 'xy-rival'], colors: ['#2f7de1', '#163f80', '#7fb4f0', '#2a64b8', '#123a73']},
+  red: {era: 'gen4', sprite: 'red', emoji: '⛰️', bg: SD + 'fx/bg-icecave.png', music: ['hgss-kanto-trainer', 'bw2-kanto-gym-leader', 'hgss-johto-trainer']},
+  lance: {era: 'gen4', sprite: 'lance', emoji: '🐉', bg: G6 + 'bg-skypillar.jpg', music: ['hgss-johto-trainer', 'spl-elite4', 'hgss-kanto-trainer'], colors: ['#c43a22', '#6e1a0e', '#f09a7f', '#b23a24', '#5e140c']},
+  steven: {era: 'gen3', sprite: 'steven', emoji: '💎', bg: G6 + 'bg-earthycave.jpg', music: ['oras-rival', 'spl-elite4', 'oras-trainer'], colors: ['#5d6f8f', '#2b3550', '#a9b8d4', '#56688c', '#27324a']},
+  wallace: {era: 'gen3', sprite: 'wallace', emoji: '🌊', bg: G6 + 'bg-leaderwallace.jpg', music: ['oras-trainer', 'oras-rival', 'spl-elite4'], colors: ['#1d9fcb', '#0b5a78', '#86dcf2', '#1c88b2', '#0a4a63']},
+  cynthia: {era: 'gen4', sprite: 'cynthia', emoji: '👑', bg: G6 + 'bg-elite4drake.jpg', music: ['dpp-rival', 'spl-elite4', 'dpp-trainer']},
+  iris: {era: 'gen5ani', sprite: 'iris', emoji: '🐲', bg: G6 + 'bg-forest.jpg', music: ['bw2-rival', 'bw-rival', 'bw2-homika-dogars', 'bw-subway-trainer'], colors: ['#9046cf', '#4d1d7c', '#d4a8f3', '#8140b6', '#43186b']},
+  leon: {era: 'ani', sprite: 'leon', emoji: '🔥', bg: G6 + 'bg-darkcity.jpg', music: ['sm-rival', 'xy-rival', 'sm-trainer', 'xy-trainer'], colors: ['#b5142f', '#560715', '#f2c54a', '#a8122b', '#4a0612']},
 };
 const keyOf = mode => `redle:v11:${mode}`;
 const TODAY = today();
@@ -65,7 +65,9 @@ const REPLAY = parseReplay(location.hash);
 const MODE = REPLAY ? REPLAY.mode : params.get('vs') === 'liga' ? 'liga' : BOSSES[params.get('vs')] ? params.get('vs') : 'red';
 const LIGA = MODE === 'liga';
 const KEY = keyOf(MODE);
-const store = Object.assign({stats: {played: 0, wins: 0, streak: 0, best: 0, bestRound: 0, last: null}, days: {}}, JSON.parse(ls.get(KEY) || '{}'));
+// Datos guardados dañados no deben dejar la página en blanco: se ignoran.
+const readJSON = k => { try { return JSON.parse(ls.get(k) || '{}') || {}; } catch { return {}; } };
+const store = Object.assign({stats: {played: 0, wins: 0, streak: 0, best: 0, bestRound: 0, last: null}, days: {}}, readJSON(KEY));
 
 // Modo práctica (?practica=semilla&equipo=hoy|semilla): no se guarda ni cuenta para las estadísticas.
 // Solo tras jugar el reto: si perdiste, con el mismo equipo del día; si ganaste, también con equipos aleatorios.
@@ -96,6 +98,19 @@ const battleKey = () => LIGA ? `liga${round()}:${DATE}` : DATE;
 
 // ---------- rival actual ----------
 let OPP, B, STAGE, RULE, GIMMICKS = [];
+// Fondo del combate: esqueleto mientras carga, la imagen al llegar y un escenario dibujado si falla.
+function loadArenaBg(url) {
+  const bg = $('.arena-bg');
+  bg.className = 'arena-bg';
+  bg.dataset.src = url;
+  bg.style.setProperty('--arena-bg', `url("${url}")`);
+  const im = new Image(), mine = () => bg.dataset.src === url; // que una carga vieja no pise a la nueva
+  im.onload = () => mine() && bg.classList.add('ready');
+  im.onerror = () => mine() && bg.classList.add('fail');
+  im.src = url;
+}
+// Las imágenes con esqueleto de carga lo pierden al llegar (o al fallar, para no brillar para siempre).
+for (const ev of ['load', 'error']) document.addEventListener(ev, e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
 function setOpponent(id) {
   OPP = id; B = BOSSES[id]; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
   setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens);
@@ -108,7 +123,7 @@ function setOpponent(id) {
   }
   document.querySelectorAll('.boss-sprite').forEach(im => { im.src = `${SD}sprites/trainers/${STAGE.sprite}.png`; im.alt = B.name; });
   document.querySelectorAll('.boss-name').forEach(e => (e.textContent = B.name));
-  document.documentElement.style.setProperty('--arena-bg', `url(${STAGE.bg})`);
+  loadArenaBg(STAGE.bg);
   document.querySelectorAll('[data-i18n]').forEach(e => (e.innerHTML = T[e.dataset.i18n]));
   $('#how').innerHTML = T.how.filter(Boolean).map(h => `<li>${h}</li>`).join('');
 }
@@ -118,7 +133,7 @@ if (LIGA) document.body.classList.add('mode-liga');
 
 // Selector de modo: los 8 rivales y la Liga, con el estado del reto de hoy de cada uno.
 const markOf = id => {
-  const d = JSON.parse(ls.get(keyOf(id)) || '{}').days?.[TODAY];
+  const d = readJSON(keyOf(id)).days?.[TODAY];
   return id === 'liga' && d?.result ? (d.result === 'win' ? itemIcon('Poke Ball') : `${d.reached}/5`) : d?.result === 'win' ? itemIcon('Poke Ball') : d?.result === 'loss' ? '✗' : '';
 };
 $('#bosses').innerHTML = [...Object.values(BOSSES).map(b => ({id: b.id, name: b.name, img: `${SD}sprites/trainers/${STAGES[b.id].sprite}.png`})),
@@ -185,7 +200,7 @@ function slot(set, tag) {
   const sp = dex.species.get(set.species);
   const s = el(tag, 'slot');
   s.innerHTML = `
-    <img class="sp" src="${spriteOf(set.species).url}" alt="" loading="lazy">
+    <img class="sp" src="${spriteOf(set.species).url}" alt="">
     <div class="top">${sp.name}<small>${T.level}${set.level}</small></div>
     <div class="types">${sp.types.map(typeBadge).join('')}</div>
     <div class="mini-hp"><i></i></div>
@@ -255,7 +270,8 @@ const team = () => rec().picks.map(i => POOL[i]);
 const img = side => $(`.mon.${side === 'p1' ? 'me' : 'foe'}`);
 const wait = ms => sleep(ms / speed);
 const seenOf = species => (view.seen[species] ||= {moves: new Set()});
-const battleTrack = () => STAGE.music[(DAY + round()) % STAGE.music.length];
+// Lista de pistas del rival: empieza por una distinta cada día (y en cada ronda de la Liga) y al acabar una suena la siguiente.
+const playBattleMusic = () => playMusic(STAGE.music, DAY + round());
 
 // Deja el escenario como nuevo (siguiente ronda de la Liga o repetición).
 function resetView() {
@@ -279,7 +295,7 @@ async function startBattle(isNew) {
   drawReplayBar();
   if (REPLAY) $('#replay-banner').innerHTML = T.replayBanner(B.name, REPLAY.date);
   if (r.result && !REPLAY) { await consume(false); if (day().result) showResult(); return; } // en la Liga puede quedar el siguiente rival
-  playMusic(battleTrack());
+  playBattleMusic();
   if (isNew || REPLAY) {
     busy = true; // durante la intro, los controles de repetición esperan a `consume`
     // Transición de inicio de combate: destellos, franjas y el rival entrando.
@@ -317,7 +333,8 @@ async function runLines(lines, animate) {
     let line = lines[i];
     if (line.startsWith('|split|')) { line = lines[i + 1]; i += 2; } // línea privada = PS exactos
     if (line.startsWith('|turn|')) { skipping = false; setReplayTurn(+line.split('|')[2]); } // el toque salta solo ese turno
-    await step(line.split('|').slice(1), animate && !skipping);
+    // Un fallo al pintar una línea (navegador antiguo, dato raro) no puede dejar el combate bloqueado: se salta.
+    try { await step(line.split('|').slice(1), animate && !skipping); } catch (e) { console.error(line, e); }
   }
   return true;
 }
@@ -639,7 +656,7 @@ const layer = (sel, file) => { $(sel).style.backgroundImage = file ? `url(${SD}f
 function drawWeather() {
   $('.arena').classList.toggle('hail', view.weather === 'Hail' || view.weather === 'Snowscape' || view.weather === 'Snow');
   layer('.fx-weather', WEATHER_BG[view.weather]);
-  layer('.fx-field', FIELD_BG[view.field.findLast(f => FIELD_BG[f])]);
+  layer('.fx-field', FIELD_BG[view.field.filter(f => FIELD_BG[f]).pop()]);
   const badges = [[view.weather, T.weatherBadge[view.weather]], ...view.field.map(f => [f, T.fieldBadge[f]])]
     .filter(([, txt]) => txt).map(([id, txt]) => `${itemIcon(FIELD_ICON[id])}${txt}`);
   $('.weather-badge').hidden = !badges.length;
@@ -865,7 +882,7 @@ function finish(animate) {
   $('#prompt').textContent = LIGA ? (day().result === 'win' ? T.leagueWon : T.leagueLost(round() + 1)) : r.result === 'win' ? T.won : T.lost;
   $('#moves').append(ballBtn(T.seeResult, showResult),
     ballBtn('▶ ' + T.replay, watchReplay, 'ballbtn alt'), ...practiceOptions().map(([txt, fn]) => ballBtn(txt, fn, 'ballbtn alt')));
-  if (animate) setTimeout(showResult, 2500);
+  if (animate) resultTimer = setTimeout(showResult, 2500);
 }
 
 // Qué práctica se ofrece al acabar: el mismo equipo siempre; uno aleatorio solo si ya ganaste el reto de hoy.
@@ -878,14 +895,16 @@ function practiceOptions() {
 }
 
 // Vuelve a reproducir el último combate entero con animaciones (es determinista).
+let resultTimer;
 async function watchReplay() {
   if (busy) return;
+  clearTimeout(resultTimer); // que no salte el resultado encima de la repetición
   $('#dlg-stats').close();
   resetView();
   battle = replay(battleKey(), team(), rec().choices, OPP, RULE);
   watching = true; paused = false; replayTurn = 0;
   drawReplayBar();
-  playMusic(battleTrack());
+  playBattleMusic();
   window.scrollTo({top: 0, behavior: 'smooth'});
   await consume(true);
 }
@@ -949,11 +968,11 @@ const streakLine = () => { const s = playStreak(); return s.n > 1 ? T.shareStrea
 
 // Racha de días seguidos jugando (cualquier modo). Con esta dificultad, la racha de victorias casi nunca pasa de 1.
 const playStreak = () => {
-  const s = JSON.parse(ls.get('redle:streak') || '{}');
+  const s = readJSON('redle:streak');
   return s.last === TODAY || s.last === YESTERDAY ? {n: s.n || 0, best: s.best || 0} : {n: 0, best: s.best || 0};
 };
 function bumpStreak() {
-  const s = JSON.parse(ls.get('redle:streak') || '{}');
+  const s = readJSON('redle:streak');
   if (s.last === TODAY) return;
   s.n = s.last === YESTERDAY ? (s.n || 0) + 1 : 1;
   s.best = Math.max(s.best || 0, s.n);
@@ -974,6 +993,7 @@ function showResult() {
   $('#stats').innerHTML = cells.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
   $('#share-box').hidden = !done || !!PRACTICE;
   if (done) $('#share-text').textContent = shareText();
+  $('#btn-share').textContent = T.share; // no dejar "¡Copiado!" de la vez anterior
   $('#summary').innerHTML = '';
   if (done && battle?.ended) {
     const rows = summary(), mvp = mvpOf(rows);
@@ -1002,9 +1022,10 @@ async function drawGlobal(done) {
   const box = $('#global');
   box.innerHTML = '';
   if (!done || PRACTICE || REPLAY) return;
+  box.innerHTML = '<i class="sk sk-line"></i><i class="sk sk-line short"></i>'; // esqueleto mientras responde Supabase
   const [all, rank] = await Promise.all([dailyStats(TODAY), dailyRank(myResult())]);
   const g = all?.[MODE];
-  if (!g || !g.players) return;
+  if (!g || !g.players) { box.innerHTML = ''; return; }
   const pct = n => Math.round(100 * n / g.players);
   if (LIGA) {
     const mine = day().reached, worse = g.reached.slice(0, mine).reduce((a, b) => a + b, 0);
@@ -1025,7 +1046,11 @@ $('#btn-share').onclick = async () => {
   } catch {}
 };
 
+// Pestaña o app abierta desde ayer: al cambiar el día, recargar para el reto nuevo (nunca a mitad de combate).
+const newDay = () => today() !== TODAY && !PRACTICE && !REPLAY && (!battle || battle.ended);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && newDay()) location.reload(); });
 function tickCountdown() {
+  if (newDay()) return location.reload();
   const t = msToNext(), p = n => String(n).padStart(2, '0');
   $('#next').textContent = T.next(Math.floor(t / 36e5), p(Math.floor(t / 6e4) % 60), p(Math.floor(t / 1e3) % 60));
 }
@@ -1069,6 +1094,7 @@ backgroundMons();
 // Etiquetas accesibles de los botones de iconos y fin de la pantalla de carga.
 for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();
+document.querySelectorAll('img').forEach(im => { if (im.complete) im.classList.add('ok'); }); // las que llegaron antes
 // Las descripciones llegan aparte: si ya hay botones de ataque en pantalla, se repintan con ellas.
 loadMoveDescs().then(() => { if (battle && !busy && !battle.ended && !REPLAY) drawControls(); }).catch(() => {});
 
