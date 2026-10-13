@@ -104,10 +104,24 @@ function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmi
     if (seen.has(sp.baseSpecies)) continue;
     seen.add(sp.baseSpecies);
     const set = gen.randomSet(sp.name, {}, out.length === 0);
+    if (!gimmicks.includes('tera')) noTeraBlast(set, gen.randomSets[sp.id], key);
     out.push({...set, level: 100, gigantamax: false, ...wildTraining(set, key, maxEVs, maxIVs)});
   }
   luckyGimmick(out, key, gimmicks, dex);
   return out;
+}
+
+// Sin Teracristalización, Teraexplosión es un Ataque Normal de 80 sin más: se cambia por otro ataque del mismo
+// Pokémon en Random Battle. Solo desde el 14-10-2026, para que los combates guardados y repeticiones anteriores cuadren.
+const NO_TERA_BLAST_FROM = '2026-10-14';
+function noTeraBlast(set, data, key) {
+  const date = key.split(':')[1];
+  if (/^\d{4}-\d\d-\d\d$/.test(date) && date < NO_TERA_BLAST_FROM) return;
+  const i = set.moves.findIndex(m => toID(m) === 'terablast');
+  if (i < 0) return;
+  const has = new Set(set.moves.map(toID));
+  const other = (data?.sets || []).flatMap(s => s.movepool).find(m => !has.has(toID(m)) && toID(m) !== 'terablast');
+  if (other) set.moves[i] = other;
 }
 
 // Un 5 % de que a uno de tus Pokémon le toque su megapiedra o su forma Gigamax (según lo que permita el

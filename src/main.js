@@ -168,13 +168,16 @@ function finalStats(set) {
 }
 // Como en la pantalla de datos de los juegos: la estadística que la naturaleza sube va en rojo (▲)
 // y la que baja en azul (▼). No se muestra el nombre de la naturaleza ni IVs/EVs.
-// En combate, el Pokémon activo muestra además sus cambios de características (+2, −1…).
+// En combate, el Pokémon activo muestra la estadística ya multiplicada por sus cambios (Danza Espada +2: Ataque ×2),
+// con el valor base tachado al lado y el +2 / −1.
+const boostMult = n => n >= 0 ? (2 + n) / 2 : 2 / (2 - n);
 const statsRow = (stats, nature, boosts = {}) => {
   const n = dex.natures.get(nature || 'Serious');
   return `<div class="stats6">${STAT_IDS.map(s => {
     const mod = n.plus === s && n.minus !== s ? 'up' : n.minus === s && n.plus !== s ? 'down' : '';
-    const b = boosts[s] ? `<em class="${boosts[s] > 0 ? 'bup' : 'bdown'}">${boosts[s] > 0 ? '+' : '−'}${Math.abs(boosts[s])}</em>` : '';
-    return `<span class="${mod}"><small>${s === 'hp' ? T.hpShort : T.statShort[s]}${mod === 'up' ? '▲' : mod === 'down' ? '▼' : ''}</small>${stats[s]}${b}</span>`;
+    const k = boosts[s] || 0;
+    const value = k ? `<b class="${k > 0 ? 'bup' : 'bdown'}">${Math.floor(stats[s] * boostMult(k))}</b><s>${stats[s]}</s><em class="${k > 0 ? 'bup' : 'bdown'}">${k > 0 ? '+' : '−'}${Math.abs(k)}</em>` : stats[s];
+    return `<span class="${mod}"><small>${s === 'hp' ? T.hpShort : T.statShort[s]}${mod === 'up' ? '▲' : mod === 'down' ? '▼' : ''}</small>${value}</span>`;
   }).join('')}</div>`;
 };
 
@@ -246,7 +249,7 @@ function renderDraft() {
 // ---------- combate ----------
 let battle, logIdx = 0, busy = false;
 const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}, dmax: false, gmax: false});
-const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: '', field: [], tera: {p1: {}, p2: {}}});
+const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: '', field: [], side: {p1: {}, p2: {}}, tera: {p1: {}, p2: {}}});
 const view = freshView();
 const team = () => rec().picks.map(i => POOL[i]);
 const img = side => $(`.mon.${side === 'p1' ? 'me' : 'foe'}`);
@@ -258,7 +261,7 @@ const battleTrack = () => STAGE.music[(DAY + round()) % STAGE.music.length];
 function resetView() {
   logIdx = 0;
   Object.assign(view, freshView());
-  drawWeather();
+  drawWeather(); drawSide('p1'); drawSide('p2');
   for (const side of ['p1', 'p2']) { const im = img(side); im.classList.remove('faint', 'enter'); im.removeAttribute('src'); delete im.dataset.species; }
   $('#log').innerHTML = $('#msg').innerHTML = '';
   $('#moves').innerHTML = $('#switches').innerHTML = $('#prompt').textContent = '';
@@ -272,10 +275,13 @@ async function startBattle(isNew) {
   battle = replay(battleKey(), team(), REPLAY ? REPLAY.choices : r.choices, OPP, RULE);
   $('#replay-banner').hidden = !REPLAY;
   drawLeagueBar();
+  watching = !!REPLAY;
+  drawReplayBar();
   if (REPLAY) $('#replay-banner').innerHTML = T.replayBanner(B.name, REPLAY.date);
   if (r.result && !REPLAY) { await consume(false); if (day().result) showResult(); return; } // en la Liga puede quedar el siguiente rival
   playMusic(battleTrack());
   if (isNew || REPLAY) {
+    busy = true; // durante la intro, los controles de repetición esperan a `consume`
     // Transición de inicio de combate: destellos, franjas y el rival entrando.
     $('#intro p').textContent = LIGA ? T.leagueChallenge(round() + 1, B.name) : T.challenge;
     const intro = $('#intro');
@@ -302,6 +308,20 @@ async function choose(choice) {
 let skipping = false;
 for (const s of ['.arena', '.textbox']) $(s).addEventListener('click', e => { if (busy && !e.target.closest('.hud')) skipping = true; });
 
+// Procesa líneas del log. En una repetición se puede pausar entre mensajes o pedir un salto de turno (`seek`):
+// entonces corta y devuelve false.
+async function runLines(lines, animate) {
+  for (let i = 0; i < lines.length; i++) {
+    while (paused && seek === null) await sleep(100);
+    if (seek !== null) return false;
+    let line = lines[i];
+    if (line.startsWith('|split|')) { line = lines[i + 1]; i += 2; } // línea privada = PS exactos
+    if (line.startsWith('|turn|')) { skipping = false; setReplayTurn(+line.split('|')[2]); } // el toque salta solo ese turno
+    await step(line.split('|').slice(1), animate && !skipping);
+  }
+  return true;
+}
+
 async function consume(animate) {
   busy = true;
   skipping = false;
@@ -309,12 +329,7 @@ async function consume(animate) {
   $('#prompt').textContent = '';
   const lines = battle.log.slice(logIdx);
   logIdx = battle.log.length;
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
-    if (line.startsWith('|split|')) { line = lines[i + 1]; i += 2; } // línea privada = PS exactos
-    if (line.startsWith('|turn|')) skipping = false; // en una repetición, el toque salta solo ese turno
-    await step(line.split('|').slice(1), animate && !skipping);
-  }
+  if (!await runLines(lines, animate)) { const t = seek; seek = null; busy = false; return seekTo(t); }
   drawHud('p1'); drawHud('p2');
   drawTeamPanel();
   busy = false;
@@ -322,6 +337,47 @@ async function consume(animate) {
   if (battle.ended) finish(animate);
   else if (REPLAY) replayEnd();
   else drawControls();
+}
+
+// ---------- controles de repetición: pausa, turno anterior/siguiente, ir a un turno o al final ----------
+let watching = false, paused = false, seek = null, replayTurn = 0;
+function drawReplayBar() {
+  const bar = $('#replay-ctl');
+  bar.hidden = !watching;
+  if (!watching) return;
+  const opts = Array.from({length: battle.turn + 1}, (_, t) => `<option value="${t}">${t ? T.rTurnN(t) : T.rStart}</option>`).join('');
+  bar.innerHTML = `<button data-a="prev">${T.rPrev}</button><button data-a="pause" class="${paused ? 'on' : ''}">${paused ? T.rPlay : T.rPause}</button>
+    <button data-a="next">${T.rNext}</button><select aria-label="${T.rTurn}">${opts}</select><button data-a="end">${T.rEnd}</button>`;
+  bar.querySelector('select').value = replayTurn;
+  bar.querySelector('select').onchange = e => requestSeek(+e.target.value);
+  bar.querySelectorAll('button').forEach(b => (b.onclick = () => {
+    sfx('click');
+    const a = b.dataset.a;
+    if (a === 'pause') { paused = !paused; drawReplayBar(); }
+    else requestSeek(a === 'prev' ? Math.max(0, replayTurn - 1) : a === 'next' ? replayTurn + 1 : Infinity);
+  }));
+}
+function setReplayTurn(t) {
+  replayTurn = t;
+  const sel = $('#replay-ctl select');
+  if (sel) sel.value = t;
+}
+function requestSeek(t) {
+  paused = false;
+  if (busy) { seek = t; skipping = true; } else seekTo(t);
+  drawReplayBar();
+}
+// Salta al inicio del turno `t` (0 = principio, Infinity = final): rehace el escenario sin animar hasta ahí y sigue.
+async function seekTo(t) {
+  const all = battle.log, at = t <= 0 ? 0 : all.indexOf(`|turn|${t}`), end = at < 0 ? all.length : at;
+  lowHpAlarm(false);
+  resetView();
+  busy = true;
+  replayTurn = 0;
+  await runLines(all.slice(0, end), false);
+  logIdx = end;
+  busy = false;
+  await consume(true);
 }
 
 // Muestra un mensaje en la caja de texto y espera a que dé tiempo a leerlo.
@@ -386,6 +442,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
         await throwBall(im, side === 'p2');
         im.style.visibility = '';
         void im.offsetWidth; im.classList.add('enter');
+        im.addEventListener('animationend', () => im.classList.remove('enter'), {once: true});
         await cry(cryId(species));
         await wait(700);
       } else setHp(side, c, false);
@@ -411,6 +468,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
         else if (!tags.includes('[from]')) {
           sfx(view.eff === 'super' ? 'super' : view.eff === 'weak' ? 'weak' : 'hit');
           const im = img(side); im.classList.remove('hit'); void im.offsetWidth; im.classList.add('hit');
+          im.addEventListener('animationend', () => im.classList.remove('hit'), {once: true});
           if (view.eff === 'super') flash('#fff', 140);
         } else sfx('weak');
         await sleep(dur);
@@ -474,16 +532,28 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       drawWeather();
       if ([b, c].includes('[upkeep]')) return a === 'Hail' ? say(T.hailUpkeep, animate) : null;
       return T.weather[a] ? say(T.weather[a], animate) : null;
-    case '-fieldstart': case '-fieldend': { // Espacio Raro, Gravedad, combate inverso
+    case '-fieldstart': case '-fieldend': { // campos, Espacio Raro, Gravedad, combate inverso
       const id = a.replace('move: ', '');
-      view.field = cmd === '-fieldstart' ? [...view.field, id] : view.field.filter(f => f !== id);
+      // Un campo nuevo sustituye al anterior (Showdown no avisa del final del viejo).
+      const rest = view.field.filter(f => f !== id && !(cmd === '-fieldstart' && id.endsWith('Terrain') && f.endsWith('Terrain')));
+      view.field = cmd === '-fieldstart' ? [...rest, id] : rest;
       drawWeather();
       return cmd === '-fieldstart' && T.fieldStart[id] ? say(T.fieldStart[id], animate, 'eff') : null;
     }
     case '-prepare': return say(T.prepare(who(a)), animate, cls);
     case '-singleturn': return /Protect|Detect/.test(b) ? say(T.protect(who(a)), animate, cls) : null;
-    case '-sidestart': return say(T.sideStart(moveName(b.replace('move: ', '')), a.startsWith('p1')), animate);
-    case '-sideend': return say(T.sideEnd(moveName(b.replace('move: ', ''))), animate);
+    case '-sidestart': case '-sideend': { // Trampa Rocas, Púas, Reflejo… (Púas y Púas Tóxicas se acumulan)
+      const id = b.replace('move: ', ''), conds = view.side[side];
+      if (cmd === '-sidestart') conds[id] = (conds[id] || 0) + 1; else delete conds[id];
+      drawSide(side);
+      const ally = side === 'p1';
+      if (cmd === '-sideend') return say(T.sideEnd(moveName(id)), animate);
+      return say(T.hazardStart[toID(id)]?.(ally) || T.sideStart(moveName(id), ally), animate);
+    }
+    case '-swapsideconditions': // Cambio de Banda
+      [view.side.p1, view.side.p2] = [view.side.p2, view.side.p1];
+      drawSide('p1'); drawSide('p2');
+      return;
     case '-transform': return say(T.mimic(who(a)), animate, cls);
     case 'detailschange': { // forma nueva (Megaevolución)
       view[side].species = b.split(', ')[0];
@@ -560,12 +630,37 @@ function animateBar(side, fromPct, toPct, dur, maxhp) {
 }
 
 // Indicador y partículas del clima y de los efectos de campo (Espacio Raro, combate inverso…).
+// Como en Showdown: cada clima y cada campo tiñe el escenario con su imagen de efectos.
+const WEATHER_BG = {SunnyDay: 'weather-sunnyday.jpg', RainDance: 'weather-raindance.jpg', Sandstorm: 'weather-sandstorm.png',
+  Hail: 'weather-hail.png', Snowscape: 'weather-hail.png', Snow: 'weather-hail.png'};
+const FIELD_BG = {'Electric Terrain': 'weather-electricterrain.png', 'Grassy Terrain': 'weather-grassyterrain.png',
+  'Misty Terrain': 'weather-mistyterrain.png', 'Psychic Terrain': 'weather-psychicterrain.png', 'Trick Room': 'weather-trickroom.png', Gravity: 'weather-gravity.png'};
+const layer = (sel, file) => { $(sel).style.backgroundImage = file ? `url(${SD}fx/${file})` : ''; $(sel).classList.toggle('on', !!file); };
 function drawWeather() {
-  $('.arena').classList.toggle('hail', view.weather === 'Hail' || view.weather === 'Snowscape');
+  $('.arena').classList.toggle('hail', view.weather === 'Hail' || view.weather === 'Snowscape' || view.weather === 'Snow');
+  layer('.fx-weather', WEATHER_BG[view.weather]);
+  layer('.fx-field', FIELD_BG[view.field.findLast(f => FIELD_BG[f])]);
   const badges = [[view.weather, T.weatherBadge[view.weather]], ...view.field.map(f => [f, T.fieldBadge[f]])]
     .filter(([, txt]) => txt).map(([id, txt]) => `${itemIcon(FIELD_ICON[id])}${txt}`);
   $('.weather-badge').hidden = !badges.length;
   $('.weather-badge').innerHTML = badges.join(' · ');
+}
+
+// Trampas y barreras en el lado de cada uno: piedras, púas y red bajo el Pokémon, y un panel de color para
+// Reflejo / Pantalla de Luz / Velo Aurora. El resto (Viento Afín, Velo Sagrado…) como etiqueta pequeña.
+const HAZARD_IMG = {stealthrock: ['rock1.png', 'rock2.png', 'rock3.png'], spikes: ['caltrop.png'], toxicspikes: ['poisoncaltrop.png'], stickyweb: ['web.png']};
+const SCREENS = {reflect: 'reflect', lightscreen: 'lightscreen', auroraveil: 'auroraveil'};
+function drawSide(side) {
+  const box = $(`.side-fx.${side === 'p1' ? 'me' : 'foe'}`), conds = Object.entries(view.side[side]);
+  const imgs = conds.flatMap(([id, n]) => {
+    const files = HAZARD_IMG[toID(id)];
+    if (!files) return [];
+    const count = toID(id) === 'stealthrock' ? 3 : toID(id) === 'stickyweb' ? 1 : n;
+    return Array.from({length: count}, (_, i) => `<img class="hz ${toID(id)}" src="${SD}fx/${files[i % files.length]}" alt="">`);
+  });
+  const screens = conds.filter(([id]) => SCREENS[toID(id)]).map(([id]) => `<i class="screen ${SCREENS[toID(id)]}"></i>`);
+  const tags = conds.filter(([id]) => !HAZARD_IMG[toID(id)] && !SCREENS[toID(id)]).map(([id]) => `<span>${moveName(id)}</span>`);
+  box.innerHTML = `${screens.join('')}<div class="hz-row">${imgs.join('')}</div>${tags.length ? `<div class="sc-tags">${tags.join('')}</div>` : ''}`;
 }
 
 function drawHud(side, dur = 0, fromHp) {
@@ -574,6 +669,8 @@ function drawHud(side, dur = 0, fromHp) {
   const im = img(side);
   const shown = v.gmax && dex.species.get(`${v.species}-Gmax`).exists ? `${v.species}-Gmax` : v.species;
   im.classList.toggle('dynamax', v.dmax);
+  im.dataset.status = v.hp > 0 ? v.status : ''; // cada problema de estado tiñe y mueve el sprite a su manera
+  $(`.zzz.${cls}`).hidden = v.status !== 'slp' || v.hp <= 0;
   if (im.dataset.species !== shown) {
     const s = spriteOf(shown, side === 'p1');
     im.src = s.url;
@@ -786,6 +883,8 @@ async function watchReplay() {
   $('#dlg-stats').close();
   resetView();
   battle = replay(battleKey(), team(), rec().choices, OPP, RULE);
+  watching = true; paused = false; replayTurn = 0;
+  drawReplayBar();
   playMusic(battleTrack());
   window.scrollTo({top: 0, behavior: 'smooth'});
   await consume(true);

@@ -13,7 +13,7 @@ export function setLang(l) { try { localStorage.setItem('redle:lang', l); } catc
 export function itemIcon(name) { return `<span class="icon-item" style="${Icons.getItem(name).style}"></span>`; }
 // Cada clima y efecto de campo con el objeto que lo representa en los juegos.
 export const FIELD_ICON = {Hail: 'Icy Rock', Snowscape: 'Icy Rock', Snow: 'Icy Rock', SunnyDay: 'Heat Rock', RainDance: 'Damp Rock',
-  Sandstorm: 'Smooth Rock', 'Inverse Battle': 'Ring Target', 'Trick Room': 'Room Service', Gravity: 'Iron Ball'};
+  Sandstorm: 'Smooth Rock', 'Electric Terrain': 'Electric Seed', 'Grassy Terrain': 'Grassy Seed', 'Misty Terrain': 'Misty Seed', 'Psychic Terrain': 'Psychic Seed', 'Inverse Battle': 'Ring Target', 'Trick Room': 'Room Service', Gravity: 'Iron Ball'};
 const RULE_ICON = {inverse: 'Ring Target', trickroom: 'Room Service', gravity: 'Iron Ball', sun: 'Heat Rock', rain: 'Damp Rock', sand: 'Smooth Rock', snow: 'Icy Rock'};
 
 const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -75,16 +75,17 @@ const STRINGS = {
     terastallized: (w, t) => `¡${w} se ha teracristalizado en tipo ${t}!`, forfeit: 'Rendirse',
     forfeitConfirm: '¿Seguro que te rindes? El combate cuenta como derrota y podrás practicar con el mismo equipo.', aHelp: 'Cómo se juega', aSound: 'Activar o silenciar el sonido', recharge: 'Recargar',
     weatherBadge: {Hail: 'Granizo', SunnyDay: 'Sol', RainDance: 'Lluvia', Sandstorm: 'Arena', Snowscape: 'Nieve', Snow: 'Nieve'},
-    fieldStart: {'Inverse Battle': '¡El combate es inverso! La tabla de tipos va al revés.', 'Trick Room': '¡Las dimensiones se han retorcido! Los lentos atacan primero.', Gravity: '¡La gravedad se ha intensificado!'},
-    fieldBadge: {'Inverse Battle': 'Inverso', 'Trick Room': 'Espacio Raro', Gravity: 'Gravedad'}, drain: w => `${w} absorbe energía.`,
+    fieldStart: {'Electric Terrain': '¡Se ha formado un campo de corriente eléctrica!', 'Grassy Terrain': '¡El terreno de combate se ha cubierto de hierba!', 'Misty Terrain': '¡La niebla ha envuelto el terreno de combate!', 'Psychic Terrain': '¡El terreno de combate se ha vuelto muy extraño!', 'Inverse Battle': '¡El combate es inverso! La tabla de tipos va al revés.', 'Trick Room': '¡Las dimensiones se han retorcido! Los lentos atacan primero.', Gravity: '¡La gravedad se ha intensificado!'},
+    fieldBadge: {'Electric Terrain': 'Campo Eléctrico', 'Grassy Terrain': 'Campo de Hierba', 'Misty Terrain': 'Campo de Niebla', 'Psychic Terrain': 'Campo Psíquico', 'Inverse Battle': 'Inverso', 'Trick Room': 'Espacio Raro', Gravity: 'Gravedad'}, drain: w => `${w} absorbe energía.`,
     weather: {SunnyDay: 'El sol pega con fuerza.', RainDance: 'Ha empezado a llover.', Sandstorm: 'Se ha levantado una tormenta de arena.', Hail: 'Ha empezado a granizar.', Snowscape: 'Ha empezado a nevar.', Snow: 'Ha empezado a nevar.', none: 'El tiempo vuelve a la normalidad.'},
     sub: w => `¡${w} ha creado un sustituto!`, subEnd: w => `El sustituto de ${w} ha desaparecido.`, subHit: 'El sustituto recibe el golpe.',
     confused: w => `¡${w} está confuso!`, confusedAct: w => `${w} está confuso...`, seeded: w => `¡${w} ha sido infectado!`,
-    statusTag: {brn: 'QUE', par: 'PAR', slp: 'DOR', psn: 'ENV', tox: 'ENV', frz: 'CON'},
+    statusTag: {brn: 'QUE', par: 'PAR', slp: 'DOR', psn: 'ENV', tox: 'TÓX', frz: 'CON'},
     statShort: {atk: 'Atq', def: 'Def', spa: 'AtE', spd: 'DfE', spe: 'Vel', accuracy: 'Pre', evasion: 'Eva'},
     ate: (w, i) => `¡${w} se ha comido su ${i}!`, usedItem: (w, i) => `${w} ha usado su ${i}.`,
     prepare: w => `${w} está cogiendo fuerzas...`, protect: w => `¡${w} se está protegiendo!`, hitcount: n => `¡Ha golpeado ${n} veces!`,
-    sideStart: (m, ally) => `¡${m} actúa en el campo ${ally ? 'aliado' : 'rival'}!`, sideEnd: m => `${m} ha dejado de actuar.`,
+    sideStart: (m, ally) => `¡${m} actúa en el campo ${ally ? 'aliado' : 'rival'}!`,
+    hazardStart: {stealthrock: a => `¡${a ? 'Tu equipo' : 'El equipo rival'} está rodeado de piedras puntiagudas!`, spikes: a => `¡${a ? 'Tu equipo' : 'El equipo rival'} está rodeado de púas!`, toxicspikes: a => `¡${a ? 'Tu equipo' : 'El equipo rival'} está rodeado de púas tóxicas!`, stickyweb: a => `¡Una red viscosa se extiende bajo ${a ? 'tu equipo' : 'el equipo rival'}!`}, sideEnd: m => `${m} ha dejado de actuar.`,
     clearBoosts: 'Se han anulado todos los cambios de características.', mimic: w => `${w} se ha transformado.`,
     ability: (w, a) => `${a} de ${w}`, nothing: 'No ha pasado nada.', youTeam: 'Tu equipo', hpLeft: 'PS',
     battleTab: 'Combate', noItem: 'Sin objeto',
@@ -133,8 +134,8 @@ const STRINGS = {
     terastallized: (w, t) => `${w} terastallized into the ${t} type!`, forfeit: 'Forfeit',
     forfeitConfirm: 'Are you sure you want to forfeit? It counts as a loss and you can practice with the same team.', aHelp: 'How to play', aSound: 'Toggle sound', recharge: 'Recharge',
     weatherBadge: {Hail: 'Hail', SunnyDay: 'Sun', RainDance: 'Rain', Sandstorm: 'Sand', Snowscape: 'Snow', Snow: 'Snow'},
-    fieldStart: {'Inverse Battle': 'This is an inverse battle! The type chart is flipped.', 'Trick Room': 'The dimensions were twisted! Slower Pokémon move first.', Gravity: 'Gravity intensified!'},
-    fieldBadge: {'Inverse Battle': 'Inverse', 'Trick Room': 'Trick Room', Gravity: 'Gravity'}, drain: w => `${w} had its energy drained!`,
+    fieldStart: {'Electric Terrain': 'An electric current ran across the battlefield!', 'Grassy Terrain': 'Grass grew to cover the battlefield!', 'Misty Terrain': 'Mist swirled around the battlefield!', 'Psychic Terrain': 'The battlefield got weird!', 'Inverse Battle': 'This is an inverse battle! The type chart is flipped.', 'Trick Room': 'The dimensions were twisted! Slower Pokémon move first.', Gravity: 'Gravity intensified!'},
+    fieldBadge: {'Electric Terrain': 'Electric Terrain', 'Grassy Terrain': 'Grassy Terrain', 'Misty Terrain': 'Misty Terrain', 'Psychic Terrain': 'Psychic Terrain', 'Inverse Battle': 'Inverse', 'Trick Room': 'Trick Room', Gravity: 'Gravity'}, drain: w => `${w} had its energy drained!`,
     weather: {SunnyDay: 'The sunlight turned harsh!', RainDance: 'It started to rain!', Sandstorm: 'A sandstorm kicked up!', Hail: 'It started to hail!', Snowscape: 'It started to snow!', Snow: 'It started to snow!', none: 'The weather returned to normal.'},
     sub: w => `${w} put in a substitute!`, subEnd: w => `${w}'s substitute faded!`, subHit: 'The substitute took damage for it!',
     confused: w => `${w} became confused!`, confusedAct: w => `${w} is confused!`, seeded: w => `${w} was seeded!`,
@@ -142,7 +143,8 @@ const STRINGS = {
     statShort: {atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe', accuracy: 'Acc', evasion: 'Eva'},
     ate: (w, i) => `${w} ate its ${i}!`, usedItem: (w, i) => `${w} used its ${i}.`,
     prepare: w => `${w} is gathering power...`, protect: w => `${w} protected itself!`, hitcount: n => `Hit ${n} times!`,
-    sideStart: (m, ally) => `${m} now protects ${ally ? 'your' : 'the opposing'} team!`, sideEnd: m => `${m} wore off.`,
+    sideStart: (m, ally) => `${m} now protects ${ally ? 'your' : 'the opposing'} team!`,
+    hazardStart: {stealthrock: a => `Pointed stones float in the air around ${a ? 'your' : 'the opposing'} team!`, spikes: a => `Spikes were scattered on the ground all around ${a ? 'your' : 'the opposing'} team!`, toxicspikes: a => `Poison spikes were scattered on the ground all around ${a ? 'your' : 'the opposing'} team!`, stickyweb: a => `A sticky web has been laid out on the ground around ${a ? 'your' : 'the opposing'} team!`}, sideEnd: m => `${m} wore off.`,
     clearBoosts: 'All stat changes were eliminated!', mimic: w => `${w} transformed!`,
     ability: (w, a) => `${w}'s ${a}`, nothing: 'Nothing happened.', youTeam: 'Your team', hpLeft: 'HP',
     battleTab: 'Battle', noItem: 'No item',
@@ -257,6 +259,7 @@ Object.assign(T, es ? {
   bestRound: 'Mejor ronda', champions: 'Veces campeón',
   shareReplay: 'Compartir repetición', replayCopied: '¡Enlace copiado!',
   replayBanner: (name, date) => `▶ Repetición de un combate contra <b>${name}</b> del ${date}.`, playToday: 'Jugar el reto de hoy',
+  rPrev: '◀ Turno anterior', rNext: 'Turno siguiente ▶', rPause: 'Pausa', rPlay: 'Seguir', rEnd: 'Ir al final', rStart: 'Inicio', rTurn: 'Ir al turno', rTurnN: t => `Turno ${t}`,
   welcome: 'Cada día, el mismo reto para todo el mundo: <b>tu equipo de 6 contra un entrenador legendario</b> con su equipo de los juegos. <b>Toca quién empieza</b>, pulsa ¡Listo! y comparte tu resultado. Un intento al día por rival; después puedes practicar.',
   rulesTitle: 'Reglas de este combate', showDetails: 'Ver estadísticas y ataques ▾', hideDetails: 'Ocultar estadísticas y ataques ▴',
   leagueProgress: (round, left) => `Ronda ${round}/5 · ${left ? `${left === 1 ? 'queda 1 rival' : `quedan ${left} rivales`} después` : '¡último rival!'}`,
@@ -277,6 +280,7 @@ Object.assign(T, es ? {
   bestRound: 'Best round', champions: 'Times champion',
   shareReplay: 'Share replay', replayCopied: 'Link copied!',
   replayBanner: (name, date) => `▶ Replay of a battle against <b>${name}</b> on ${date}.`, playToday: "Play today's challenge",
+  rPrev: '◀ Previous turn', rNext: 'Next turn ▶', rPause: 'Pause', rPlay: 'Resume', rEnd: 'Skip to end', rStart: 'Start', rTurn: 'Go to turn', rTurnN: t => `Turn ${t}`,
   welcome: 'Every day, the same challenge for everyone: <b>your team of 6 against a legendary trainer</b> with their real in-game team. <b>Tap your lead</b>, press Ready! and share your result. One try per rival per day; you can practice afterwards.',
   rulesTitle: 'Rules for this battle', showDetails: 'Show stats and moves ▾', hideDetails: 'Hide stats and moves ▴',
   leagueProgress: (round, left) => `Round ${round}/5 · ${left ? `${left} more ${left === 1 ? 'rival' : 'rivals'} after this` : 'final rival!'}`,
