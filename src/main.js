@@ -497,6 +497,8 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       if (tags.includes('Hail')) return say(T.hailDmg(who(a)), animate, cls);
       if (/Sandstorm|Snow/.test(tags)) return say(T.weatherDmg(who(a)), animate, cls);
       if (tags.includes('drain')) return say(T.drain(who(a)), animate, cls);
+      if (tags.includes('move: Wish')) return say(T.wishCame(tags.match(/\[wisher\] ([^|]+)/)?.[1] || parseId(a).name), animate, cls);
+      if (/move: (Healing Wish|Lunar Dance)/.test(tags)) return say(T.healingWish(who(a)), animate, cls);
       return say((delta > 0 ? T.gained : T.lost_)(who(a), pct), animate, cls);
     }
     // El aviso de eficacia llega antes que el daño: se guarda y se muestra con el golpe.
@@ -603,12 +605,23 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       if (b.includes('Substitute')) return say(T.sub(who(a)), animate, cls);
       if (b.includes('confusion')) return say(T.confused(who(a)), animate, cls);
       if (b.includes('Leech Seed')) return say(T.seeded(who(a)), animate, cls);
+      // Premonición / Deseo Oculto: el ataque llega dos turnos después (el aviso sale en -end, junto al daño).
+      if (/Future Sight|Doom Desire/.test(b)) return say(T.foresaw(who(a), moveName(b.replace('move: ', ''))), animate, cls);
+      if (b.includes('Taunt')) return say(T.taunted(who(a)), animate, cls);
+      if (b.includes('Encore')) return say(T.encored(who(a)), animate, cls);
+      if (b.includes('Yawn')) return say(T.drowsy(who(a)), animate, cls);
+      if (/^perish\d/.test(b) && !tags.includes('[silent]')) return say(T.perish(who(a), b.slice(6)), animate, cls);
       return;
     case '-end':
       if (b === 'Dynamax') {
         Object.assign(view[side], {dmax: false, gmax: false});
         drawHud(side);
         return say(T.dynamaxEnd(who(a)), animate, cls);
+      }
+      if (/Future Sight|Doom Desire/.test(b)) { // el ataque llega: animación desde el otro lado y luego el daño (siguiente línea)
+        const mv = b.replace('move: ', '');
+        if (animate) await animateMove(mv, img(side === 'p1' ? 'p2' : 'p1'), img(side));
+        return say(T.foresawHit(who(a), moveName(mv)), animate, cls);
       }
       return b.includes('Substitute') ? say(T.subEnd(who(a)), animate, cls) : null;
     case '-activate':
