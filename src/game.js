@@ -336,6 +336,7 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   const battle = new Battle({formatid, seed: seedFor(`battle:${boss}:${key}`)});
   battle.setPlayer('p1', {name: 'Tú', team});
   battle.bossPlan = bossPlan(key, boss);
+  battle.aiLegacy = (String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9') < '2026-10-15'; // IA anterior (ver abilityBlocks)
   battle.setPlayer('p2', {name: BOSSES[boss].name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
   if (format !== 8 && gimmicks.includes('dynamax')) {
@@ -354,13 +355,31 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
 
 const IMMUNE_ABILITY = {Levitate: 'Ground', 'Earth Eater': 'Ground', 'Flash Fire': 'Fire', 'Well-Baked Body': 'Fire', 'Water Absorb': 'Water', 'Storm Drain': 'Water',
   'Dry Skin': 'Water', 'Volt Absorb': 'Electric', 'Lightning Rod': 'Electric', 'Motor Drive': 'Electric', 'Sap Sipper': 'Grass'};
+// Habilidades que anulan ataques por su forma, no por su tipo: Surcavientos (viento: Ventisca, Vendaval…),
+// Insonorizar (sonido), Antibalas (bombas y balas), Funda (polvos), Cuerpo Áureo (estado) y las que paran la prioridad.
+const FLAG_BLOCK = {windrider: 'wind', soundproof: 'sound', bulletproof: 'bullet', overcoat: 'powder'};
+const MOLD_BREAKER = ['moldbreaker', 'teravolt', 'turboblaze'];
+// ¿La habilidad del objetivo anula este ataque? (Rompemoldes y similares las ignoran.)
+// Las anulaciones por forma se tienen en cuenta desde el 15-10-2026: antes la IA no las veía y así se reproducen
+// igual los combates guardados de esos días.
+function abilityBlocks(user, target, move) {
+  const ab = target.ability;
+  if (!ab) return false;
+  if (target.battle.aiLegacy) return IMMUNE_ABILITY[dex.abilities.get(ab).name] === move.type && move.category !== 'Status';
+  if (MOLD_BREAKER.includes(user.ability)) return false;
+  if (IMMUNE_ABILITY[dex.abilities.get(ab).name] === move.type && move.category !== 'Status') return true;
+  if (move.flags?.[FLAG_BLOCK[ab]]) return true;
+  if (ab === 'goodasgold' && move.category === 'Status' && move.target !== 'self' && !move.sideCondition) return true;
+  return ['dazzling', 'queenlymajesty', 'armortail'].includes(ab) && move.priority > 0;
+}
 
 // Daño esperado aproximado (fracción de la vida del objetivo). No consume PRNG.
 export function estimate(user, target, moveId) {
   const move = dex.moves.get(moveId);
   if (move.category === 'Status' || !target || target.fainted) return 0;
   const type = move.type;
-  if (!inverse(target) && !dex.getImmunity(type, target.getTypes()) || IMMUNE_ABILITY[target.ability && dex.abilities.get(target.ability).name] === type) return 0;
+  const grav = !target.battle.aiLegacy && type === 'Ground' && target.battle.field.pseudoWeather.gravity;
+  if (!grav && (!inverse(target) && !dex.getImmunity(type, target.getTypes()) || abilityBlocks(user, target, move))) return 0;
   const eff = typeEff(type, target);
   if (target.ability === 'wonderguard' && eff <= 1) return 0;
   const physical = move.category === 'Physical';
@@ -381,8 +400,33 @@ export function estimate(user, target, moveId) {
   if (target.ability === 'thickfat' && (type === 'Fire' || type === 'Ice')) mod /= 2;
   if (['multiscale', 'shadowshield'].includes(target.ability) && target.hp === target.maxhp) mod /= 2;
   if (move.multihit) bp *= Array.isArray(move.multihit) ? 3 : move.multihit;
-  const dmg = ((42 * bp * atk / def) / 50 + 2) * mod * eff * 0.92 * ((move.accuracy === true ? 100 : move.accuracy) / 100);
+  let acc = move.accuracy === true ? 100 : move.accuracy;
+  if (!target.battle.aiLegacy) ({mod, acc, def} = fieldMods(user, target, move, mod, acc, def, physical));
+  const dmg = ((42 * bp * atk / def) / 50 + 2) * mod * eff * 0.92 * (Math.min(100, acc) / 100);
   return dmg / target.maxhp;
+}
+
+// Clima y campos en el daño esperado (desde el 15-10-2026, ver aiLegacy). effectiveWeather ya tiene en cuenta
+// Aclimatación y Bucle Aire.
+function fieldMods(user, target, move, mod, acc, def, physical) {
+  const field = target.battle.field, weather = field.effectiveWeather(), terrain = field.terrain, type = move.type;
+  if (weather === 'sunnyday') { if (type === 'Fire') mod *= 1.5; if (type === 'Water') mod *= 0.5; }
+  if (weather === 'raindance') { if (type === 'Water') mod *= 1.5; if (type === 'Fire') mod *= 0.5; }
+  if (weather === 'sandstorm' && !physical && target.hasType('Rock')) def *= 1.5;
+  if ((weather === 'snow' || weather === 'snowscape') && physical && target.hasType('Ice')) def *= 1.5;
+  // Precisión según el clima: Trueno y Vendaval no fallan con lluvia (50 % con sol); Ventisca no falla con granizo/nieve.
+  if (['thunder', 'hurricane'].includes(move.id)) acc = weather === 'raindance' ? 100 : weather === 'sunnyday' ? 50 : acc;
+  if (move.id === 'blizzard' && ['hail', 'snow', 'snowscape'].includes(weather)) acc = 100;
+  // Rayo Solar / Cuchilla Solar tardan dos turnos sin sol (y pegan la mitad con lluvia, arena o nieve).
+  if (['solarbeam', 'solarblade'].includes(move.id) && weather !== 'sunnyday') mod *= weather ? 0.25 : 0.5;
+  if (move.id === 'weatherball' && weather) mod *= 2;
+  // Campos: solo afectan a quien toca el suelo.
+  const userGround = user.isGrounded(), targetGround = target.isGrounded();
+  if (userGround && (terrain === 'electricterrain' && type === 'Electric' || terrain === 'grassyterrain' && type === 'Grass' || terrain === 'psychicterrain' && type === 'Psychic')) mod *= 1.3;
+  if (targetGround && terrain === 'mistyterrain' && type === 'Dragon') mod *= 0.5;
+  if (targetGround && terrain === 'grassyterrain' && ['earthquake', 'bulldoze', 'magnitude'].includes(move.id)) mod *= 0.5;
+  if (targetGround && terrain === 'psychicterrain' && move.priority > 0) mod = 0; // el Campo Psíquico para la prioridad
+  return {mod, acc, def};
 }
 
 const inverse = target => !!target.battle.field.pseudoWeather.inversebattle;
@@ -405,10 +449,39 @@ const speed = p => p.getStat('spe', false, true) * (p.battle.field.pseudoWeather
 // Lo máximo que `user` puede quitarle a `target` (fracción de su vida máxima).
 const bestDamage = (user, target) => Math.max(0, ...user.moveSlots.map(m => estimate(user, target, m.id)));
 
+// Frenar al que se mejora (desde el 15-10-2026): la IA ve los ataques del rival, como en la vista previa de equipos.
+// Con +2 o más: Rugido / Remolino / Cola Dragón / Llave Giro para echarlo, Niebla o Niebla Clara para borrar las
+// mejoras, Canto Mortal si va muy subido. Antes de que se mejore: Mofa. Si acaba de usar un movimiento de estado: Otra Vez.
+const SELF_BOOSTS = ['atk', 'def', 'spa', 'spd', 'spe'];
+function setsUp(slot) {
+  const m = dex.moves.get(slot.id), b = m.target === 'self' ? m.boosts : m.self?.boosts;
+  return m.category === 'Status' && !!b && Object.values(b).some(v => v > 0);
+}
+function counterSetup(target, move, dmg) {
+  const boosted = SELF_BOOSTS.reduce((a, k) => a + Math.max(0, target.boosts[k] || 0), 0);
+  const bench = target.side.pokemon.some(p => !p.fainted && !p.isActive);
+  const damaging = move.category !== 'Status';
+  if (damaging && dmg === 0) return null; // no le afecta (inmune)
+  if (move.forceSwitch && boosted >= 2 && bench && !target.volatiles.ingrain && target.ability !== 'suctioncups' && !target.volatiles.dynamax) return 1.6 + dmg * 0.1;
+  if (move.id === 'haze') return boosted >= 2 ? 1.6 : 0;
+  if (move.id === 'clearsmog' && boosted >= 2) return 1.5 + dmg;
+  if (move.id === 'perishsong') return boosted >= 3 && !target.volatiles.perishsong ? 1.1 : 0;
+  if (move.id === 'taunt') return target.volatiles.taunt || !target.moveSlots.some(setsUp) ? 0 : boosted >= 2 ? 0.5 : 0.8;
+  if (move.id === 'encore') {
+    const last = target.lastMove && dex.moves.get(target.lastMove.id);
+    return last?.category === 'Status' && !target.volatiles.encore ? 1.2 : 0;
+  }
+  return null;
+}
+
 function scoreMove(user, target, slot, threat) {
   const move = dex.moves.get(slot.id);
   const hp = user.hp / user.maxhp, foeHp = target.hp / target.maxhp;
   const dmg = estimate(user, target, slot.id);
+  if (!user.battle.aiLegacy && !(move.category === 'Status' && move.target !== 'self' && abilityBlocks(user, target, move))) {
+    const counter = counterSetup(target, move, dmg);
+    if (counter !== null) return counter;
+  }
   if (move.category !== 'Status') {
     // Los que obligan a recargar (Anillo Ígneo, Gigaimpacto…) solo compensan si rematan.
     if (dmg < foeHp) return move.self?.volatileStatus === 'mustrecharge' ? dmg * 0.6 : dmg;
@@ -417,9 +490,12 @@ function scoreMove(user, target, slot, threat) {
     return 2 + (move.priority > 0 && outsped ? 2 : 0) + dmg * 0.01;
   }
   // Movimientos de estado.
+  if (move.target !== 'self' && abilityBlocks(user, target, move)) return 0;
   const types = target.getTypes();
   if (move.status) {
     if (target.status || !dex.getImmunity(move.type, types)) return 0;
+    if (!user.battle.aiLegacy && target.isGrounded() && (user.battle.field.terrain === 'mistyterrain'
+      || move.status === 'slp' && user.battle.field.terrain === 'electricterrain')) return 0;
     if (move.status === 'par' && (target.hasType('Electric') || target.hasType('Ground') && move.id === 'thunderwave')) return 0;
     if ((move.status === 'tox' || move.status === 'psn') && (target.hasType('Poison') || target.hasType('Steel'))) return 0;
     if (move.flags?.powder && target.hasType('Grass')) return 0;
@@ -441,6 +517,12 @@ function scoreMove(user, target, slot, threat) {
     const physicalFoe = target.getStat('atk', true, true) >= target.getStat('spa', true, true);
     if (move.id === 'reflect' && !physicalFoe || move.id === 'lightscreen' && physicalFoe) return 0.1;
     return threat < 0.6 && hp > 0.5 ? 0.55 : 0.05;
+  }
+  if (!user.battle.aiLegacy) {
+    const field = user.battle.field;
+    if (move.weather) return field.weather === toID(move.weather) ? 0 : 0.4; // poner su clima si no está
+    if (move.terrain) return field.terrain === toID(move.terrain) ? 0 : 0.4;
+    if (move.pseudoWeather) return field.pseudoWeather[toID(move.pseudoWeather)] ? 0 : 0.35;
   }
   // Confusión, Tóxico ya cubierto por `status`: confundir al rival si aún no lo está.
   if (move.volatileStatus === 'confusion') return target.volatiles.confusion ? 0 : 0.3;
