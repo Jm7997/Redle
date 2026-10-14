@@ -40,10 +40,10 @@ const STRINGS = {
     footer: 'Proyecto fan no oficial y sin ánimo de lucro. Pokémon © Nintendo, Creatures y GAME FREAK. No afiliado.',
     legalTitle: 'Aviso legal y privacidad',
     legalBody: `<p><b>Proyecto fan no oficial y sin ánimo de lucro.</b> Pokémon y todos los nombres, personajes, imágenes y sonidos relacionados son marcas y © de Nintendo, Creatures Inc. y GAME FREAK inc. Redle no está afiliado, patrocinado ni aprobado por ellos. Si eres titular de algún derecho y quieres que se retire algo, escríbenos a <b>seross000sss@gmail.com</b> y lo haremos.</p>
-<p><b>Privacidad.</b> Redle no usa cookies, ni analítica, ni publicidad, ni cuentas. Tu progreso, estadísticas y ajustes se guardan en tu navegador (almacenamiento local) y puedes borrarlos con el botón de abajo. Para las <b>estadísticas globales</b>, al terminar cada reto se envía de forma anónima solo el resultado (día, modo, si ganaste, turnos o ronda) junto a un identificador aleatorio de este navegador, a nuestra base de datos en <b>Supabase</b> (UE, Irlanda). No incluye nombre, email ni nada que te identifique.</p>
+<p><b>Privacidad.</b> Redle no usa cookies, ni analítica, ni publicidad, ni cuentas con correo o contraseña. Tu progreso, estadísticas y ajustes se guardan en tu navegador (almacenamiento local) y puedes borrarlos con el botón de abajo. Para las <b>estadísticas globales</b>, al terminar cada reto se envía de forma anónima solo el resultado (día, modo, si ganaste, turnos o ronda) junto a un identificador aleatorio de este navegador, a nuestra base de datos en <b>Supabase</b> (UE, Irlanda). No incluye nombre, email ni nada que te identifique. Ese identificador es también tu <b>código de entrenador</b>: con él se guarda una copia de tu progreso (estadísticas, rachas y medallas) para recuperarlo en otro dispositivo. Si eliges un <b>apodo</b>, se muestra en el top del día. Si nos envías una <b>sugerencia</b>, guardamos tu mensaje, el contacto que quieras dejar y datos técnicos para entender fallos (modo, día, idioma, navegador y tamaño de pantalla). El botón de abajo lo borra todo, en tu navegador y en el servidor.</p>
 <p><b>Servicios de terceros.</b> Para mostrar sprites, fondos, efectos, gritos y música, tu navegador los descarga de <b>play.pokemonshowdown.com</b> (Smogon), que recibe tu dirección IP como cualquier web que visitas. Las fuentes tipográficas se sirven desde esta misma web.</p>
 <p><b>Créditos.</b> Combates: simulador de <a href="https://github.com/smogon/pokemon-showdown" target="_blank" rel="noopener">Pokémon Showdown</a> (MIT) vía <a href="https://github.com/pkmn" target="_blank" rel="noopener">@pkmn</a> (MIT). Nombres en español: <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> (BSD-3). Equipos de los rivales: decompilaciones de <a href="https://github.com/pret" target="_blank" rel="noopener">pret</a>. Fuentes: Pixelify Sans y Nunito (OFL), Luckiest Guy (Apache 2.0).</p>`,
-    wipe: 'Borrar mis datos de Redle', wipeConfirm: '¿Seguro? Se borrarán tu progreso de hoy, tus estadísticas, tus rachas y tus ajustes en este navegador.',
+    wipe: 'Borrar mis datos de Redle', wipeConfirm: '¿Seguro? Se borrarán tu progreso, estadísticas, rachas, medallas, apodo y ajustes, en este navegador y en el servidor.',
     howTitle: 'Cómo se juega',
     howNote: 'Mecánicas actuales (Escarlata/Púrpura): tabla de tipos con el tipo Hada y cada movimiento es físico o especial por sí mismo. Pulsa el marcador del rival para ver lo que sabes de él, y el tuyo para ver las estadísticas de tu equipo. Toca el combate para saltar las animaciones.',
     gotIt: '¡Entendido!',
@@ -100,10 +100,10 @@ const STRINGS = {
     footer: 'Unofficial non-profit fan project. Pokémon © Nintendo, Creatures and GAME FREAK. Not affiliated.',
     legalTitle: 'Legal notice & privacy',
     legalBody: `<p><b>Unofficial, non-profit fan project.</b> Pokémon and all related names, characters, images and sounds are trademarks and © of Nintendo, Creatures Inc. and GAME FREAK inc. Redle is not affiliated with, sponsored or endorsed by them. If you hold any rights and want something removed, write to <b>seross000sss@gmail.com</b> and we will take it down.</p>
-<p><b>Privacy.</b> Redle uses no cookies, analytics, ads or accounts. Your progress, stats and settings are stored in your browser (local storage) and you can delete them with the button below. For the <b>global stats</b>, after each challenge only the result (day, mode, whether you won, turns or round) is sent anonymously with a random ID for this browser to our database on <b>Supabase</b> (EU, Ireland). It contains no name, email or anything that identifies you.</p>
+<p><b>Privacy.</b> Redle uses no cookies, analytics, ads or email/password accounts. Your progress, stats and settings are stored in your browser (local storage) and you can delete them with the button below. For the <b>global stats</b>, after each challenge only the result (day, mode, whether you won, turns or round) is sent anonymously with a random ID for this browser to our database on <b>Supabase</b> (EU, Ireland). It contains no name, email or anything that identifies you. That ID is also your <b>trainer code</b>: a copy of your progress (stats, streaks and badges) is saved with it so you can restore it on another device. If you choose a <b>nickname</b>, it is shown in the daily top. If you send us <b>feedback</b>, we store your message, any contact you choose to leave and technical details to understand bugs (mode, day, language, browser and screen size). The button below deletes everything, in your browser and on the server.</p>
 <p><b>Third-party services.</b> To show sprites, backgrounds, effects, cries and music, your browser downloads them from <b>play.pokemonshowdown.com</b> (Smogon), which receives your IP address like any website you visit. Fonts are served from this site.</p>
 <p><b>Credits.</b> Battles: <a href="https://github.com/smogon/pokemon-showdown" target="_blank" rel="noopener">Pokémon Showdown</a> simulator (MIT) via <a href="https://github.com/pkmn" target="_blank" rel="noopener">@pkmn</a> (MIT). Spanish names: <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> (BSD-3). Rival teams: <a href="https://github.com/pret" target="_blank" rel="noopener">pret</a> decompilations. Fonts: Pixelify Sans and Nunito (OFL), Luckiest Guy (Apache 2.0).</p>`,
-    wipe: 'Delete my Redle data', wipeConfirm: 'Are you sure? This deletes your progress, stats, streaks and settings in this browser.',
+    wipe: 'Delete my Redle data', wipeConfirm: 'Are you sure? This deletes your progress, stats, streaks, badges, nickname and settings, in this browser and on the server.',
     howTitle: 'How to play',
     howNote: "Current mechanics (Scarlet/Violet): today's type chart with Fairy, and each move is physical or special on its own. Tap the foe's panel to see what you know about it, and yours to see your team's stats. Tap the battle to skip animations.",
     gotIt: 'Got it!',
@@ -259,6 +259,23 @@ Object.assign(T, es ? {
   bestRound: 'Mejor ronda', champions: 'Veces campeón',
   shareReplay: 'Compartir repetición', replayCopied: '¡Enlace copiado!',
   replayBanner: (name, date) => `▶ Repetición de un combate contra <b>${name}</b> del ${date}.`, playToday: 'Jugar el reto de hoy',
+  feedbackLink: 'Enviar sugerencia o fallo', feedbackTitle: 'Sugerencias y fallos', feedbackIntro: 'Cuéntame qué mejorarías o qué ha fallado. Lo leo todo.',
+  fbBug: 'Fallo', fbIdea: 'Idea', fbOther: 'Otro', fbMessage: 'Tu mensaje', fbContact: 'Contacto opcional (Reddit, Discord…) si quieres respuesta',
+  fbSend: 'Enviar', fbThanks: '¡Gracias! Mensaje enviado.', fbError: 'No se pudo enviar (sin conexión o demasiados mensajes hoy).', fbShort: 'Escribe un poco más.',
+  trainerBtn: 'Tarjeta de entrenador', trainerTitle: 'Tarjeta de entrenador', medalsTitle: 'Medallas', medalOf: n => `Ganar a ${n}`,
+  medalLiga: 'Campeón de la Liga', medalStreak: n => `${n} días seguidos`, anon: 'Entrenador anónimo',
+  cardWins: 'Victorias', cardPlayed: 'Combates', cardStreak: 'Racha', cardBest: 'Mejor racha', cardMvp: 'MVP favorito',
+  nickLabel: 'Apodo para el top del día', nickHint: '3-16 letras o números. Déjalo vacío para salir como anónimo.', save: 'Guardar',
+  nickSaved: 'Apodo guardado.', nickBad: 'Ese apodo no se acepta.', offline: 'Sin conexión, prueba luego.',
+  codeTitle: 'Tu código de entrenador', copy: 'Copiar',
+  codeHint: 'Con este código recuperas tu progreso (medallas, rachas y estadísticas) en otro móvil u ordenador. No lo compartas: quien lo tenga puede usar tu progreso.',
+  restoreLabel: 'Usar el código de otro dispositivo', restoreBtn: 'Recuperar', restoreConfirm: '¿Recuperar ese progreso? Sustituirá el de este navegador.',
+  restoreBad: 'Código no válido.', restoreNone: 'No hay progreso guardado con ese código.', backupNote: 'Tu progreso se guarda solo al terminar cada reto.',
+  topTitle: 'Top del día', topTurns: t => `${t} turnos`, topKos: k => `${k}/6 K.O.`, shareCard: 'Compartir tarjeta',
+  cardShare: (name, m, total, streak) => `Redle · Tarjeta de entrenador
+${name}
+🏅 Medallas: ${m}/${total}
+🔥 Racha: ${streak} ${streak === 1 ? 'día' : 'días'}`,
   rPrev: '◀ Turno anterior', rNext: 'Turno siguiente ▶', rPause: 'Pausa', rPlay: 'Seguir', rEnd: 'Ir al final', rStart: 'Inicio', rTurn: 'Ir al turno', rTurnN: t => `Turno ${t}`,
   welcome: 'Cada día, el mismo reto para todo el mundo: <b>tu equipo de 6 contra un entrenador legendario</b> con su equipo de los juegos. <b>Toca quién empieza</b>, pulsa ¡Listo! y comparte tu resultado. Un intento al día por rival; después puedes practicar.',
   rulesTitle: 'Reglas de este combate', showDetails: 'Ver estadísticas y ataques ▾', hideDetails: 'Ocultar estadísticas y ataques ▴',
@@ -280,6 +297,23 @@ Object.assign(T, es ? {
   bestRound: 'Best round', champions: 'Times champion',
   shareReplay: 'Share replay', replayCopied: 'Link copied!',
   replayBanner: (name, date) => `▶ Replay of a battle against <b>${name}</b> on ${date}.`, playToday: "Play today's challenge",
+  feedbackLink: 'Send feedback or report a bug', feedbackTitle: 'Feedback & bugs', feedbackIntro: 'Tell me what you would improve or what went wrong. I read everything.',
+  fbBug: 'Bug', fbIdea: 'Idea', fbOther: 'Other', fbMessage: 'Your message', fbContact: 'Optional contact (Reddit, Discord…) if you want a reply',
+  fbSend: 'Send', fbThanks: 'Thanks! Message sent.', fbError: "Couldn't send it (offline or too many messages today).", fbShort: 'Write a bit more.',
+  trainerBtn: 'Trainer card', trainerTitle: 'Trainer card', medalsTitle: 'Badges', medalOf: n => `Beat ${n}`,
+  medalLiga: 'League Champion', medalStreak: n => `${n}-day streak`, anon: 'Anonymous trainer',
+  cardWins: 'Wins', cardPlayed: 'Battles', cardStreak: 'Streak', cardBest: 'Best streak', cardMvp: 'Favourite MVP',
+  nickLabel: 'Nickname for the daily top', nickHint: '3-16 letters or numbers. Leave it empty to stay anonymous.', save: 'Save',
+  nickSaved: 'Nickname saved.', nickBad: 'That nickname is not allowed.', offline: 'Offline, try again later.',
+  codeTitle: 'Your trainer code', copy: 'Copy',
+  codeHint: 'Use this code to get your progress (badges, streaks and stats) on another phone or computer. Keep it private: anyone with it can use your progress.',
+  restoreLabel: 'Use a code from another device', restoreBtn: 'Restore', restoreConfirm: 'Restore that progress? It will replace the one in this browser.',
+  restoreBad: 'Invalid code.', restoreNone: 'There is no saved progress for that code.', backupNote: 'Your progress is backed up automatically after each challenge.',
+  topTitle: "Today's top", topTurns: t => `${t} turns`, topKos: k => `${k}/6 KOs`, shareCard: 'Share card',
+  cardShare: (name, m, total, streak) => `Redle · Trainer card
+${name}
+🏅 Badges: ${m}/${total}
+🔥 Streak: ${streak} ${streak === 1 ? 'day' : 'days'}`,
   rPrev: '◀ Previous turn', rNext: 'Next turn ▶', rPause: 'Pause', rPlay: 'Resume', rEnd: 'Skip to end', rStart: 'Start', rTurn: 'Go to turn', rTurnN: t => `Turn ${t}`,
   welcome: 'Every day, the same challenge for everyone: <b>your team of 6 against a legendary trainer</b> with their real in-game team. <b>Tap your lead</b>, press Ready! and share your result. One try per rival per day; you can practice afterwards.',
   rulesTitle: 'Rules for this battle', showDetails: 'Show stats and moves ▾', hideDetails: 'Hide stats and moves ▴',

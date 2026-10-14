@@ -579,3 +579,42 @@ body.boss-cynthia {
   button.slot:hover, .boss-tab:hover, .move:hover:not(:disabled) { transform: none; filter: none; }
   .ballbtn:hover .ball { transform: none; }
 }
+
+/* ================= medallas, tarjeta de entrenador, top del día y sugerencias ================= */
+.medals h3 { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 6px; font: 700 16px var(--pixel); }
+.medals h3 small { font: 800 12px var(--body); color: var(--muted); }
+.medal-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.medal { position: relative; display: grid; place-items: center; aspect-ratio: 1; border-radius: 50%; border: 3px solid var(--line); background: var(--panel-2); overflow: hidden; }
+.medal img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; filter: brightness(0) opacity(.25); }
+.medal .icon-item { filter: grayscale(1) opacity(.35); scale: 1.2; }
+.medal small { position: absolute; bottom: 1px; right: 4px; font: 900 9px var(--body); color: var(--muted); }
+/* ganada: borde dorado con brillo y el sprite en color, como una medalla de gimnasio */
+.medal.got { border-color: #e2b13c; background: radial-gradient(circle at 35% 30%, #fff6d0, #f3cf6a 60%, #c9962c); box-shadow: 0 0 0 2px #fff8 inset, 0 2px 6px #c9962c88; }
+.medal.got img, .medal.got .icon-item { filter: none; }
+.medal.got small { color: #6a4a00; }
+#btn-trainer { display: block; width: 100%; margin-top: 10px; }
+.trainer-card { padding: 12px; border-radius: 16px; border: 3px solid var(--line); background: linear-gradient(160deg, var(--panel-2), var(--panel)); }
+.tc-head { display: flex; align-items: center; gap: 12px; }
+.tc-head img { image-rendering: pixelated; background: radial-gradient(circle, #ffffff22, transparent 70%); border-radius: 50%; }
+.tc-head b { display: block; font: 700 20px var(--pixel); }
+.tc-head small { font: 800 11px var(--body); color: var(--muted); letter-spacing: 1px; }
+.tc-mvp { margin: 0; display: flex; align-items: center; gap: 4px; font-size: 13px; }
+#btn-share-card { display: block; width: 100%; margin-top: 10px; }
+.field { display: grid; gap: 6px; margin-top: 14px; }
+.field label { font-weight: 800; font-size: 14px; }
+.field .row { display: flex; gap: 6px; align-items: center; }
+.field .row > :first-child { flex: 1; min-width: 0; }
+.field .row .primary, .field .row .secondary { width: auto; flex: 0 0 auto; margin: 0; padding: 8px 14px; font-size: 14px; }
+.field input, .field textarea { width: 100%; padding: 9px 11px; border-radius: 10px; border: 2px solid var(--line); background: var(--panel-2); color: var(--text); font: 600 15px var(--body); }
+.field textarea { resize: vertical; }
+.field code { padding: 8px 10px; border-radius: 10px; background: var(--panel-2); border: 2px dashed var(--line); font: 700 12px ui-monospace, monospace; overflow-wrap: anywhere; user-select: all; }
+.field .small { margin: 0; }
+#fb-kind { margin-top: 4px; } #fb-kind button { flex: 1; }
+.global h4 { margin: 12px 0 4px; font: 700 15px var(--pixel); }
+.top { margin: 0; padding: 0; list-style: none; counter-reset: top; display: grid; gap: 3px; }
+.top li { counter-increment: top; display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: var(--panel-2); font-size: 13px; margin: 0; }
+.top li::before { content: counter(top); min-width: 18px; font: 900 13px var(--body); color: var(--muted); }
+.top li:nth-child(-n+3)::before { color: #c9962c; }
+.top li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.top li em { font-style: normal; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.top li.me { outline: 2px solid #ffd23f; background: color-mix(in srgb, #ffd23f 18%, var(--panel-2)); }

@@ -5,7 +5,7 @@ import {Sprites, Icons} from '@pkmn/img';
 import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
-import {sendResult, dailyStats, dailyRank} from './stats.js';
+import {sendResult, dailyStats, dailyRank, dailyTop, sendFeedback, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
 const dex = Dex.forGen(9);
@@ -835,8 +835,10 @@ function closeDay(won, reached) {
   else s.streak = 0;
   if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
   save();
+  if (won) award(MODE);
   bumpStreak();
   sendResult(myResult());
+  backup();
 }
 // Resultado de hoy tal y como se envía (y se compara para el puesto del día).
 const myResult = () => {
@@ -978,6 +980,7 @@ function bumpStreak() {
   s.best = Math.max(s.best || 0, s.n);
   s.last = TODAY;
   ls.set('redle:streak', JSON.stringify(s));
+  for (const [n] of STREAK_MEDALS) if (s.n >= n) award('streak' + n);
 }
 
 function showResult() {
@@ -991,6 +994,7 @@ function showResult() {
     ? [[s.played, T.played], [s.wins, T.champions], [`${s.bestRound || 0}/5`, T.bestRound], [days, T.playStreak]]
     : [[s.played, T.played], [s.played ? Math.round(100 * s.wins / s.played) + '%' : '—', T.winPct], [days, T.playStreak], [s.best, T.best]];
   $('#stats').innerHTML = cells.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+  $('#medals').innerHTML = medalsHtml();
   $('#share-box').hidden = !done || !!PRACTICE;
   if (done) $('#share-text').textContent = shareText();
   $('#btn-share').textContent = T.share; // no dejar "¡Copiado!" de la vez anterior
@@ -1023,7 +1027,7 @@ async function drawGlobal(done) {
   box.innerHTML = '';
   if (!done || PRACTICE || REPLAY) return;
   box.innerHTML = '<i class="sk sk-line"></i><i class="sk sk-line short"></i>'; // esqueleto mientras responde Supabase
-  const [all, rank] = await Promise.all([dailyStats(TODAY), dailyRank(myResult())]);
+  const [all, rank, top] = await Promise.all([dailyStats(TODAY), dailyRank(myResult()), dailyTop(TODAY, MODE)]);
   const g = all?.[MODE];
   if (!g || !g.players) { box.innerHTML = ''; return; }
   const pct = n => Math.round(100 * n / g.players);
@@ -1036,7 +1040,132 @@ async function drawGlobal(done) {
     box.innerHTML = `<h3>${itemIcon('Poke Ball')} ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalWins(pct(g.wins))}${g.avgTurns ? ` · ${T.globalTurns(g.avgTurns)}` : ''}</p>`;
   }
   if (rank) box.insertAdjacentHTML('beforeend', `<p class="rank">${T.rankLine(rank.pos, rank.total)}</p>`);
+  if (Array.isArray(top) && top.length) box.insertAdjacentHTML('beforeend', `<h4>${T.topTitle}</h4><ol class="top">${top.map(r =>
+    `<li class="${r.me ? 'me' : ''}"><span>${r.nickname ? esc(r.nickname) : T.anon}</span><em>${LIGA ? `${r.reached ?? 0}/5` : r.won ? T.topTurns(r.turns) : T.topKos(r.kos ?? 0)}</em></li>`).join('')}</ol>`);
 }
+
+// ---------- medallas, tarjeta de entrenador, apodo, código de entrenador y sugerencias ----------
+const esc = t => String(t).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const MODES = [...Object.keys(BOSSES), 'liga'];
+const STREAK_MEDALS = [[7, 'Poke Ball'], [30, 'Ultra Ball'], [100, 'Master Ball']]; // racha de días: Poké, Ultra y Master Ball
+const medals = () => readJSON('redle:medals');
+function award(id) {
+  const m = medals();
+  if (!m[id]) { m[id] = TODAY; ls.set('redle:medals', JSON.stringify(m)); }
+}
+// Medallas de lo ganado antes de que existieran (en el historial guardado de cada modo y la mejor racha).
+for (const id of MODES) if (Object.values(readJSON(keyOf(id)).days || {}).some(d => d.result === 'win')) award(id);
+for (const [n] of STREAK_MEDALS) if ((readJSON('redle:streak').best || 0) >= n) award('streak' + n);
+
+// Una medalla por rival (su sprite en color si le has ganado alguna vez), la de Campeón de la Liga y las de racha.
+function medalsHtml() {
+  const m = medals();
+  const list = [
+    ...Object.values(BOSSES).map(b => [b.id, T.medalOf(b.name), `<img src="${trainerImg(b.id)}" alt="" width="40" height="40">`]),
+    ['liga', T.medalLiga, itemIcon('Master Ball')],
+    ...STREAK_MEDALS.map(([n, item]) => ['streak' + n, T.medalStreak(n), `${itemIcon(item)}<small>${n}</small>`]),
+  ];
+  const got = list.filter(([id]) => m[id]).length;
+  return `<h3>${T.medalsTitle} <small>${got}/${list.length}</small></h3><div class="medal-row">${list.map(([id, title, inner]) =>
+    `<span class="medal${m[id] ? ' got' : ''}" title="${title}" aria-label="${title}">${inner}</span>`).join('')}</div>`;
+}
+
+function trainerSummary() {
+  const stores = MODES.map(id => readJSON(keyOf(id)));
+  const sum = k => stores.reduce((a, st) => a + (st.stats?.[k] || 0), 0);
+  const mvps = {};
+  for (const st of stores) for (const d of Object.values(st.days || {})) if (d.mvp) mvps[d.mvp] = (mvps[d.mvp] || 0) + 1;
+  const fav = Object.entries(mvps).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const m = medals(), total = Object.keys(BOSSES).length + 1 + STREAK_MEDALS.length;
+  return {wins: sum('wins'), played: sum('played'), fav, medals: Object.keys(m).length, total, streak: playStreak().n, best: readJSON('redle:streak').best || 0};
+}
+function drawTrainer() {
+  const t = trainerSummary(), nick = ls.get('redle:nick') || '';
+  $('#trainer-card').innerHTML = `<div class="tc-head"><img src="${SD}sprites/trainers/ethan.png" alt="" width="64" height="64">
+      <div><b>${nick ? esc(nick) : T.anon}</b><small>ID ${playerId().slice(0, 8).toUpperCase()}</small></div></div>
+    <div class="stats">${[[t.played, T.cardPlayed], [t.wins, T.cardWins], [t.streak, T.cardStreak], [t.best, T.cardBest]].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('')}</div>
+    ${t.fav ? `<p class="tc-mvp">${T.cardMvp}: ${icon(t.fav)}<b>${t.fav}</b></p>` : ''}
+    <div class="medals">${medalsHtml()}</div>`;
+  $('#nick').value = nick;
+  $('#nick-msg').textContent = T.nickHint;
+  $('#my-code').textContent = playerId();
+  $('#restore-code').value = '';
+  $('#restore-msg').textContent = T.backupNote;
+  $('#btn-share-card').textContent = T.shareCard;
+  $('#btn-copy-code').textContent = T.copy;
+}
+$('#btn-trainer').onclick = () => { drawTrainer(); $('#dlg-trainer').showModal(); };
+$('#btn-share-card').onclick = async () => {
+  const t = trainerSummary(), text = `${T.cardShare(ls.get('redle:nick') || T.anon, t.medals, t.total, t.streak)}\n${location.origin}${location.pathname}`;
+  try {
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({text});
+    else { await navigator.clipboard.writeText(text); $('#btn-share-card').textContent = T.copied; }
+  } catch {}
+};
+
+// Apodo para el top del día (mismas reglas que el servidor; el servidor filtra además insultos).
+const NICK_RE = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ _.-]{3,16}$/;
+$('#btn-nick').onclick = async () => {
+  const nick = $('#nick').value.trim();
+  if (nick && !NICK_RE.test(nick)) return ($('#nick-msg').textContent = T.nickHint);
+  const ok = await setNickname(nick);
+  if (ok) {
+    if (nick) ls.set('redle:nick', nick); else try { localStorage.removeItem('redle:nick'); } catch {}
+    backup();
+    drawTrainer();
+  }
+  $('#nick-msg').textContent = ok === null ? T.offline : ok ? T.nickSaved : T.nickBad;
+};
+
+// Código de entrenador: copiarlo y recuperar con él el progreso guardado en el servidor.
+$('#btn-copy-code').onclick = async () => { try { await navigator.clipboard.writeText(playerId()); $('#btn-copy-code').textContent = T.copied; } catch {} };
+$('#btn-restore').onclick = async () => {
+  const code = $('#restore-code').value.trim().toLowerCase(), msg = $('#restore-msg');
+  if (!UUID_RE.test(code)) return (msg.textContent = T.restoreBad);
+  if (code === playerId() || !confirm(T.restoreConfirm)) return;
+  const {ok, data} = await loadProgress(code);
+  if (!ok) return (msg.textContent = T.offline);
+  if (!data?.stores) return (msg.textContent = T.restoreNone);
+  try {
+    for (const id of MODES) localStorage.removeItem(keyOf(id));
+    for (const [id, st] of Object.entries(data.stores)) if (MODES.includes(id)) localStorage.setItem(keyOf(id), JSON.stringify(st));
+    localStorage.setItem('redle:streak', JSON.stringify(data.streak || {}));
+    localStorage.setItem('redle:medals', JSON.stringify(data.medals || {}));
+    if (data.nick) localStorage.setItem('redle:nick', data.nick); else localStorage.removeItem('redle:nick');
+    localStorage.setItem('redle:player', code);
+  } catch {}
+  location.reload();
+};
+// Copia que se sube al terminar cada reto: estadísticas, últimos 3 días de cada modo, rachas, medallas y apodo.
+function backup() {
+  if (PRACTICE || REPLAY) return;
+  const stores = {};
+  for (const id of MODES) {
+    const st = readJSON(keyOf(id));
+    if (!st.stats) continue;
+    const days = Object.keys(st.days || {}).sort().slice(-3);
+    stores[id] = {stats: st.stats, days: Object.fromEntries(days.map(k => [k, st.days[k]]))};
+  }
+  saveProgress({v: 1, stores, streak: readJSON('redle:streak'), medals: medals(), nick: ls.get('redle:nick') || ''});
+}
+
+// Sugerencias y fallos, con datos técnicos para poder reproducirlos.
+let fbKind = 'idea';
+document.querySelectorAll('#fb-kind button').forEach(b => (b.onclick = () => {
+  fbKind = b.dataset.v;
+  document.querySelectorAll('#fb-kind button').forEach(x => x.classList.toggle('on', x === b));
+}));
+$('#btn-feedback').onclick = () => { $('#fb-status').textContent = ''; $('#dlg-feedback').showModal(); };
+$('#btn-fb-send').onclick = async () => {
+  const message = $('#fb-msg').value.trim(), b = $('#btn-fb-send');
+  if (message.length < 3) return ($('#fb-status').textContent = T.fbShort);
+  b.disabled = true;
+  const ok = await sendFeedback({kind: fbKind, message, contact: $('#fb-contact').value.trim(),
+    context: {mode: MODE, day: DATE, lang: LANG, turn: battle?.turn ?? null, w: innerWidth, h: innerHeight, ua: navigator.userAgent.slice(0, 200)}});
+  b.disabled = false;
+  $('#fb-status').textContent = ok ? T.fbThanks : T.fbError;
+  if (ok) $('#fb-msg').value = '';
+};
 
 $('#btn-share').onclick = async () => {
   const text = shareText();
@@ -1066,10 +1195,10 @@ const apply = {
   speed: v => { speed = +v; setSpeed(speed); ls.set('redle:speed', v); },
 };
 function drawSettings() {
-  document.querySelectorAll('.seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === current[seg.dataset.set]())));
+  document.querySelectorAll('.seg[data-set]').forEach(seg => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === current[seg.dataset.set]())));
   $('#btn-mute').classList.toggle('off', !(audio.music || audio.sfx));
 }
-document.querySelectorAll('.seg button').forEach(b => (b.onclick = () => { apply[b.parentElement.dataset.set](b.dataset.v); sfx('click'); drawSettings(); }));
+document.querySelectorAll('.seg[data-set] button').forEach(b => (b.onclick = () => { apply[b.parentElement.dataset.set](b.dataset.v); sfx('click'); drawSettings(); }));
 $('#btn-mute').onclick = () => {
   const on = !(audio.music || audio.sfx);
   setMusic(on); setSfx(on); drawSettings();
@@ -1082,8 +1211,9 @@ document.querySelectorAll('[data-close]').forEach(b => (b.onclick = () => b.clos
 $('#btn-help').onclick = () => $('#dlg-help').showModal();
 $('#btn-legal').onclick = () => $('#dlg-legal').showModal();
 // Borrar todo lo que Redle guarda en este navegador (progreso, estadísticas y ajustes).
-$('#btn-wipe').onclick = () => {
+$('#btn-wipe').onclick = async () => {
   if (!confirm(T.wipeConfirm)) return;
+  await Promise.race([deleteMyData(), sleep(4000)]); // también en el servidor (sin esperar para siempre)
   try { Object.keys(localStorage).filter(k => k.startsWith('redle:')).forEach(k => localStorage.removeItem(k)); } catch {}
   location.href = location.pathname;
 };

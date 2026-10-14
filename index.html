@@ -110,7 +110,7 @@
     </section>
   </main>
 
-  <footer><span data-i18n="footer"></span> <button class="linklike" id="btn-legal" data-i18n="legalTitle"></button></footer>
+  <footer><span data-i18n="footer"></span> <button class="linklike" id="btn-legal" data-i18n="legalTitle"></button> · <button class="linklike" id="btn-feedback" data-i18n="feedbackLink"></button></footer>
 
   <div id="intro" hidden><img class="boss-sprite" alt="" width="160" height="160"><p data-i18n="challenge"></p></div>
 
@@ -125,6 +125,8 @@
     <h2 id="result-title"></h2>
     <div id="result-body"></div>
     <div class="stats" id="stats"></div>
+    <div id="medals" class="medals"></div>
+    <button class="secondary" id="btn-trainer" data-i18n="trainerBtn"></button>
     <div id="global" class="global"></div>
     <div id="summary"></div>
     <div id="share-box" hidden>
@@ -150,6 +152,41 @@
     <h2 data-i18n="legalTitle"></h2>
     <div class="legal" data-i18n="legalBody"></div>
     <button class="secondary danger" id="btn-wipe" data-i18n="wipe"></button>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-trainer">
+    <h2 data-i18n="trainerTitle"></h2>
+    <div id="trainer-card" class="trainer-card"></div>
+    <button class="secondary" id="btn-share-card" data-i18n="shareCard"></button>
+    <div class="field">
+      <label for="nick" data-i18n="nickLabel"></label>
+      <div class="row"><input id="nick" maxlength="16" autocomplete="off" spellcheck="false"><button class="primary" id="btn-nick" data-i18n="save"></button></div>
+      <p class="small" id="nick-msg" data-i18n="nickHint"></p>
+    </div>
+    <div class="field">
+      <label data-i18n="codeTitle"></label>
+      <div class="row"><code id="my-code"></code><button class="secondary" id="btn-copy-code" data-i18n="copy"></button></div>
+      <p class="small" data-i18n="codeHint"></p>
+      <label for="restore-code" data-i18n="restoreLabel"></label>
+      <div class="row"><input id="restore-code" maxlength="36" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><button class="secondary" id="btn-restore" data-i18n="restoreBtn"></button></div>
+      <p class="small" id="restore-msg" data-i18n="backupNote"></p>
+    </div>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-feedback">
+    <h2 data-i18n="feedbackTitle"></h2>
+    <p data-i18n="feedbackIntro"></p>
+    <div class="seg" id="fb-kind"><button data-v="bug" data-i18n="fbBug"></button><button data-v="idea" class="on" data-i18n="fbIdea"></button><button data-v="other" data-i18n="fbOther"></button></div>
+    <div class="field">
+      <label for="fb-msg" data-i18n="fbMessage"></label>
+      <textarea id="fb-msg" rows="5" maxlength="1000"></textarea>
+      <label for="fb-contact" data-i18n="fbContact"></label>
+      <input id="fb-contact" maxlength="80" autocomplete="off">
+    </div>
+    <p class="small" id="fb-status" role="status"></p>
+    <button class="primary" id="btn-fb-send" data-i18n="fbSend"></button>
     <button data-close data-i18n="close"></button>
   </dialog>
 
