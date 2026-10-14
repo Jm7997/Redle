@@ -201,16 +201,16 @@ button.slot:hover { transform: translateX(4px); }
 .st-brn{background:#e8602a}.st-par{background:#e0b412;color:#3a2a00;text-shadow:none}.st-slp{background:#7d7d92}.st-psn{background:#a040a0}.st-tox{background:#5a1466;border-color:#e070ff}.st-frz{background:#3fb6e0}
 /* y en el sprite: parálisis con chispazos amarillos y tirones, veneno morado que late, tóxico más intenso,
    quemadura con brillo rojo que parpadea, congelado azul y quieto, dormido apagado y respirando lento con Zzz */
-.mon[data-status=par]:not(.enter, .faint, .hit) { filter: drop-shadow(0 0 3px #ffe03a) drop-shadow(0 0 1px #ffe03a); animation: st-par 1.8s steps(1) infinite; }
+.mon[data-status=par]:not(.enter, .faint, .hit, .swap) { filter: drop-shadow(0 0 3px #ffe03a) drop-shadow(0 0 1px #ffe03a); animation: st-par 1.8s steps(1) infinite; }
 @keyframes st-par { 0%, 88% { translate: -50% 0; } 90% { translate: calc(-50% - 3px) 0; filter: brightness(1.6) drop-shadow(0 0 6px #ffe03a); } 94% { translate: calc(-50% + 3px) 0; } }
-.mon[data-status=psn]:not(.enter, .faint, .hit) { animation: st-psn 2s ease-in-out infinite; }
+.mon[data-status=psn]:not(.enter, .faint, .hit, .swap) { animation: st-psn 2s ease-in-out infinite; }
 @keyframes st-psn { 0%, 100% { filter: drop-shadow(0 0 2px #c050e0) drop-shadow(0 0 3px #a040a0); } 50% { filter: drop-shadow(0 0 3px #d070f0) drop-shadow(0 0 8px #a040a0); } }
-.mon[data-status=tox]:not(.enter, .faint, .hit) { animation: st-tox 1.2s ease-in-out infinite; }
+.mon[data-status=tox]:not(.enter, .faint, .hit, .swap) { animation: st-tox 1.2s ease-in-out infinite; }
 @keyframes st-tox { 0%, 100% { filter: drop-shadow(0 0 2px #e070ff) drop-shadow(0 0 5px #6a1480) brightness(.9); } 50% { filter: drop-shadow(0 0 3px #f090ff) drop-shadow(0 0 12px #8a1fa0) drop-shadow(0 0 4px #5a1466) brightness(.8); } }
-.mon[data-status=brn]:not(.enter, .faint, .hit) { animation: st-brn 1.4s ease-in-out infinite; }
+.mon[data-status=brn]:not(.enter, .faint, .hit, .swap) { animation: st-brn 1.4s ease-in-out infinite; }
 @keyframes st-brn { 0%, 100% { filter: drop-shadow(0 0 2px #ff5a1a) drop-shadow(0 -1px 3px #ff8a20); } 50% { filter: drop-shadow(0 0 4px #ff3a0a) drop-shadow(0 -3px 7px #ffb020); } }
-.mon[data-status=frz]:not(.enter, .faint, .hit) { filter: drop-shadow(0 0 4px #9ae8ff) sepia(.65) hue-rotate(155deg) saturate(1.7) brightness(1.15); }
-.mon[data-status=slp]:not(.enter, .faint, .hit) { filter: brightness(.75) saturate(.6); animation: st-slp 3s ease-in-out infinite; }
+.mon[data-status=frz]:not(.enter, .faint, .hit, .swap) { filter: drop-shadow(0 0 4px #9ae8ff) sepia(.65) hue-rotate(155deg) saturate(1.7) brightness(1.15); }
+.mon[data-status=slp]:not(.enter, .faint, .hit, .swap) { filter: brightness(.75) saturate(.6); animation: st-slp 3s ease-in-out infinite; }
 @keyframes st-slp { 50% { scale: 1 .96; } }
 .zzz { position: absolute; z-index: 4; pointer-events: none; font: 900 18px var(--body); color: #fff; text-shadow: 0 0 3px #3a3a6a, 1px 1px 0 #3a3a6a; }
 .zzz.foe { left: calc(var(--foe-x) + 6%); bottom: calc(var(--foe-y) + 22%); }
@@ -618,3 +618,13 @@ body.boss-cynthia {
 .top li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .top li em { font-style: normal; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
 .top li.me { outline: 2px solid #ffd23f; background: color-mix(in srgb, #ffd23f 18%, var(--panel-2)); }
+
+/* Sustituto: el Pokémon se encoge y sale el muñeco (y al revés al romperse) */
+.mon.swap { animation: swap .4s ease-in-out; }
+@keyframes swap { 45% { scale: .2; opacity: .2; filter: brightness(3); } 55% { scale: .2; opacity: .2; filter: brightness(3); } }
+/* Protección: burbuja verde azulada que aparece, brilla y se desvanece, como en los juegos */
+.shield { position: absolute; z-index: 4; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle, transparent 55%, #9ff2ff55 70%, #e8fdffcc 78%, #7fd8ff66 86%, transparent 90%);
+  box-shadow: 0 0 18px #7fd8ff99; animation: shield 1s ease-out forwards; }
+@keyframes shield { 0% { scale: .4; opacity: 0; } 25% { scale: 1.05; opacity: 1; } 70% { scale: 1; opacity: .9; } 100% { scale: 1.1; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mon.swap, .shield { animation-duration: .01s; } }

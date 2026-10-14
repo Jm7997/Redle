@@ -2,7 +2,7 @@
 // resultado, repeticiones compartibles y ajustes.
 import {Dex} from '@pkmn/sim';
 import {Sprites, Icons} from '@pkmn/img';
-import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
+import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
 import {sendResult, dailyStats, dailyRank, dailyTop, sendFeedback, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
@@ -112,7 +112,8 @@ function loadArenaBg(url) {
 // Las imágenes con esqueleto de carga lo pierden al llegar (o al fallar, para no brillar para siempre).
 for (const ev of ['load', 'error']) document.addEventListener(ev, e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
 function setOpponent(id) {
-  OPP = id; B = BOSSES[id]; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
+  // B.team: el equipo que tenía el rival ese día (Lance cambió de equipo el 15-10-2026).
+  OPP = id; B = {...BOSSES[id], team: teamOf(id, PRACTICE ? DATE : RULE_DATE)}; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
   setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens);
   const body = document.body;
   body.className = body.className.replace(/\bboss-\w+/g, '').trim();
@@ -264,7 +265,7 @@ function renderDraft() {
 // ---------- combate ----------
 let battle, logIdx = 0, busy = false;
 const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}, dmax: false, gmax: false});
-const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: new Set(), p2: new Set()}, seen: {}, eff: null, weather: '', field: [], side: {p1: {}, p2: {}}, tera: {p1: {}, p2: {}}});
+const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: [], p2: []}, seen: {}, eff: null, weather: '', field: [], side: {p1: {}, p2: {}}, tera: {p1: {}, p2: {}}});
 const view = freshView();
 const team = () => rec().picks.map(i => POOL[i]);
 const img = side => $(`.mon.${side === 'p1' ? 'me' : 'foe'}`);
@@ -510,7 +511,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     case '-fail': return say(T.fail, animate);
     case '-hitcount': return say(T.hitcount(b), animate);
     case 'faint': {
-      view.fainted[side].add(parseId(a).name);
+      view.fainted[side].push(parseId(a).name);
       view[side].hp = 0;
       if (animate) { cry(cryId(view[side].species), true); await wait(500); sfx('faint'); }
       img(side).classList.add('faint');
@@ -560,7 +561,10 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       return cmd === '-fieldstart' && T.fieldStart[id] ? say(T.fieldStart[id], animate, 'eff') : null;
     }
     case '-prepare': return say(T.prepare(who(a)), animate, cls);
-    case '-singleturn': return /Protect|Detect/.test(b) ? say(T.protect(who(a)), animate, cls) : null;
+    case '-singleturn': // Protección y sus variantes: burbuja alrededor del Pokémon
+      if (!/Protect|Detect|Shield|Bunker|Silk Trap|Bulwark|Obstruct|Max Guard/.test(b)) return null;
+      if (animate) shield(side);
+      return say(T.protect(who(a)), animate, cls);
     case '-sidestart': case '-sideend': { // Trampa Rocas, Púas, Reflejo… (Púas y Púas Tóxicas se acumulan)
       const id = b.replace('move: ', ''), conds = view.side[side];
       if (cmd === '-sidestart') conds[id] = (conds[id] || 0) + 1; else delete conds[id];
@@ -602,7 +606,11 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
         if (animate) { sfx('boost'); flash('#ff2a6d', 600); }
         return say((c === 'Gmax' ? T.gigantamaxed : T.dynamaxed)(who(a)), animate, cls);
       }
-      if (b.includes('Substitute')) return say(T.sub(who(a)), animate, cls);
+      if (b.includes('Substitute')) { // el Pokémon se cambia por el muñeco del Sustituto
+        view[side].sub = true;
+        await swapSprite(side, animate);
+        return say(T.sub(who(a)), animate, cls);
+      }
       if (b.includes('confusion')) return say(T.confused(who(a)), animate, cls);
       if (b.includes('Leech Seed')) return say(T.seeded(who(a)), animate, cls);
       // Premonición / Deseo Oculto: el ataque llega dos turnos después (el aviso sale en -end, junto al daño).
@@ -623,11 +631,19 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
         if (animate) await animateMove(mv, img(side === 'p1' ? 'p2' : 'p1'), img(side));
         return say(T.foresawHit(who(a), moveName(mv)), animate, cls);
       }
-      return b.includes('Substitute') ? say(T.subEnd(who(a)), animate, cls) : null;
+      if (b.includes('Substitute')) { // el muñeco se rompe y vuelve el Pokémon
+        view[side].sub = false;
+        await swapSprite(side, animate);
+        return say(T.subEnd(who(a)), animate, cls);
+      }
+      return null;
     case '-activate':
       if (b.includes('confusion')) return say(T.confusedAct(who(a)), animate, cls);
-      if (b.includes('Substitute')) return say(T.subHit, animate);
-      if (/Protect|Detect/.test(b)) return say(T.protect(who(a)), animate, cls);
+      if (b.includes('Substitute')) { // el golpe se lo lleva el muñeco
+        if (animate) { const im = img(side); im.classList.remove('hit'); void im.offsetWidth; im.classList.add('hit'); sfx('hit'); }
+        return say(T.subHit, animate);
+      }
+      if (/Protect|Detect|Shield|Bunker|Silk Trap|Bulwark|Obstruct|Max Guard/.test(b)) { if (animate) shield(side); return say(T.protect(who(a)), animate, cls); }
       return;
     case 'turn':
       $('.turn').textContent = T.turn(a);
@@ -697,12 +713,12 @@ function drawHud(side, dur = 0, fromHp) {
   const v = view[side], cls = side === 'p1' ? 'me' : 'foe';
   if (!v.species) return;
   const im = img(side);
-  const shown = v.gmax && dex.species.get(`${v.species}-Gmax`).exists ? `${v.species}-Gmax` : v.species;
+  const shown = v.sub ? 'substitute' : v.gmax && dex.species.get(`${v.species}-Gmax`).exists ? `${v.species}-Gmax` : v.species;
   im.classList.toggle('dynamax', v.dmax);
   im.dataset.status = v.hp > 0 ? v.status : ''; // cada problema de estado tiñe y mueve el sprite a su manera
   $(`.zzz.${cls}`).hidden = v.status !== 'slp' || v.hp <= 0;
   if (im.dataset.species !== shown) {
-    const s = spriteOf(shown, side === 'p1');
+    const s = v.sub ? subSprite(side === 'p1') : spriteOf(shown, side === 'p1');
     im.src = s.url;
     im.alt = v.species;
     im.dataset.species = shown;
@@ -722,8 +738,14 @@ function drawHud(side, dur = 0, fromHp) {
     .map(([s, n]) => `<span class="boost ${n > 0 ? 'up' : 'down'}">${T.statShort[s]} ${n > 0 ? '+' : ''}${n}</span>`).join('');
   hud.querySelector('.status').innerHTML = (v.status ? `<span class="st st-${v.status}">${T.statusTag[v.status]}</span>` : '') + boosts;
   if (side === 'p1') lowHpAlarm(v.hp > 0 && pct <= 20 && !battle?.ended);
-  const names = side === 'p1' ? team().map(s => s.species) : B.team.map(s => s.species);
-  $(`.balls.${cls}`).innerHTML = names.map(n => `<i class="${view.fainted[side].has(n) ? 'out' : ''}"></i>`).join('');
+  const out = faintedMarks(side, side === 'p1' ? team() : B.team);
+  $(`.balls.${cls}`).innerHTML = out.map(o => `<i class="${o ? 'out' : ''}"></i>`).join('');
+}
+
+// Qué miembros del equipo están debilitados, por mote y contando repetidos (no por especie: Rotom-Fan se llama Rotom).
+function faintedMarks(side, sets) {
+  const left = [...view.fainted[side]];
+  return sets.map(s => { const i = left.indexOf(s.name || s.species); if (i < 0) return false; left.splice(i, 1); return true; });
 }
 
 // Pestaña "Tu equipo": objeto actual, habilidad, vida y ataques con PP de cada uno de tus Pokémon.
@@ -811,6 +833,28 @@ function drawControls() {
   }
 }
 
+// Muñeco del Sustituto del juego del rival (RSE, HGSS/Platino o NB; la Liga y Leon, el de NB).
+const SUB_SPRITES = {gen3: ['gen3', 64], gen4: ['gen4', 80]};
+function subSprite(back) {
+  const [dir, w] = SUB_SPRITES[LIGA ? '' : STAGE.era] || ['gen5', 96];
+  return {url: `${SD}sprites/substitutes/${dir}${back ? '-back' : ''}/substitute.png`, w};
+}
+async function swapSprite(side, animate) {
+  const im = img(side);
+  if (animate) { sfx('switch'); im.classList.add('swap'); await wait(180); }
+  drawHud(side);
+  if (animate) { await wait(220); im.classList.remove('swap'); }
+}
+function shield(side) {
+  const im = img(side), c = center(im), r = im.getBoundingClientRect();
+  const el2 = el('div', 'shield');
+  const size = Math.max(r.width, r.height) * 1.15;
+  el2.style.cssText = `left:${c.x - size / 2}px;top:${c.y - size / 2}px;width:${size}px;height:${size}px`;
+  $('.arena').append(el2);
+  sfx('item');
+  setTimeout(() => el2.remove(), 1000 / speed);
+}
+
 // Tu marcador abre la pestaña "Tu equipo" (estadísticas, cambios de características, objeto y PP).
 $('.hud.me').onclick = () => { $('.tabs button[data-tab=team-panel]').click(); $('.tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); };
 
@@ -826,7 +870,7 @@ $('#foe-hud').onclick = () => {
       ${seen.ability ? `<div>${abilityName(seen.ability)}</div>` : ''}${seen.item ? `<div>${itemIcon(seen.item)}${itemName(seen.item)}</div>` : ''}
     </div></div>
     <p><b>${T.revealed}:</b> ${[...seen.moves].map(m => moveName(m)).join(', ') || T.none}</p>
-    <div class="icons">${B.team.map(s => icon(s.species, view.fainted.p2.has(s.species) ? 'out' : view.seen[s.species] ? '' : 'unseen')).join('')}</div>`;
+    <div class="icons">${faintedMarks('p2', B.team).map((o, i) => icon(B.team[i].species, o ? 'out' : view.seen[B.team[i].species] ? '' : 'unseen')).join('')}</div>`;
   $('#dlg-foe').showModal();
 };
 

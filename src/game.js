@@ -89,7 +89,7 @@ const NOT_ALLOWED = new Set(['Restricted Legendary', 'Sub-Legendary', 'Mythical'
 
 // Los 6 Pokémon del día contra `boss`: sets de Random Battle Gen 9 de Showdown, sin legendarios,
 // solo de las generaciones del rival (Red: Gen 1-2; Cynthia: Gen 1-4), a nivel 100.
-export const dailyPool = (date, boss = 'red') => pool(`${boss}:${date}`, BOSSES[boss]);
+export const dailyPool = (date, boss = 'red') => pool(`${boss}:${date}`, {...BOSSES[boss], team: teamOf(boss, date)});
 
 function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmicks = []}) {
   const gen = TeamGenerators.getTeamGenerator(`gen${format}randombattle`, seedFor(`pool:${key}`));
@@ -203,16 +203,26 @@ export const BOSSES = {
     ],
   },
   lance: {
-    // HGSS, revancha del Campeón (pret/pokeheartgold): el maestro de los dragones.
+    // HGSS, primer combate contra el Campeón (pret/pokeheartgold): el clásico, con sus tres Dragonite.
     id: 'lance', name: 'Lance', gens: [1, 2], maxEVs: 100, maxIVs: 24,
     team: [
+      mon('Gyarados', 'Leftovers', 'Intimidate', 'Adamant', ev('atk', 'spe'), ['Flail', 'Dragon Pulse', 'Waterfall', 'Ice Fang']),
+      mon('Dragonite', 'Life Orb', 'Inner Focus', 'Naive', ev('atk', 'spe', 'spa'), ['Thunder Wave', 'Dragon Rush', 'Thunder', 'Hyper Beam']),
+      mon('Dragonite', 'Expert Belt', 'Inner Focus', 'Naive', ev('atk', 'spe', 'spa'), ['Thunder Wave', 'Dragon Rush', 'Blizzard', 'Hyper Beam']),
+      mon('Aerodactyl', 'Life Orb', 'Pressure', 'Jolly', ev('atk', 'spe'), ['Aerial Ace', 'Crunch', 'Rock Slide', 'Thunder Fang']),
+      mon('Charizard', 'Expert Belt', 'Blaze', 'Naive', ev('atk', 'spe', 'spa'), ['Shadow Claw', 'Air Slash', 'Dragon Claw', 'Fire Fang']),
+      mon('Dragonite', 'Sitrus Berry', 'Inner Focus', 'Naive', ev('atk', 'spa', 'spe'), ['Fire Blast', 'Safeguard', 'Outrage', 'Hyper Beam']),
+    ],
+    // Hasta el 14-10-2026 se jugó con su equipo de revancha: se conserva para que los combates guardados y las
+    // repeticiones de esos días cuadren.
+    oldTeam: {until: '2026-10-15', team: [
       mon('Gyarados', 'Leftovers', 'Intimidate', 'Adamant', ev('atk', 'spe'), ['Thunder Wave', 'Ice Fang', 'Waterfall', 'Dragon Dance']),
       mon('Salamence', 'Lum Berry', 'Intimidate', 'Naive', ev('atk', 'spe', 'spa'), ['Flamethrower', 'Shadow Claw', 'Dragon Claw', 'Rest']),
       mon('Garchomp', 'Life Orb', 'Sand Veil', 'Jolly', ev('atk', 'spe'), ['Swords Dance', 'Outrage', 'Earthquake', 'Roar']),
       mon('Altaria', 'Leftovers', 'Natural Cure', 'Modest', ev('hp', 'spa', 'def'), ['Perish Song', 'Dragon Breath', 'Double Team', 'Hyper Beam']),
       mon('Charizard', 'Expert Belt', 'Blaze', 'Naive', ev('spa', 'spe', 'atk'), ['Flamethrower', 'Air Slash', 'Dragon Claw', 'Hyper Beam']),
       mon('Dragonite', 'Sitrus Berry', 'Inner Focus', 'Modest', ev('spa', 'spe', 'hp'), ['Fire Blast', 'Safeguard', 'Draco Meteor', 'Hyper Beam']),
-    ],
+    ]},
   },
   steven: {
     // Rubí y Zafiro, Campeón de Hoenn (pret/pokeruby).
@@ -278,6 +288,13 @@ export const BOSSES = {
 };
 export const RED_TEAM = BOSSES.red.team;
 
+// Equipo del rival para un combate o día (`key` lleva la fecha): el antiguo si el rival lo cambió después.
+const dateOf = key => String(key).match(/\d{4}-\d\d-\d\d/)?.[0];
+export function teamOf(boss, key) {
+  const b = BOSSES[boss], d = dateOf(key);
+  return b.oldTeam && d && d < b.oldTeam.until ? b.oldTeam.team : b.team;
+}
+
 // `key` identifica el combate (fecha, práctica o ronda de Liga) y da la semilla; `rule` es la regla del día.
 // Plan de mecanismo del rival: un solo mecanismo por combate.
 // - Leon siempre gigamaxiza a su as, Charizard (como en Espada/Escudo), también en la Liga.
@@ -289,7 +306,7 @@ export function bossPlan(key, boss) {
   if (!String(key).startsWith('liga')) return null;
   const r = rng(`plan:${boss}:${key}`);
   if (r() >= BOSS_GIMMICK_CHANCE) return null;
-  const team = BOSSES[boss].team;
+  const team = teamOf(boss, key);
   const megas = team.flatMap(s => (dex.species.get(s.species).otherFormes || []).map(f => dex.species.get(f))
     .filter(f => f.isMega && f.requiredItem).map(f => ({kind: 'mega', species: s.species, item: f.requiredItem})));
   const kinds = [...(megas.length ? ['mega'] : []), 'dynamax', 'tera'];
@@ -299,8 +316,8 @@ export function bossPlan(key, boss) {
   return {kind};
 }
 // El equipo del rival con lo que necesita su plan: la megapiedra o la marca de Dinamax (y Gigamax si existe).
-function bossTeam(boss, plan) {
-  return BOSSES[boss].team.map(s => {
+function bossTeam(boss, plan, key) {
+  return teamOf(boss, key).map(s => {
     if (!plan || s.species !== plan.species) return s;
     if (plan.kind === 'mega') return {...s, item: plan.item};
     return {...s, dynamax: true, gigantamax: dex.species.get(`${s.species}-Gmax`).exists};
@@ -319,7 +336,7 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   const battle = new Battle({formatid, seed: seedFor(`battle:${boss}:${key}`)});
   battle.setPlayer('p1', {name: 'Tú', team});
   battle.bossPlan = bossPlan(key, boss);
-  battle.setPlayer('p2', {name: BOSSES[boss].name, team: bossTeam(boss, battle.bossPlan)});
+  battle.setPlayer('p2', {name: BOSSES[boss].name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
   if (format !== 8 && gimmicks.includes('dynamax')) {
     for (const side of battle.sides) { side.dynamaxUsed = false; side.canDynamaxNow = function () { return !this.dynamaxUsed; }; }

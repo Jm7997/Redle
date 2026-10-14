@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf} from '../src/game.js';
 
 test('el reto del día es igual para todos y cambia cada día', () => {
   const a = dailyPool('2026-10-12'), b = dailyPool('2026-10-12'), c = dailyPool('2026-10-13');
@@ -48,9 +48,11 @@ test('cada rival tiene su equipo del juego y tu equipo sale de sus generaciones'
   const dex = Dex.forGen(9);
   assert.deepEqual(BOSSES.red.team.map(s => s.species), ['Pikachu', 'Lapras', 'Snorlax', 'Venusaur', 'Charizard', 'Blastoise']);
   assert.deepEqual(BOSSES.cynthia.team.map(s => s.species), ['Spiritomb', 'Roserade', 'Togekiss', 'Lucario', 'Milotic', 'Garchomp']);
+  // Lance: su primer combate de HGSS (con tres Dragonite) desde el 15-10-2026; antes, el de revancha.
+  assert.deepEqual(teamOf('lance', '2026-10-15').map(s => s.species), ['Gyarados', 'Dragonite', 'Dragonite', 'Aerodactyl', 'Charizard', 'Dragonite']);
+  assert.deepEqual(teamOf('lance', '2026-10-14').map(s => s.species), ['Gyarados', 'Salamence', 'Garchomp', 'Altaria', 'Charizard', 'Dragonite']);
   for (const b of Object.values(BOSSES)) {
     assert.equal(b.team.length, 6, b.id);
-    assert.equal(new Set(b.team.map(s => s.species)).size, 6, `${b.id} repite especie`);
     const [lo, hi] = b.gens;
     for (let d = 1; d <= 3; d++) {
       for (const set of dailyPool(`2026-11-0${d}`, b.id)) {
