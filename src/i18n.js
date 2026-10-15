@@ -35,7 +35,7 @@ export const abilityName = id => (es && ES.abilities[toID(id)]) || dex.abilities
 const STRINGS = {
   es: {
     title: 'Redle',
-    yourTeam: 'Tu equipo', leadTag: '★ Empieza', you2: 'Tú', history: 'Historial',
+    yourTeam: 'Tu equipo', trainYou: 'Entrenamiento al azar', trainYouTip: 'IVs, EVs y naturaleza al azar cada día.', trainBoss: 'Entrenado al máximo', trainBossTip: 'IVs perfectos, EVs a medida y objeto.', leadTag: '★ Empieza', you2: 'Tú', history: 'Historial',
     go: '¡Listo, a pelear!',
     footer: 'Proyecto fan no oficial y sin ánimo de lucro. Pokémon © Nintendo, Creatures y GAME FREAK. No afiliado.',
     legalTitle: 'Aviso legal y privacidad',
@@ -98,7 +98,7 @@ const STRINGS = {
   },
   en: {
     title: 'Redle',
-    yourTeam: 'Your team', leadTag: '★ Lead', you2: 'You', history: 'History',
+    yourTeam: 'Your team', trainYou: 'Random training', trainYouTip: 'Random IVs, EVs and nature every day.', trainBoss: 'Fully trained', trainBossTip: 'Perfect IVs, tailored EVs and an item.', leadTag: '★ Lead', you2: 'You', history: 'History',
     go: 'Ready, battle!',
     footer: 'Unofficial non-profit fan project. Pokémon © Nintendo, Creatures and GAME FREAK. Not affiliated.',
     legalTitle: 'Legal notice & privacy',

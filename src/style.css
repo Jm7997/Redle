@@ -628,3 +628,10 @@ body.boss-cynthia {
   box-shadow: 0 0 18px #7fd8ff99; animation: shield 1s ease-out forwards; }
 @keyframes shield { 0% { scale: .4; opacity: 0; } 25% { scale: 1.05; opacity: 1; } 70% { scale: 1; opacity: .9; } 100% { scale: 1.1; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .mon.swap, .shield { animation-duration: .01s; } }
+
+/* Aviso de entrenamiento bajo cada equipo, como una etiqueta de la pantalla de datos */
+.train-tag { display: flex; align-items: center; gap: 6px; margin: -2px 0 8px; padding: 5px 9px; border-radius: 10px; border: 2px solid #3d8be0; background: color-mix(in srgb, #3d8be0 12%, var(--panel)); }
+.train-tag.max { border-color: var(--dex); background: color-mix(in srgb, var(--dex) 12%, var(--panel)); }
+.train-tag .icon-item { flex: none; }
+.train-tag b { display: block; font: 700 13px var(--pixel); }
+.train-tag small { display: block; font: 600 11px/1.3 var(--body); color: var(--muted); }

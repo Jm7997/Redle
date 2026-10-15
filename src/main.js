@@ -250,6 +250,9 @@ function renderDraft() {
   $('#red-team').replaceChildren(...B.team.map(set => slot(set, 'div')));
   $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
   $('#rules').hidden = !$('#stage-rules').innerHTML;
+  // Aviso de entrenamiento: tu equipo al azar (Caramelo Raro) frente al rival entrenado al máximo (Brazal Firme).
+  $('#train-you').innerHTML = `${itemIcon('Rare Candy')}<span><b>${T.trainYou}</b><small>${T.trainYouTip}</small></span>`;
+  $('#train-boss').innerHTML = `${itemIcon('Macho Brace')}<span><b>${T.trainBoss}</b><small>${T.trainBossTip}</small></span>`;
   // Fichas compactas por defecto (sprite, tipos y objeto); estadísticas, habilidad y ataques se despliegan con un toque.
   const details = ls.get('redle:details') === '1';
   $('#parties').classList.toggle('compact', !details);
