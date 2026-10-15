@@ -539,6 +539,9 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     }
     case '-clearallboost': view.p1.boosts = {}; view.p2.boosts = {}; drawHud('p1'); drawHud('p2'); return say(T.clearBoosts, animate);
     case '-clearboost': view[side].boosts = {}; drawHud(side); return;
+    case '-clearnegativeboost': // Hierba Blanca: quita solo las bajadas (el combate ya las quitaba; faltaba en el marcador)
+      for (const k in view[side].boosts) if (view[side].boosts[k] < 0) delete view[side].boosts[k];
+      drawHud(side); return;
     case '-enditem':
       if (side === 'p2') seenOf(view.p2.species).item = b;
       if (animate) { popup(cls, `${itemIcon(b)}${itemName(b)}`); sfx('item'); }
