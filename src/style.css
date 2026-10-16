@@ -635,3 +635,14 @@ body.boss-cynthia {
 .train-tag .icon-item { flex: none; }
 .train-tag b { display: block; font: 700 13px var(--pixel); }
 .train-tag small { display: block; font: 600 11px/1.3 var(--body); color: var(--muted); }
+
+/* Revival Blessing: todo el equipo a la vista; los debilitados brillan en dorado con su cinta "Revivir" y son los
+   únicos que se pueden elegir (los sanos quedan apagados), como en la pantalla de equipo de los juegos. */
+.switches.revive { padding: 10px; border-radius: 16px; background: radial-gradient(ellipse at top, #fff3b066, transparent 70%); outline: 2px dashed #e2b13c88; }
+.sw.revivable { overflow: visible; border-color: #e2b13c; background: linear-gradient(#fff3c4, #f0c75a); color: #4a3200; text-shadow: none; animation: revive-glow 1.4s ease-in-out infinite; }
+.sw.revivable .icon-mon { filter: grayscale(.6) brightness(.9); }
+.sw.revivable em { position: absolute; top: -9px; left: 50%; translate: -50% 0; padding: 0 6px; border-radius: 6px; background: #e2b13c; color: #3a2600; font: 800 10px var(--body); font-style: normal; white-space: nowrap; box-shadow: 0 1px 0 #0003; }
+.sw.revivable:hover:not(:disabled) { transform: translateY(-2px); }
+.switches.revive .sw:disabled { opacity: .3; filter: grayscale(1); }
+@keyframes revive-glow { 50% { box-shadow: 0 0 0 3px #ffe58a, 0 0 14px #ffd23f; } }
+@media (prefers-reduced-motion: reduce) { .sw.revivable { animation: none; } }

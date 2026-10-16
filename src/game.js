@@ -536,6 +536,10 @@ export function aiChoice(battle, sideId = 'p2') {
   if (!req || req.wait) return null;
   if (req.teamPreview) return 'default'; // el orden ya viene dado: el primero sale a combatir
   const foe = side.foe.active[0];
+  if (req.forceSwitch && side.slotConditions[0]?.revivalblessing) {
+    const dead = side.pokemon.map((p, i) => [p, i]).filter(([p]) => p.fainted).sort((a, b) => b[0].maxhp - a[0].maxhp)[0];
+    return dead ? 'switch ' + (dead[1] + 1) : 'default';
+  }
   if (req.forceSwitch) return 'switch ' + bestSwitch(side, foe);
   const me = side.active[0];
   const threat = bestDamage(foe, me);

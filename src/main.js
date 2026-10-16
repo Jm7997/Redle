@@ -479,7 +479,16 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       }
       return;
     }
-    case '-damage': case '-heal': case '-sethp': {
+    case '-heal':
+      if (tags.includes('Revival Blessing')) {
+        const {name} = parseId(a), i = view.fainted[side].indexOf(name);
+        if (i >= 0) view.fainted[side].splice(i, 1);
+        drawHud(side);
+        if (animate) { sfx('heal'); flash('#fff6c2', 500); }
+        return say(T.revived(side === 'p1' ? `<b>${name}</b>` : `<b>${T.foe(name)}</b>`), animate, cls);
+      }
+      // falls through
+    case '-damage': case '-sethp': {
       const {delta, pct, dur} = setHp(side, b, animate);
       if (!delta || tags.includes('[silent]')) return;
       if (animate) {
@@ -785,7 +794,10 @@ function drawControls() {
   moves.innerHTML = switches.innerHTML = '';
   if (!req || req.wait) return;
   const me = battle.p1.active[0], foe = battle.p2.active[0];
-  $('#prompt').textContent = req.forceSwitch ? T.who : T.what(me.name);
+  // Revival Blessing (Bendición): hay que elegir a un Pokémon debilitado para revivirlo.
+  const revive = req.forceSwitch && !!battle.p1.slotConditions[0]?.revivalblessing;
+  $('#prompt').textContent = revive ? T.revivePick : req.forceSwitch ? T.who : T.what(me.name);
+  switches.classList.toggle('revive', revive);
   const r = req.active?.[0];
   if (!req.forceSwitch) {
     const avail = GIMMICK_BTN.filter(([flag]) => r[flag]);
@@ -824,9 +836,9 @@ function drawControls() {
   }
   const trapped = !req.forceSwitch && req.active[0].trapped;
   battle.p1.pokemon.forEach((p, i) => {
-    const b = el('button', 'sw' + (p.isActive ? ' active' : '') + (p.fainted ? ' out' : ''),
-      `${icon(p.species.name)}<span>${p.name}</span><i style="--hp:${Math.round(100 * p.hp / p.maxhp)}%"></i>`);
-    b.disabled = p.fainted || p.isActive || trapped;
+    const b = el('button', 'sw' + (p.isActive ? ' active' : '') + (p.fainted ? (revive ? ' revivable' : ' out') : ''),
+      `${icon(p.species.name)}<span>${p.name}</span><i style="--hp:${Math.round(100 * p.hp / p.maxhp)}%"></i>${revive && p.fainted ? `<em>${T.reviveTag}</em>` : ''}`);
+    b.disabled = revive ? !p.fainted : p.fainted || p.isActive || trapped;
     b.title = `${p.name} · ${p.hp}/${p.maxhp} · ${p.moveSlots.map(m => moveName(m.id)).join(', ')}`;
     b.onclick = () => choose(`switch ${i + 1}`);
     switches.append(b);
