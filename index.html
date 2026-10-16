@@ -110,7 +110,7 @@
     </section>
   </main>
 
-  <footer><span data-i18n="footer"></span> <button class="linklike" id="btn-legal" data-i18n="legalTitle"></button> · <button class="linklike" id="btn-feedback" data-i18n="feedbackLink"></button></footer>
+  <footer><span data-i18n="footer"></span> <button class="linklike" id="btn-legal" data-i18n="legalTitle"></button> · <button class="linklike" id="btn-news"><span data-i18n="newsLink"></span><i class="news-dot" hidden></i></button> · <button class="linklike" id="btn-feedback" data-i18n="feedbackLink"></button></footer>
 
   <div id="intro" hidden><img class="boss-sprite" alt="" width="160" height="160"><p data-i18n="challenge"></p></div>
 
@@ -172,6 +172,12 @@
       <div class="row"><input id="restore-code" maxlength="36" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><button class="secondary" id="btn-restore" data-i18n="restoreBtn"></button></div>
       <p class="small" id="restore-msg" data-i18n="backupNote"></p>
     </div>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-news">
+    <h2 data-i18n="newsTitle"></h2>
+    <div id="news-list" class="news"></div>
     <button data-close data-i18n="close"></button>
   </dialog>
 

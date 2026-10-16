@@ -5,6 +5,7 @@ import {Sprites, Icons} from '@pkmn/img';
 import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
+import {NEWS} from './news.js';
 import {sendResult, dailyStats, dailyRank, dailyTop, sendFeedback, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
@@ -250,8 +251,8 @@ function renderDraft() {
   $('#red-team').replaceChildren(...B.team.map(set => slot(set, 'div')));
   $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
   $('#rules').hidden = !$('#stage-rules').innerHTML;
-  // Aviso de entrenamiento: tu equipo al azar (Caramelo Raro) frente al rival entrenado al máximo (Brazal Firme).
-  $('#train-you').innerHTML = `${itemIcon('Rare Candy')}<span><b>${T.trainYou}</b><small>${T.trainYouTip}</small></span>`;
+  // Aviso de entrenamiento: tu equipo al azar (Brazal Recio) frente al rival entrenado al máximo (Brazal Firme).
+  $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${T.trainYou}</b><small>${T.trainYouTip}</small></span>`;
   $('#train-boss').innerHTML = `${itemIcon('Macho Brace')}<span><b>${T.trainBoss}</b><small>${T.trainBossTip}</small></span>`;
   // Fichas compactas por defecto (sprite, tipos y objeto); estadísticas, habilidad y ataques se despliegan con un toque.
   const details = ls.get('redle:details') === '1';
@@ -1223,6 +1224,19 @@ function backup() {
   }
   saveProgress({v: 1, stores, streak: readJSON('redle:streak'), medals: medals(), nick: ls.get('redle:nick') || ''});
 }
+
+// Novedades: lista de cambios con un punto rojo en el enlace hasta que se abre (se recuerda la última vista).
+function drawNewsDot() { $('#btn-news .news-dot').hidden = (+ls.get('redle:news') || 0) >= NEWS[0].id; }
+$('#btn-news').onclick = () => {
+  const seen = +ls.get('redle:news') || 0;
+  const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString(LANG, {day: 'numeric', month: 'long'});
+  $('#news-list').innerHTML = NEWS.map(n => `<section class="${n.id > seen ? 'unseen' : ''}"><h3>${fmt(n.date)}${n.id > seen ? ` <em>${T.newsNew}</em>` : ''}</h3>
+    <ul>${(LANG === 'es' ? n.es : n.en).map(x => `<li>${x}</li>`).join('')}</ul></section>`).join('');
+  ls.set('redle:news', NEWS[0].id);
+  drawNewsDot();
+  $('#dlg-news').showModal();
+};
+drawNewsDot();
 
 // Sugerencias y fallos, con datos técnicos para poder reproducirlos.
 let fbKind = 'idea';

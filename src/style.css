@@ -646,3 +646,14 @@ body.boss-cynthia {
 .switches.revive .sw:disabled { opacity: .3; filter: grayscale(1); }
 @keyframes revive-glow { 50% { box-shadow: 0 0 0 3px #ffe58a, 0 0 14px #ffd23f; } }
 @media (prefers-reduced-motion: reduce) { .sw.revivable { animation: none; } }
+
+/* Novedades: punto rojo en el enlace hasta abrirlas; cada día es una entrada y las no vistas van resaltadas */
+.news-dot { display: inline-block; width: 8px; height: 8px; margin-left: 4px; border-radius: 50%; background: var(--dex); box-shadow: 0 0 0 2px #fff8; vertical-align: middle; animation: news-pulse 1.6s ease-in-out infinite; }
+@keyframes news-pulse { 50% { transform: scale(1.4); } }
+.news { display: grid; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.news section { padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--panel-2); }
+.news section.unseen { border-color: #ffd23f; }
+.news h3 { margin: 0 0 4px; font: 700 15px var(--pixel); }
+.news h3 em { font: 800 10px var(--body); font-style: normal; padding: 1px 6px; border-radius: 6px; background: var(--dex); color: #fff; vertical-align: middle; }
+.news ul { margin: 0; padding-left: 18px; } .news li { margin: 4px 0; font-size: 14px; line-height: 1.4; }
+@media (prefers-reduced-motion: reduce) { .news-dot { animation: none; } }
