@@ -156,9 +156,14 @@ const NATURES = ['Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty', 'Bold', 'Doci
 // Tus Pokémon van "sin entrenar a conciencia": IVs al azar (0-31), entre 0 y 508 EVs repartidos al azar
 // en bloques de 4 (máx. 252 por stat) y naturaleza al azar. Red los tiene perfectos y bien colocados:
 // esa es la desventaja, no el nivel. Determinista por día y especie.
+// Desde el 18-10-2026 tus IVs son perfectos (31); los EVs y la naturaleza siguen al azar. Los IVs se sortean igual
+// para que los EVs y naturalezas de cada día no cambien, y los días anteriores se reproducen tal cual.
+const PERFECT_IVS_FROM = '2026-10-18';
 export function wildTraining(set, date, maxEVs = 508, maxIVs = 31) {
   const r = rng(`training:${date}:${set.species}`);
+  const day = String(date).match(/\d{4}-\d\d-\d\d/)?.[0];
   const ivs = Object.fromEntries(STATS.map(s => [s, Math.floor(r() * (maxIVs + 1))]));
+  if (!day || day >= PERFECT_IVS_FROM) for (const s of STATS) ivs[s] = 31;
   const evs = Object.fromEntries(STATS.map(s => [s, 0]));
   for (let left = Math.floor(r() * (maxEVs / 4 + 1)); left > 0;) {
     const s = STATS[Math.floor(r() * 6)];

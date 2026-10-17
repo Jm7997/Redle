@@ -3,6 +3,11 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 4, date: '2026-10-18',
+    es: ['Tu equipo trae ahora <b>IVs perfectos</b>. Los EVs y la naturaleza siguen siendo al azar, así que el reto sigue siendo duro, pero más justo. ¡Gracias por vuestros comentarios!'],
+    en: ['Your team now has <b>perfect IVs</b>. EVs and nature are still random, so it stays tough, but fairer. Thanks for your feedback!'],
+  },
+  {
     id: 3, date: '2026-10-16',
     es: ['Arreglado <b>Revival Blessing</b>: ahora puedes elegir a qué Pokémon debilitado revivir. ¡Gracias a quienes lo avisasteis!',
       'La <b>Hierba Blanca</b> ya quita las bajadas también en el marcador.'],
