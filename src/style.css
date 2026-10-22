@@ -664,3 +664,39 @@ body.boss-cynthia {
 .wins li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .wins li em { font-style: normal; font-weight: 800; color: var(--muted); }
 .wins .watch { padding: 2px 10px; border-radius: 8px; background: #3d8be0; color: #fff; font: 800 12px var(--body); text-decoration: none; white-space: nowrap; }
+
+/* Compartir el resultado como imagen */
+#btn-share-img { display: block; width: 100%; margin-top: 8px; }
+
+/* Instalar como app (en el resultado) */
+.install { margin-top: 12px; border-color: #ffd23f; }
+.install p { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
+.install .row { display: flex; align-items: center; gap: 10px; }
+.install .row .primary { width: auto; margin: 0; padding: 8px 20px; font-size: 15px; }
+.install .linklike { border: 0; background: none; color: var(--muted); text-decoration: underline; font: 700 13px var(--body); cursor: pointer; }
+
+/* Indicador del campo: se puede tocar para ver qué hace cada efecto */
+.weather-badge { cursor: pointer; font-family: var(--pixel); }
+.weather-badge::after { content: '?'; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 6px; border-radius: 50%; background: #fff; color: #2a7fc1; font: 900 11px var(--body); vertical-align: 1px; }
+.field-list { display: grid; gap: 10px; }
+.field-list section { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--line); background: var(--panel-2); }
+.field-list section .icon-item { flex: none; scale: 1.4; margin: 6px 6px 0 2px; }
+.field-list b { font: 700 17px var(--pixel); }
+.field-list p { margin: 3px 0 0; font-size: 14px; line-height: 1.45; }
+/* Precisión cambiada por el campo: en el botón del ataque, con el icono de lo que la cambia */
+.acc-tag { display: inline-flex; align-items: center; gap: 1px; margin-left: auto; margin-right: 6px; padding: 0 6px 0 2px; border-radius: 8px;
+  background: #fff3c4; color: #5a3d00; font: 800 12px var(--body); font-style: normal; text-shadow: none; box-shadow: 0 0 0 1.5px #e2b13c; }
+.move .info s { opacity: .7; }
+.move .acc-real { font-weight: 900; color: #fff3a8; }
+/* La regla del día en la intro del combate, como un cartel */
+.intro-rule { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 12px;
+  background: #fff; color: #2b2b2b; border: 3px solid #2b2b2b; box-shadow: 0 4px 0 #2b2b2b; font: 700 16px var(--pixel); animation: slide-in .6s 1.9s both; }
+
+/* Detalles de los ataques: el interruptor junto a "¿Qué hará…?" y los botones con toda la información */
+.prompt-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.moves-info-toggle { flex: none; border: 2px solid #ffffff55; background: #ffffff14; color: #fff; border-radius: 10px; padding: 3px 10px; font: 700 12px var(--pixel); cursor: pointer; }
+.moves-info-toggle[aria-pressed=true] { background: #ffd23f; color: #3a2a00; border-color: #8a6a00; }
+.moves.full .move .info { display: block !important; }
+.moves.full .move .desc { display: block; -webkit-line-clamp: unset; overflow: visible; }
+
+.wins-empty { margin: 10px 0 0; font-size: 13px; color: var(--muted); text-align: center; }

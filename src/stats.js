@@ -30,11 +30,11 @@ async function call(name, body) {
 const rpc = async (name, body) => (await call(name, body)).data;
 
 // Envía el resultado (si ya se envió, Supabase responde 409 y no pasa nada).
-export async function sendResult({day, mode, won, turns, reached, kos, replay}) {
+export async function sendResult({day, mode, won, turns, reached, kos, replay, tries}) {
   try {
     await fetch(`${URL}/rest/v1/results`, {
       method: 'POST', headers: {...headers, Prefer: 'return=minimal'},
-      body: JSON.stringify({day, mode, player: playerId(), won, turns: turns || null, reached: reached ?? null, kos: kos ?? null, replay: replay || null}),
+      body: JSON.stringify({day, mode, player: playerId(), won, turns: turns || null, reached: reached ?? null, kos: kos ?? null, replay: replay || null, tries: tries || null}),
     });
   } catch {}
 }
@@ -43,8 +43,8 @@ export async function sendResult({day, mode, won, turns, reached, kos, replay}) 
 export const dailyWins = (day, mode) => rpc('daily_wins', {p_day: day, p_mode: mode});
 
 // Tu puesto del día en ese modo: {pos, total} o null.
-export async function dailyRank({day, mode, won, turns, reached, kos}) {
-  const r = (await rpc('daily_rank', {p_day: day, p_mode: mode, p_won: won, p_turns: turns || 0, p_kos: kos ?? 0, p_reached: reached ?? 0}))?.[0];
+export async function dailyRank({day, mode, won, turns, reached, kos, tries}) {
+  const r = (await rpc('daily_rank', {p_day: day, p_mode: mode, p_won: won, p_turns: turns || 0, p_kos: kos ?? 0, p_reached: reached ?? 0, p_tries: tries || 1}))?.[0];
   return r?.total ? {pos: r.better + 1, total: r.total} : null;
 }
 

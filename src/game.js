@@ -2,6 +2,7 @@
 // Todo es determinista: misma fecha + mismas elecciones = mismo combate.
 import {Battle, Dex} from '@pkmn/sim';
 import {TeamGenerators} from '@pkmn/randoms';
+import {BALANCE} from './balance.js';
 
 export const FORMAT = 'gen9customgame';
 export const POOL_SIZE = 6;
@@ -89,7 +90,11 @@ const NOT_ALLOWED = new Set(['Restricted Legendary', 'Sub-Legendary', 'Mythical'
 
 // Los 6 Pokémon del día contra `boss`: sets de Random Battle Gen 9 de Showdown, sin legendarios,
 // solo de las generaciones del rival (Red: Gen 1-2; Cynthia: Gen 1-4), a nivel 100.
-export const dailyPool = (date, boss = 'red') => pool(`${boss}:${date}`, {...BOSSES[boss], team: teamOf(boss, date)});
+// Equipo número `i` de ese día y rival (0 = el sorteo normal; los demás, sorteos alternativos).
+export const poolFor = (boss, date, i = 0) => pool(i ? `${boss}:${date}~${i}` : `${boss}:${date}`, {...BOSSES[boss], team: teamOf(boss, date)});
+// Equipo del día: el sorteo normal salvo que la tabla de equilibrio (balance.js) diga que era casi imposible o
+// demasiado fácil; entonces, el sorteo alternativo que sí cae en el rango. Ver scripts/build-balance.mjs.
+export const dailyPool = (date, boss = 'red') => poolFor(boss, date, BALANCE[`${boss}:${date}`] || 0);
 
 function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmicks = []}) {
   const gen = TeamGenerators.getTeamGenerator(`gen${format}randombattle`, seedFor(`pool:${key}`));
@@ -158,14 +163,17 @@ const NATURES = ['Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty', 'Bold', 'Doci
 // esa es la desventaja, no el nivel. Determinista por día y especie.
 // Desde el 18-10-2026 tus IVs son perfectos (31); los EVs y la naturaleza siguen al azar. Los IVs se sortean igual
 // para que los EVs y naturalezas de cada día no cambien, y los días anteriores se reproducen tal cual.
-const PERFECT_IVS_FROM = '2026-10-18';
+const PERFECT_IVS_FROM = '2026-10-18', FULL_EVS_FROM = '2026-10-24';
 export function wildTraining(set, date, maxEVs = 508, maxIVs = 31) {
   const r = rng(`training:${date}:${set.species}`);
   const day = String(date).match(/\d{4}-\d\d-\d\d/)?.[0];
   const ivs = Object.fromEntries(STATS.map(s => [s, Math.floor(r() * (maxIVs + 1))]));
   if (!day || day >= PERFECT_IVS_FROM) for (const s of STATS) ivs[s] = 31;
   const evs = Object.fromEntries(STATS.map(s => [s, 0]));
-  for (let left = Math.floor(r() * (maxEVs / 4 + 1)); left > 0;) {
+  // Desde el 24-10-2026, entrenado del todo como un Pokémon a nivel 100: los 508 EVs, pero repartidos al azar
+  // (sin optimizar). Antes, un total al azar entre 0 y el tope de cada rival.
+  const full = !day || day >= FULL_EVS_FROM;
+  for (let left = full ? 127 : Math.floor(r() * (maxEVs / 4 + 1)); left > 0;) {
     const s = STATS[Math.floor(r() * 6)];
     if (evs[s] < 252) { evs[s] += 4; left--; }
   }
@@ -341,7 +349,11 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   const battle = new Battle({formatid, seed: seedFor(`battle:${boss}:${key}`)});
   battle.setPlayer('p1', {name: 'Tú', team});
   battle.bossPlan = bossPlan(key, boss);
-  battle.aiLegacy = (String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9') < '2026-10-15'; // IA anterior (ver abilityBlocks)
+  // Versión de la IA según el día, para que cada combate se reproduzca con la IA que tuvo:
+  // 1 = hasta el 14-10 (aiLegacy), 2 = desde el 15-10 (habilidades, clima, frenar mejoras), 3 = desde el 24-10 (Sustituto y Drenadoras).
+  const day = String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9';
+  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : 3;
+  battle.aiLegacy = battle.aiV === 1; // IA anterior (ver abilityBlocks)
   battle.setPlayer('p2', {name: BOSSES[boss].name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
   if (format !== 8 && gimmicks.includes('dynamax')) {
@@ -482,7 +494,14 @@ function counterSetup(target, move, dmg) {
 function scoreMove(user, target, slot, threat) {
   const move = dex.moves.get(slot.id);
   const hp = user.hp / user.maxhp, foeHp = target.hp / target.maxhp;
-  const dmg = estimate(user, target, slot.id);
+  let dmg = estimate(user, target, slot.id);
+  // IA 3 (desde el 24-10): contra un Sustituto, los movimientos de estado al rival no sirven y un golpe normal solo
+  // rompe el muñeco (vale como mucho lo que un 25 % de vida); los de sonido o con Allanamiento lo atraviesan.
+  if (user.battle.aiV >= 3 && target.volatiles.substitute && !(move.flags?.sound || user.ability === 'infiltrator')) {
+    if (move.category === 'Status' && move.target !== 'self' && move.target !== 'allySide' && !move.sideCondition
+      && !move.weather && !move.terrain && !move.pseudoWeather && !move.forceSwitch) return 0;
+    if (move.category !== 'Status') dmg = Math.min(dmg, move.multihit ? 0.4 : 0.25);
+  }
   if (!user.battle.aiLegacy && !(move.category === 'Status' && move.target !== 'self' && abilityBlocks(user, target, move))) {
     const counter = counterSetup(target, move, dmg);
     if (counter !== null) return counter;
@@ -560,7 +579,10 @@ export function aiChoice(battle, sideId = 'p2') {
   const hp = me.hp / me.maxhp, foeFaster = speed(foe) >= speed(me);
   const lockedUseless = moves.filter(m => !m.disabled).length === 1 && bestScore < 0.15;
   const doomed = threat >= hp && foeFaster && bestScore < 2;
-  if (!req.active[0].trapped && (lockedUseless || bestScore < 0.3 && threat >= 0.5 || doomed && hp > 0.3)) {
+  // IA 3: con Drenadoras encima, cambiar se las quita (si no va a dejar K.O. este turno y aún tiene vida que salvar).
+  // (No si acaba de entrar: si no, el rival le vuelve a sembrar y se pasa el combate cambiando.)
+  const seeded = battle.aiV >= 3 && me.volatiles.leechseed && me.activeTurns >= 2 && hp > 0.25 && hp < 0.7 && bestScore < 2;
+  if (!req.active[0].trapped && (lockedUseless || bestScore < 0.3 && threat >= 0.5 || doomed && hp > 0.3 || seeded)) {
     const i = bestSwitch(side, foe) - 1, p = side.pokemon[i];
     if (p && !p.isActive && !p.fainted && bestDamage(foe, p) <= Math.min(threat * 0.6, 0.5 * p.hp / p.maxhp) && bestDamage(p, foe) >= 0.25) return 'switch ' + (i + 1);
   }

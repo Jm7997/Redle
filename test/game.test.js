@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf, poolFor} from '../src/game.js';
+import {BALANCE} from '../src/balance.js';
 
 test('el reto del día es igual para todos y cambia cada día', () => {
   const a = dailyPool('2026-10-12'), b = dailyPool('2026-10-12'), c = dailyPool('2026-10-13');
@@ -164,4 +165,22 @@ test('en la Liga los rivales usan como mucho un mecanismo por combate (≈10 %) 
   }
   assert.ok(plans / n > 0.04 && plans / n < 0.2, `planes ${plans}/${n}`);
   assert.equal(bossPlan('2026-10-14', 'red'), null); // fuera de la Liga, nada
+});
+
+test('equilibrio diario: solo días desde el 24-10, sorteo alternativo determinista y distinto del normal', () => {
+  const entries = Object.entries(BALANCE);
+  for (const [key, i] of entries) {
+    const [boss, date] = key.split(':');
+    assert.ok(date >= '2026-10-24', `${key}: nunca se cambian días ya jugados`);
+    assert.ok(BOSSES[boss] && Number.isInteger(i) && i > 0, key);
+  }
+  if (entries.length) {
+    const [key, i] = entries[0], [boss, date] = key.split(':');
+    const a = dailyPool(date, boss), b = dailyPool(date, boss);
+    assert.deepEqual(a, b);
+    assert.deepEqual(a.map(s => s.species), poolFor(boss, date, i).map(s => s.species));
+    assert.notDeepEqual(a.map(s => s.species), poolFor(boss, date, 0).map(s => s.species));
+  }
+  // Los días anteriores siguen con el sorteo de siempre.
+  assert.deepEqual(dailyPool('2026-10-20', 'red').map(s => s.species), poolFor('red', '2026-10-20', 0).map(s => s.species));
 });

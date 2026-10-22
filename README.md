@@ -9,7 +9,7 @@ Red, Blue, Lance, Steven, Wallace, Cynthia, Iris and Leon. No ROM, no emulator: 
 
 1. Every day you get a team of 6 Pokémon per rival, the same for everyone.
 2. Check your team and the rival's, and pick your lead.
-3. One try per rival per day. Some days have a **rule of the day** (Inverse Battle, Trick Room, weather…).
+3. Three tries per rival per day (one in the League). Some days have a **rule of the day** (Inverse Battle, Trick Room, weather…).
 4. Share your result and, if you like, a **replay link** of your battle.
 
 ```

@@ -89,7 +89,7 @@
           </div>
           <div class="balls foe"></div><div class="balls me"></div>
           <div class="turn"></div>
-          <div class="weather-badge" hidden></div>
+          <button class="weather-badge" hidden></button>
         </div>
         <div class="textbox"><p id="msg" role="status" aria-live="polite"></p></div>
       </div>
@@ -101,7 +101,7 @@
         </div>
         <div id="team-panel" class="team-panel" hidden></div>
         <div id="controls">
-          <div id="prompt" class="prompt"></div>
+          <div class="prompt-row"><div id="prompt" class="prompt"></div><button class="moves-info-toggle" id="btn-moves-info"></button></div>
           <div id="moves" class="moves"></div>
           <div id="switches" class="switches"></div>
         </div>
@@ -112,7 +112,7 @@
 
   <footer><span data-i18n="footer"></span> <button class="linklike" id="btn-legal" data-i18n="legalTitle"></button> · <button class="linklike" id="btn-news"><span data-i18n="newsLink"></span><i class="news-dot" hidden></i></button> · <button class="linklike" id="btn-feedback" data-i18n="feedbackLink"></button></footer>
 
-  <div id="intro" hidden><img class="boss-sprite" alt="" width="160" height="160"><p data-i18n="challenge"></p></div>
+  <div id="intro" hidden><img class="boss-sprite" alt="" width="160" height="160"><p data-i18n="challenge"></p><small class="intro-rule" hidden></small></div>
 
   <dialog id="dlg-help">
     <h2 data-i18n="howTitle"></h2>
@@ -132,6 +132,11 @@
     <div id="share-box" hidden>
       <pre id="share-text"></pre>
       <button class="primary" id="btn-share" data-i18n="share"></button>
+      <button class="secondary" id="btn-share-img" data-i18n="shareImg"></button>
+    </div>
+    <div id="install-box" class="install box" hidden>
+      <p><b data-i18n="installTitle"></b><span id="install-text"></span></p>
+      <div class="row"><button class="primary" id="btn-install" data-i18n="installBtn"></button><button class="linklike" id="btn-install-no" data-i18n="installNo"></button></div>
     </div>
     <div id="result-actions" class="actions"></div>
     <p class="small" id="next"></p>
@@ -172,6 +177,12 @@
       <div class="row"><input id="restore-code" maxlength="36" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><button class="secondary" id="btn-restore" data-i18n="restoreBtn"></button></div>
       <p class="small" id="restore-msg" data-i18n="backupNote"></p>
     </div>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-field">
+    <h2 data-i18n="fieldTitle"></h2>
+    <div id="field-list" class="field-list"></div>
     <button data-close data-i18n="close"></button>
   </dialog>
 

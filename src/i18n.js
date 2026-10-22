@@ -14,7 +14,7 @@ export function itemIcon(name) { return `<span class="icon-item" style="${Icons.
 // Cada clima y efecto de campo con el objeto que lo representa en los juegos.
 export const FIELD_ICON = {Hail: 'Icy Rock', Snowscape: 'Icy Rock', Snow: 'Icy Rock', SunnyDay: 'Heat Rock', RainDance: 'Damp Rock',
   Sandstorm: 'Smooth Rock', 'Electric Terrain': 'Electric Seed', 'Grassy Terrain': 'Grassy Seed', 'Misty Terrain': 'Misty Seed', 'Psychic Terrain': 'Psychic Seed', 'Inverse Battle': 'Ring Target', 'Trick Room': 'Room Service', Gravity: 'Iron Ball'};
-const RULE_ICON = {inverse: 'Ring Target', trickroom: 'Room Service', gravity: 'Iron Ball', sun: 'Heat Rock', rain: 'Damp Rock', sand: 'Smooth Rock', snow: 'Icy Rock'};
+export const RULE_ICON = {inverse: 'Ring Target', trickroom: 'Room Service', gravity: 'Iron Ball', sun: 'Heat Rock', rain: 'Damp Rock', sand: 'Smooth Rock', snow: 'Icy Rock'};
 
 const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 const es = LANG === 'es';
@@ -35,7 +35,7 @@ export const abilityName = id => (es && ES.abilities[toID(id)]) || dex.abilities
 const STRINGS = {
   es: {
     title: 'Redle',
-    yourTeam: 'Tu equipo', newsLink: 'Novedades', newsTitle: 'Novedades', newsNew: 'Nuevo', revivePick:'¿A quién quieres revivir?', reviveTag: 'Revivir', revived: w => `¡${w} ha revivido!`, trainYou: 'Entrenamiento al azar', trainYouTip: 'IVs, EVs y naturaleza al azar cada día.', trainYouTipIV: 'IVs perfectos; EVs y naturaleza al azar cada día.', trainBoss: 'Entrenado al máximo', trainBossTip: 'IVs perfectos, EVs a medida y objeto.', leadTag: '★ Empieza', you2: 'Tú', history: 'Historial',
+    yourTeam: 'Tu equipo', fieldTitle: 'En el campo de batalla', movesInfoOn: 'Detalles de los ataques ▾', movesInfoOff: 'Menos detalles ▴', priority: 'Prioridad', contact: 'Contacto', todayRule: 'Regla del día', fieldHint: 'Toca para ver qué hace', accNote: 'Precisión con lo que hay en el campo', newsLink: 'Novedades', newsTitle: 'Novedades', newsNew: 'Nuevo', revivePick:'¿A quién quieres revivir?', reviveTag: 'Revivir', revived: w => `¡${w} ha revivido!`, trainYou: 'Entrenamiento al azar', trainYouTip: 'IVs, EVs y naturaleza al azar cada día.', trainYouTipIV: 'IVs perfectos; EVs y naturaleza al azar cada día.', trainYouTipFull: 'Entrenado del todo, pero a su aire: IVs perfectos y EVs y naturaleza al azar.', trainBoss: 'Entrenado al máximo', trainBossTip: 'IVs perfectos, EVs a medida y objeto.', leadTag: '★ Empieza', you2: 'Tú', history: 'Historial',
     go: '¡Listo, a pelear!',
     footer: 'Proyecto fan no oficial y sin ánimo de lucro. Pokémon © Nintendo, Creatures y GAME FREAK. No afiliado.',
     legalTitle: 'Aviso legal y privacidad',
@@ -49,7 +49,7 @@ const STRINGS = {
     gotIt: '¡Entendido!',
     stats: 'Estadísticas', played: 'Jugadas', winPct: 'Victorias', streak: 'Racha', best: 'Mejor racha de victorias', mvp: 'MVP',
     lostSub: 'Vuelve mañana a por la revancha.',
-    share: 'Compartir resultado', copied: '¡Copiado!', close: 'Cerrar', seeResult: 'Ver resultado',
+    share: 'Compartir resultado', shareImg: 'Compartir como imagen', installTitle: '¿Vuelves mañana? ', installText: 'Instala Redle en tu móvil y tenlo a un toque, como una app.', installIOS: 'En Safari, pulsa Compartir y luego «Añadir a pantalla de inicio» para tenerlo como una app.', installBtn: 'Instalar', installNo: 'No, gracias', copied: '¡Copiado!', close: 'Cerrar', seeResult: 'Ver resultado',
     next: (h, m, s) => `Nuevo reto en ${h}h ${m}m ${s}s`, you: 'Tú',
     settings: 'Ajustes', language: 'Idioma', theme: 'Tema', auto: 'Auto', light: 'Claro', dark: 'Oscuro',
     music: 'Música', sfx: 'Efectos', speed: 'Velocidad', normal: 'Normal', fast: 'Rápida', on: 'Sí', off: 'No',
@@ -61,12 +61,12 @@ const STRINGS = {
     go1: n => `¡Adelante, ${n}!`,
     foe: n => `${n} enemigo`, uses: (u, m) => `¡${u} usa ${m}!`,
     lost_: (w, p) => `${w} pierde un ${p}% de sus PS.`, gained: (w, p) => `${w} recupera un ${p}% de sus PS.`,
-    super: '¡Es muy eficaz!', resisted: 'No es muy eficaz...', immune: w => `No afecta a ${w}...`, pranksterDark: w => `¡${w} es de tipo Siniestro: los movimientos de estado potenciados por Bromista no le afectan!`, crit: '¡Un golpe crítico!',
+    super: '¡Es muy eficaz!', resisted: 'No es muy eficaz...', immune: w => `No afecta a ${w}...`, typeImmune: (w, t, m) => `No afecta a ${w}... ¡Los tipo ${t} no reciben ataques de tipo ${m}!`, abilityImmune: (w, a) => `No afecta a ${w}... ¡Le protege su habilidad, ${a}!`, pranksterDark: w => `¡${w} es de tipo Siniestro: los movimientos de estado potenciados por Bromista no le afectan!`, crit: '¡Un golpe crítico!',
     miss: w => `¡${w} esquiva el ataque!`, fail: '¡Pero falla!', faint: w => `¡${w} se ha debilitado!`,
     st: {brn: w => `¡${w} se ha quemado!`, par: w => `¡${w} está paralizado! Quizás no pueda moverse.`, slp: w => `¡${w} se ha dormido!`, psn: w => `¡${w} ha sido envenenado!`, tox: w => `¡${w} ha sido gravemente envenenado!`, frz: w => `¡${w} se ha congelado!`},
     cure: {slp: w => `¡${w} se ha despertado!`, frz: w => `¡${w} ya no está congelado!`, _: w => `${w} se ha recuperado de su estado.`},
     cant: {slp: w => `${w} está dormido como un tronco.`, par: w => `¡${w} está paralizado y no se puede mover!`, frz: w => `¡${w} está congelado!`, flinch: w => `¡${w} retrocede!`, recharge: w => `${w} tiene que recargar.`, _: w => `${w} no puede moverse.`},
-    boost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'sube mucho' : 'sube'}!`, unboost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'baja mucho' : 'baja'}!`,
+    boost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'sube mucho' : 'sube'}!`, maxedStat: (w, s) => `¡${w} ha perdido PS y ha maximizado su ${s}!`, unboost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'baja mucho' : 'baja'}!`,
     stat: {atk: 'El Ataque', def: 'La Defensa', spa: 'El Ataque Especial', spd: 'La Defensa Especial', spe: 'La Velocidad', accuracy: 'La Precisión', evasion: 'La Evasión'},
     leftovers: w => `${w} recupera PS gracias a los Restos.`, poisonDmg: w => `El veneno resta PS a ${w}.`, burnDmg: w => `La quemadura resta PS a ${w}.`,
     recoil: w => `${w} sufre daño de retroceso.`, weatherDmg: w => `El tiempo daña a ${w}.`, hailDmg: w => `¡El granizo golpea a ${w}!`, hailUpkeep: 'Sigue granizando.', maxDesc: t => `Maxiataque de tipo ${t}. Su potencia depende del ataque original.`, maxGuardDesc: 'Protege de casi cualquier ataque durante un turno.',
@@ -85,7 +85,7 @@ const STRINGS = {
     taunted: w => `¡${w} se ha dejado engañar por la Mofa!`, encored: w => `¡${w} sufre los efectos de Otra Vez!`, drowsy: w => `¡${w} se está adormilando!`, perish: (w, n) => `Cuenta atrás de ${w}: ${n}.`,
     statusTag: {brn: 'QUE', par: 'PAR', slp: 'DOR', psn: 'ENV', tox: 'TÓX', frz: 'CON'},
     statShort: {atk: 'Atq', def: 'Def', spa: 'AtE', spd: 'DfE', spe: 'Vel', accuracy: 'Pre', evasion: 'Eva'},
-    ate: (w, i) => `¡${w} se ha comido su ${i}!`, usedItem: (w, i) => `${w} ha usado su ${i}.`,
+    ate: (w, i) => `¡${w} se ha comido su ${i}!`, harvest: (w, i) => `¡${w} ha cosechado una ${i}!`, recycled: (w, i) => `¡${w} ha reciclado su ${i}!`, pickedUp: (w, i) => `¡${w} ha recogido una ${i}!`, stole: (w, i) => `¡${w} ha robado: ${i}!`, obtained: (w, i) => `¡${w} ha obtenido: ${i}!`, balloon: w => `¡${w} flota en el aire con su Globo Helio!`, frisk: (w, t, i) => `¡${w} ha cacheado a ${t} y ha descubierto su ${i}!`, usedItem: (w, i) => `${w} ha usado su ${i}.`,
     prepare: w => `${w} está cogiendo fuerzas...`, protect: w => `¡${w} se está protegiendo!`, hitcount: n => `¡Ha golpeado ${n} veces!`,
     sideStart: (m, ally) => `¡${m} actúa en el campo ${ally ? 'aliado' : 'rival'}!`,
     hazardStart: {stealthrock: a => `¡${a ? 'Tu equipo' : 'El equipo rival'} está rodeado de piedras puntiagudas!`, spikes: a => `¡${a ? 'Tu equipo' : 'El equipo rival'} está rodeado de púas!`, toxicspikes: a => `¡${a ? 'Tu equipo' : 'El equipo rival'} está rodeado de púas tóxicas!`, stickyweb: a => `¡Una red viscosa se extiende bajo ${a ? 'tu equipo' : 'el equipo rival'}!`}, sideEnd: m => `${m} ha dejado de actuar.`,
@@ -98,7 +98,7 @@ const STRINGS = {
   },
   en: {
     title: 'Redle',
-    yourTeam: 'Your team', newsLink: "What's new", newsTitle: "What's new", newsNew: 'New', revivePick:'Which Pokémon will you revive?', reviveTag: 'Revive', revived: w => `${w} was revived and is ready to fight again!`, trainYou: 'Random training', trainYouTip: 'Random IVs, EVs and nature every day.', trainYouTipIV: 'Perfect IVs; random EVs and nature every day.', trainBoss: 'Fully trained', trainBossTip: 'Perfect IVs, tailored EVs and an item.', leadTag: '★ Lead', you2: 'You', history: 'History',
+    yourTeam: 'Your team', fieldTitle: 'On the battlefield', movesInfoOn: 'Move details ▾', movesInfoOff: 'Fewer details ▴', priority: 'Priority', contact: 'Contact', todayRule: "Today's rule", fieldHint: 'Tap to see what it does', accNote: 'Accuracy with the current field effects', newsLink: "What's new", newsTitle: "What's new", newsNew: 'New', revivePick:'Which Pokémon will you revive?', reviveTag: 'Revive', revived: w => `${w} was revived and is ready to fight again!`, trainYou: 'Random training', trainYouTip: 'Random IVs, EVs and nature every day.', trainYouTipIV: 'Perfect IVs; random EVs and nature every day.', trainYouTipFull: 'Fully trained, but its own way: perfect IVs, random EVs and nature.', trainBoss: 'Fully trained', trainBossTip: 'Perfect IVs, tailored EVs and an item.', leadTag: '★ Lead', you2: 'You', history: 'History',
     go: 'Ready, battle!',
     footer: 'Unofficial non-profit fan project. Pokémon © Nintendo, Creatures and GAME FREAK. Not affiliated.',
     legalTitle: 'Legal notice & privacy',
@@ -112,7 +112,7 @@ const STRINGS = {
     gotIt: 'Got it!',
     stats: 'Statistics', played: 'Played', winPct: 'Win %', streak: 'Streak', best: 'Best win streak', mvp: 'MVP',
     lostSub: 'Come back tomorrow for a rematch.',
-    share: 'Share result', copied: 'Copied!', close: 'Close', seeResult: 'See result',
+    share: 'Share result', shareImg: 'Share as image', installTitle: 'Coming back tomorrow? ', installText: 'Install Redle on your phone and open it with one tap, like an app.', installIOS: 'In Safari, tap Share and then “Add to Home Screen” to have it like an app.', installBtn: 'Install', installNo: 'No thanks', copied: 'Copied!', close: 'Close', seeResult: 'See result',
     next: (h, m, s) => `New challenge in ${h}h ${m}m ${s}s`, you: 'You',
     settings: 'Settings', language: 'Language', theme: 'Theme', auto: 'Auto', light: 'Light', dark: 'Dark',
     music: 'Music', sfx: 'Sound effects', speed: 'Speed', normal: 'Normal', fast: 'Fast', on: 'On', off: 'Off',
@@ -123,12 +123,12 @@ const STRINGS = {
     go1: n => `Go! ${n}!`,
     foe: n => `The opposing ${n}`, uses: (u, m) => `${u} used ${m}!`,
     lost_: (w, p) => `${w} lost ${p}% of its HP.`, gained: (w, p) => `${w} restored ${p}% of its HP.`,
-    super: "It's super effective!", resisted: "It's not very effective...", immune: w => `It doesn't affect ${w}...`, pranksterDark: w => `${w} is Dark-type: Prankster-boosted status moves don't affect it!`, crit: 'A critical hit!',
+    super: "It's super effective!", resisted: "It's not very effective...", immune: w => `It doesn't affect ${w}...`, typeImmune: (w, t, m) => `It doesn't affect ${w}... ${t} types can't be hit by ${m} moves!`, abilityImmune: (w, a) => `It doesn't affect ${w}... its ${a} protects it!`, pranksterDark: w => `${w} is Dark-type: Prankster-boosted status moves don't affect it!`, crit: 'A critical hit!',
     miss: w => `${w} avoided the attack!`, fail: 'But it failed!', faint: w => `${w} fainted!`,
     st: {brn: w => `${w} was burned!`, par: w => `${w} is paralyzed! It may be unable to move!`, slp: w => `${w} fell asleep!`, psn: w => `${w} was poisoned!`, tox: w => `${w} was badly poisoned!`, frz: w => `${w} was frozen solid!`},
     cure: {slp: w => `${w} woke up!`, frz: w => `${w} thawed out!`, _: w => `${w} was cured of its status.`},
     cant: {slp: w => `${w} is fast asleep.`, par: w => `${w} is paralyzed! It can't move!`, frz: w => `${w} is frozen solid!`, flinch: w => `${w} flinched!`, recharge: w => `${w} must recharge!`, _: w => `${w} can't move!`},
-    boost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'rose sharply' : 'rose'}!`, unboost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'harshly fell' : 'fell'}!`,
+    boost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'rose sharply' : 'rose'}!`, maxedStat: (w, s) => `${w} cut its own HP and maximized its ${s}!`, unboost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'harshly fell' : 'fell'}!`,
     stat: {atk: 'Attack', def: 'Defense', spa: 'Sp. Atk', spd: 'Sp. Def', spe: 'Speed', accuracy: 'accuracy', evasion: 'evasiveness'},
     leftovers: w => `${w} restored a little HP using its Leftovers!`, poisonDmg: w => `${w} was hurt by poison!`, burnDmg: w => `${w} was hurt by its burn!`,
     recoil: w => `${w} was damaged by the recoil!`, weatherDmg: w => `${w} is buffeted by the weather!`, hailDmg: w => `${w} is pelted by hail!`, hailUpkeep: 'Hail continues to fall.', maxDesc: t => `${t}-type Max Move. Its power depends on the original move.`, maxGuardDesc: 'Protects from almost any attack for one turn.',
@@ -147,7 +147,7 @@ const STRINGS = {
     taunted: w => `${w} fell for the taunt!`, encored: w => `${w} must do an encore!`, drowsy: w => `${w} grew drowsy!`, perish: (w, n) => `${w}'s perish count fell to ${n}.`,
     statusTag: {brn: 'BRN', par: 'PAR', slp: 'SLP', psn: 'PSN', tox: 'TOX', frz: 'FRZ'},
     statShort: {atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe', accuracy: 'Acc', evasion: 'Eva'},
-    ate: (w, i) => `${w} ate its ${i}!`, usedItem: (w, i) => `${w} used its ${i}.`,
+    ate: (w, i) => `${w} ate its ${i}!`, harvest: (w, i) => `${w} harvested one ${i}!`, recycled: (w, i) => `${w} found one ${i}!`, pickedUp: (w, i) => `${w} found one ${i}!`, stole: (w, i) => `${w} stole ${i}!`, obtained: (w, i) => `${w} obtained one ${i}.`, balloon: w => `${w} floats in the air with its Air Balloon!`, frisk: (w, t, i) => `${w} frisked ${t} and found its ${i}!`, usedItem: (w, i) => `${w} used its ${i}.`,
     prepare: w => `${w} is gathering power...`, protect: w => `${w} protected itself!`, hitcount: n => `Hit ${n} times!`,
     sideStart: (m, ally) => `${m} now protects ${ally ? 'your' : 'the opposing'} team!`,
     hazardStart: {stealthrock: a => `Pointed stones float in the air around ${a ? 'your' : 'the opposing'} team!`, spikes: a => `Spikes were scattered on the ground all around ${a ? 'your' : 'the opposing'} team!`, toxicspikes: a => `Poison spikes were scattered on the ground all around ${a ? 'your' : 'the opposing'} team!`, stickyweb: a => `A sticky web has been laid out on the ground around ${a ? 'your' : 'the opposing'} team!`}, sideEnd: m => `${m} wore off.`,
@@ -216,9 +216,37 @@ export const RULE_TEXT = es ? {
   sand: ['Sandstorm', 'all battle long: hurts anything that is not Rock, Ground or Steel.'],
   snow: ['Snow', 'all battle long: raises the Defense of Ice types.'],
 };
+// Qué hace cada clima y efecto de campo, contado como en los juegos (para la ficha que sale al tocar el indicador).
+export const FIELD_INFO = es ? {
+  Hail: ['Granizo', 'Cae granizo sin parar: cada turno hiere a quien no sea de tipo Hielo, y Ventisca no falla nunca.'],
+  Snow: ['Nieve', 'Los tipo Hielo aguantan mejor los golpes físicos y Ventisca no falla nunca.'],
+  SunnyDay: ['Sol', 'Los ataques de Fuego arden con más fuerza y los de Agua pierden la mitad. Trueno y Vendaval fallan más.'],
+  RainDance: ['Lluvia', 'El Agua golpea más fuerte y el Fuego se apaga a la mitad. Trueno y Vendaval no fallan nunca.'],
+  Sandstorm: ['Tormenta de arena', 'Cada turno araña a quien no sea Roca, Tierra o Acero, y los tipo Roca resisten mejor los ataques especiales.'],
+  'Electric Terrain': ['Campo Eléctrico', 'Quien pisa el suelo no puede dormirse y sus ataques Eléctricos chispean con más fuerza.'],
+  'Grassy Terrain': ['Campo de Hierba', 'La hierba cura un poco cada turno a quien pisa el suelo, potencia los ataques Planta y amortigua Terremoto.'],
+  'Misty Terrain': ['Campo de Niebla', 'La niebla protege de los problemas de estado a quien pisa el suelo y debilita los ataques Dragón contra él.'],
+  'Psychic Terrain': ['Campo Psíquico', 'Los ataques Psíquicos se potencian y nadie que pise el suelo puede recibir ataques con prioridad.'],
+  'Trick Room': ['Espacio Raro', 'Las dimensiones están del revés: los Pokémon más lentos atacan primero.'],
+  Gravity: ['Gravedad', 'La gravedad aprieta fuerte: nadie puede levitar ni volar, los ataques de Tierra alcanzan a todos y todos los ataques aciertan mucho más (Canto, Hipnosis…).'],
+  'Inverse Battle': ['Combate inverso', 'La tabla de tipos va del revés: lo muy eficaz apenas hace daño y lo que antes no afectaba ahora es muy eficaz.'],
+} : {
+  Hail: ['Hail', 'Hail keeps falling: every turn it hurts anyone who isn\'t Ice-type, and Blizzard never misses.'],
+  Snow: ['Snow', 'Ice types take physical hits better, and Blizzard never misses.'],
+  SunnyDay: ['Harsh sunlight', 'Fire attacks burn hotter and Water attacks are halved. Thunder and Hurricane miss more often.'],
+  RainDance: ['Rain', 'Water attacks hit harder and Fire attacks are halved. Thunder and Hurricane never miss.'],
+  Sandstorm: ['Sandstorm', 'Every turn it buffets anyone who isn\'t Rock, Ground or Steel, and Rock types resist special attacks better.'],
+  'Electric Terrain': ['Electric Terrain', 'Grounded Pokémon can\'t fall asleep and their Electric attacks crackle with extra power.'],
+  'Grassy Terrain': ['Grassy Terrain', 'The grass heals grounded Pokémon a little each turn, powers up Grass attacks and softens Earthquake.'],
+  'Misty Terrain': ['Misty Terrain', 'The mist protects grounded Pokémon from status conditions and weakens Dragon attacks against them.'],
+  'Psychic Terrain': ['Psychic Terrain', 'Psychic attacks are powered up and grounded Pokémon can\'t be hit by priority moves.'],
+  'Trick Room': ['Trick Room', 'The dimensions are twisted: slower Pokémon move first.'],
+  Gravity: ['Gravity', 'Gravity pulls hard: nothing can levitate or fly, Ground attacks hit everyone and every move is much more accurate (Sing, Hypnosis…).'],
+  'Inverse Battle': ['Inverse battle', 'The type chart is flipped: super effective barely hurts, and what used to have no effect is now super effective.'],
+};
 export const ruleHtml = rule => RULE_TEXT[rule] ? `${itemIcon(RULE_ICON[rule])} <b>${es ? 'Regla del día' : "Today's rule"}: ${RULE_TEXT[rule][0]}</b> — ${RULE_TEXT[rule][1]}` : '';
 
-export function setBoss(id, name, team, gens) {
+export function setBoss(id, name, team, gens, tries = 1) {
   const b = BOSS_TEXT[LANG][id];
   const itemsText = es ? `${itemIcon('Leftovers')} <b>Todos los Pokémon de ${name} llevan objeto</b>.` : `${itemIcon('Leftovers')} <b>All of ${name}'s Pokémon hold an item</b>.`;
   const rule = gensText(gens);
@@ -229,7 +257,7 @@ export function setBoss(id, name, team, gens) {
     how: ['Cada día recibes un <b>equipo de 6 Pokémon</b> nuevo, el mismo para todo el mundo.', `Mira tu equipo y el de ${name}, y <b>elige quién empieza</b>.`,
       `Derrota al equipo de <b>${name}</b>, el mismo que en los juegos: ${team}. Todos a nivel 100 y con objeto.`, rule, b.stage,
       'Algunos días hay una <b>regla del día</b> (combate inverso, Espacio Raro, clima…).',
-      'Solo tienes <b>un intento</b>. Recargar la página no lo reinicia.', 'Comparte tu resultado y vuelve mañana para no romper la racha.',
+      tries > 1 ? `Tienes <b>${tries} intentos</b>: si pierdes, vuelves a la pantalla de equipo. Recargar la página no los reinicia.` : 'Solo tienes <b>un intento</b>. Recargar la página no lo reinicia.', 'Comparte tu resultado y vuelve mañana para no romper la racha.',
       'En <b>Liga</b> te enfrentas a 5 rivales seguidos con otro equipo (Gen 1-9).'],
     won: `¡Has ganado a ${name}!`, lost: `${name} sigue ${b.f ? 'invicta' : 'invicto'}...`,
     shareWin: t => `🏆 ¡${name} ${b.f ? 'derrotada' : 'derrotado'} en ${t} turnos!`, shareLoss: t => `💀 ${name} ganó (turno ${t})`, red: name,
@@ -241,7 +269,7 @@ export function setBoss(id, name, team, gens) {
     how: ['Every day you get a new <b>team of 6 Pokémon</b>, the same for everyone.', `Check your team and ${name}'s, and <b>choose your lead</b>.`,
       `Defeat <b>${name}</b>'s team, the same as in the games: ${team}. All at level 100 and holding items.`, rule, b.stage,
       'Some days there is a <b>rule of the day</b> (inverse battle, Trick Room, weather…).',
-      'You get <b>one attempt</b>. Reloading the page does not reset it.', 'Share your result and come back tomorrow to keep your streak.',
+      tries > 1 ? `You get <b>${tries} tries</b>: if you lose, you go back to team select. Reloading the page does not reset them.` : 'You get <b>one attempt</b>. Reloading the page does not reset it.', 'Share your result and come back tomorrow to keep your streak.',
       'In <b>League</b> you face 5 rivals in a row with another team (Gens 1-9).'],
     won: `You beat ${name}!`, lost: `${name} remains undefeated...`,
     shareWin: t => `🏆 Beat ${name} in ${t} turns!`, shareLoss: t => `💀 ${name} won (turn ${t})`, red: name,
@@ -277,13 +305,13 @@ Object.assign(T, es ? {
   codeHint: 'Con este código recuperas tu progreso (medallas, rachas y estadísticas) en otro móvil u ordenador. No lo compartas: quien lo tenga puede usar tu progreso.',
   restoreLabel: 'Usar el código de otro dispositivo', restoreBtn: 'Recuperar', restoreConfirm: '¿Recuperar ese progreso? Sustituirá el de este navegador.',
   restoreBad: 'Código no válido.', restoreNone: 'No hay progreso guardado con ese código.', backupNote: 'Tu progreso se guarda solo al terminar cada reto.',
-  topTitle: 'Top del día', winsTitle: 'Victorias de hoy: mira cómo lo hicieron', watch: 'Ver', topTurns: t => `${t} turnos`, topKos: k => `${k}/6 K.O.`, shareCard: 'Compartir tarjeta',
+  topTitle: 'Top del día', triesLeft: n => n === 1 ? '¡Te queda un intento más! ¿Lo vuelves a intentar?' : `¡No te rindas! Te quedan ${n} intentos.`, tryAgain: (n, max) => `Intentar de nuevo (${n}/${max})`, winsTitle: 'Victorias de hoy: mira cómo lo hicieron', winsYesterday: 'Hoy nadie ha ganado todavía. Mira cómo lo hicieron ayer:', winsNone: 'Nadie ha ganado todavía… ¡a lo mejor eres tú el primero!', winsTitleLiga: 'Campeones de hoy: mira su combate contra el Campeón', watch: 'Ver', topTurns: t => `${t} turnos`, topKos: k => `${k}/6 K.O.`, shareCard: 'Compartir tarjeta',
   cardShare: (name, m, total, streak) => `Redle · Tarjeta de entrenador
 ${name}
 🏅 Medallas: ${m}/${total}
 🔥 Racha: ${streak} ${streak === 1 ? 'día' : 'días'}`,
   rPrev: '◀ Turno anterior', rNext: 'Turno siguiente ▶', rPause: 'Pausa', rPlay: 'Seguir', rEnd: 'Ir al final', rStart: 'Inicio', rTurn: 'Ir al turno', rTurnN: t => `Turno ${t}`,
-  welcome: 'Cada día, el mismo reto para todo el mundo: <b>tu equipo de 6 contra un entrenador legendario</b> con su equipo de los juegos. <b>Toca quién empieza</b>, pulsa ¡Listo! y comparte tu resultado. Un intento al día por rival; después puedes practicar.',
+  welcome: 'Cada día, el mismo reto para todo el mundo: <b>tu equipo de 6 contra un entrenador legendario</b> con su equipo de los juegos. <b>Toca quién empieza</b>, pulsa ¡Listo! y comparte tu resultado. Después puedes practicar.',
   rulesTitle: 'Reglas de este combate', showDetails: 'Ver estadísticas y ataques ▾', hideDetails: 'Ocultar estadísticas y ataques ▴',
   leagueProgress: (round, left) => `Ronda ${round}/5 · ${left ? `${left === 1 ? 'queda 1 rival' : `quedan ${left} rivales`} después` : '¡último rival!'}`,
   shareLeft: n => `le dejé a ${n} Pokémon`, shareStreak: n => `🔥 ${n} ${n === 1 ? 'día' : 'días'} seguidos`,
@@ -315,13 +343,13 @@ ${name}
   codeHint: 'Use this code to get your progress (badges, streaks and stats) on another phone or computer. Keep it private: anyone with it can use your progress.',
   restoreLabel: 'Use a code from another device', restoreBtn: 'Restore', restoreConfirm: 'Restore that progress? It will replace the one in this browser.',
   restoreBad: 'Invalid code.', restoreNone: 'There is no saved progress for that code.', backupNote: 'Your progress is backed up automatically after each challenge.',
-  topTitle: "Today's top", winsTitle: "Today's wins: see how they did it", watch: 'Watch', topTurns: t => `${t} turns`, topKos: k => `${k}/6 KOs`, shareCard: 'Share card',
+  topTitle: "Today's top", triesLeft: n => n === 1 ? 'One more try left! Give it another go?' : `Don't give up! You have ${n} tries left.`, tryAgain: (n, max) => `Try again (${n}/${max})`, winsTitle: "Today's wins: see how they did it", winsYesterday: 'Nobody has won yet today. See how they did it yesterday:', winsNone: 'Nobody has won yet… maybe you\'ll be the first!', winsTitleLiga: "Today's champions: watch their battle against the Champion", watch: 'Watch', topTurns: t => `${t} turns`, topKos: k => `${k}/6 KOs`, shareCard: 'Share card',
   cardShare: (name, m, total, streak) => `Redle · Trainer card
 ${name}
 🏅 Badges: ${m}/${total}
 🔥 Streak: ${streak} ${streak === 1 ? 'day' : 'days'}`,
   rPrev: '◀ Previous turn', rNext: 'Next turn ▶', rPause: 'Pause', rPlay: 'Resume', rEnd: 'Skip to end', rStart: 'Start', rTurn: 'Go to turn', rTurnN: t => `Turn ${t}`,
-  welcome: 'Every day, the same challenge for everyone: <b>your team of 6 against a legendary trainer</b> with their real in-game team. <b>Tap your lead</b>, press Ready! and share your result. One try per rival per day; you can practice afterwards.',
+  welcome: 'Every day, the same challenge for everyone: <b>your team of 6 against a legendary trainer</b> with their real in-game team. <b>Tap your lead</b>, press Ready! and share your result. You can practice afterwards.',
   rulesTitle: 'Rules for this battle', showDetails: 'Show stats and moves ▾', hideDetails: 'Hide stats and moves ▴',
   leagueProgress: (round, left) => `Round ${round}/5 · ${left ? `${left} more ${left === 1 ? 'rival' : 'rivals'} after this` : 'final rival!'}`,
   shareLeft: n => `left them with ${n} Pokémon`, shareStreak: n => `🔥 ${n}-day streak`,

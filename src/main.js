@@ -3,7 +3,7 @@
 import {Dex} from '@pkmn/sim';
 import {Sprites, Icons} from '@pkmn/img';
 import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
-import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON} from './i18n.js';
+import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON, FIELD_INFO, RULE_TEXT, RULE_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
 import {NEWS} from './news.js';
 import {sendResult, dailyStats, dailyRank, dailyTop, dailyWins, sendFeedback, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
@@ -57,7 +57,9 @@ function parseReplay(hash) {
     if (tokens.length > 1000 || !tokens.every(t => /^(m[1-4][tmx]?|s[1-6]|d|f)$/.test(t))) return null;
     const fromToken = Object.fromEntries(Object.entries(GIMMICK_TOKEN).map(([k, v]) => [v, ' ' + k]));
     const choices = tokens.map(t => t === 'd' ? 'default' : t === 'f' ? 'forfeit' : (t[0] === 'm' ? 'move ' : 'switch ') + t[1] + (fromToken[t[2]] || ''));
-    return {mode, date, round, picks: picks.map(Number), choices};
+    const attempt = raw.a | 0 || 1;
+    if (attempt < 1 || attempt > 3 || mode === 'liga' && attempt > 1) return null;
+    return {mode, date, round, attempt, picks: picks.map(Number), choices};
   } catch { return null; }
 }
 const REPLAY = parseReplay(location.hash);
@@ -72,7 +74,7 @@ const store = Object.assign({stats: {played: 0, wins: 0, streak: 0, best: 0, bes
 
 // Modo práctica (?practica=semilla&equipo=hoy|semilla): no se guarda ni cuenta para las estadísticas.
 // Solo tras jugar el reto: si perdiste, con el mismo equipo del día; si ganaste, también con equipos aleatorios.
-const dailyResult = store.days[TODAY]?.result;
+const dailyResult = store.days[TODAY]?.closed ? store.days[TODAY].result : null; // hecho = ganado o sin intentos
 const PRACTICE = !REPLAY && dailyResult ? params.get('practica') : null;
 const TEAM = PRACTICE && dailyResult === 'win' ? params.get('equipo') || 'hoy' : 'hoy';
 const POOL_DATE = REPLAY ? REPLAY.date : TEAM === 'hoy' ? TODAY : 'equipo-' + TEAM;
@@ -95,7 +97,12 @@ const day = () => store.days[DATE] ||= LIGA ? {round: 0, rounds: []} : {picks: d
 const round = () => LIGA ? day().round : 0;
 const rec = () => LIGA ? (day().rounds[day().round] ||= {picks: defaultPicks(), choices: []}) : day();
 if (REPLAY) Object.assign(LIGA ? (day().round = REPLAY.round, rec()) : day(), {picks: REPLAY.picks, choices: [], started: true});
-const battleKey = () => LIGA ? `liga${round()}:${DATE}` : DATE;
+// Intentos por día contra un rival (desde el 24-10-2026): 3, como en Wordle; gana el intento en que ganes. La Liga,
+// uno (ya son 5 combates seguidos). Cada intento tiene su propia semilla, para que no se repita todo igual.
+const TRIES_FROM = '2026-10-24';
+const maxTries = () => REPLAY || PRACTICE || LIGA || DATE < TRIES_FROM ? 1 : 3;
+const attempt = () => REPLAY ? REPLAY.attempt : LIGA ? 1 : day().attempt || 1;
+const battleKey = () => LIGA ? `liga${round()}:${DATE}` : attempt() > 1 ? `${DATE}~${attempt()}` : DATE;
 
 // ---------- rival actual ----------
 let OPP, B, STAGE, RULE, GIMMICKS = [];
@@ -115,7 +122,7 @@ for (const ev of ['load', 'error']) document.addEventListener(ev, e => { if (e.t
 function setOpponent(id) {
   // B.team: el equipo que tenía el rival ese día (Lance cambió de equipo el 15-10-2026).
   OPP = id; B = {...BOSSES[id], team: teamOf(id, PRACTICE ? DATE : RULE_DATE)}; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
-  setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens);
+  setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens, maxTries());
   const body = document.body;
   body.className = body.className.replace(/\bboss-\w+/g, '').trim();
   body.classList.add('boss-' + id);
@@ -136,7 +143,7 @@ if (LIGA) document.body.classList.add('mode-liga');
 // Selector de modo: los 8 rivales y la Liga, con el estado del reto de hoy de cada uno.
 const markOf = id => {
   const d = readJSON(keyOf(id)).days?.[TODAY];
-  return id === 'liga' && d?.result ? (d.result === 'win' ? itemIcon('Poke Ball') : `${d.reached}/5`) : d?.result === 'win' ? itemIcon('Poke Ball') : d?.result === 'loss' ? '✗' : '';
+  return id === 'liga' && d?.result ? (d.result === 'win' ? itemIcon('Poke Ball') : `${d.reached}/5`) : d?.result === 'win' ? itemIcon('Poke Ball') : d?.result === 'loss' ? (d.closed ? '✗' : `${d.attempt || 1}/3`) : '';
 };
 $('#bosses').innerHTML = [...Object.values(BOSSES).map(b => ({id: b.id, name: b.name, img: `${SD}sprites/trainers/${STAGES[b.id].sprite}.png`})),
   {id: 'liga', name: T.league, img: ''}].map(b =>
@@ -252,7 +259,7 @@ function renderDraft() {
   $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
   $('#rules').hidden = !$('#stage-rules').innerHTML;
   // Aviso de entrenamiento: tu equipo al azar (Brazal Recio) frente al rival entrenado al máximo (Brazal Firme).
-  $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${T.trainYou}</b><small>${POOL_DATE >= '2026-10-18' ? T.trainYouTipIV : T.trainYouTip}</small></span>`;
+  $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${T.trainYou}</b><small>${POOL_DATE >= '2026-10-24' ? T.trainYouTipFull : POOL_DATE >= '2026-10-18' ? T.trainYouTipIV : T.trainYouTip}</small></span>`;
   $('#train-boss').innerHTML = `${itemIcon('Macho Brace')}<span><b>${T.trainBoss}</b><small>${T.trainBossTip}</small></span>`;
   // Fichas compactas por defecto (sprite, tipos y objeto); estadísticas, habilidad y ataques se despliegan con un toque.
   const details = ls.get('redle:details') === '1';
@@ -305,6 +312,9 @@ async function startBattle(isNew) {
     busy = true; // durante la intro, los controles de repetición esperan a `consume`
     // Transición de inicio de combate: destellos, franjas y el rival entrando.
     $('#intro p').textContent = LIGA ? T.leagueChallenge(round() + 1, B.name) : T.challenge;
+    const rule = RULE_TEXT[RULE] ? [RULE_ICON[RULE], RULE_TEXT[RULE][0]] : B.weather === 'hail' ? [FIELD_ICON.Hail, FIELD_INFO.Hail[0]] : null;
+    $('#intro .intro-rule').hidden = !rule;
+    if (rule) $('#intro .intro-rule').innerHTML = `${itemIcon(rule[0])}<span>${T.todayRule}: <b>${rule[1]}</b></span>`;
     const intro = $('#intro');
     intro.hidden = false;
     sfx('encounter');
@@ -327,7 +337,7 @@ async function choose(choice) {
 
 // Tocar el escenario o la caja de texto salta lo que queda de animación del turno.
 let skipping = false;
-for (const s of ['.arena', '.textbox']) $(s).addEventListener('click', e => { if (busy && !e.target.closest('.hud')) skipping = true; });
+for (const s of ['.arena', '.textbox']) $(s).addEventListener('click', e => { if (busy && !e.target.closest('.hud, .weather-badge')) skipping = true; });
 
 // Procesa líneas del log. En una repetición se puede pausar entre mensajes o pedir un salto de turno (`seek`):
 // entonces corta y devuelve false.
@@ -526,6 +536,11 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       const types = view.tera[side][view[side].name] ? [view.tera[side][view[side].name]] : dex.species.get(view[side].species).types;
       if (mv?.category === 'Status' && lm.side !== side && battle?.[lm.side]?.active[0]?.ability === 'prankster' && types.includes('Dark'))
         return say(T.pranksterDark(who(a)), animate);
+      // Decir por qué, como en los juegos nuevos: por su habilidad (Levitación, Absorbe Agua…) o por su tipo.
+      const ability = fromTag(tags, 'ability');
+      if (ability) return say(T.abilityImmune(who(a), abilityName(ability)), animate);
+      const immuneType = mv && lm.side !== side && types.find(t => !dex.getImmunity(mv.type, [t]));
+      if (immuneType) return say(T.typeImmune(who(a), typeName(immuneType), typeName(mv.type)), animate);
       return say(T.immune(who(a)), animate);
     }
     case '-crit': if (animate) { sfx('crit'); flash('#fff', 200); } return say(T.crit, animate, 'eff');
@@ -559,6 +574,12 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       if (animate) { sfx(up ? 'boost' : 'drop'); statFx(img(side), up); }
       return say((up ? T.boost : T.unboost)(who(a), T.stat[b] || b, n), animate, cls);
     }
+    case '-setboost': { // Tambor y similares fijan la característica de golpe (Tambor: Ataque al +6)
+      view[side].boosts[b] = +c || 0;
+      drawHud(side);
+      if (animate) { sfx('boost'); statFx(img(side), true); }
+      return say(+c >= 6 ? T.maxedStat(who(a), T.stat[b] || b) : T.boost(who(a), T.stat[b] || b, +c), animate, cls);
+    }
     case '-clearallboost': view.p1.boosts = {}; view.p2.boosts = {}; drawHud('p1'); drawHud('p2'); return say(T.clearBoosts, animate);
     case '-clearboost': view[side].boosts = {}; drawHud(side); return;
     case '-clearnegativeboost': // Hierba Blanca: quita solo las bajadas (el combate ya las quitaba; faltaba en el marcador)
@@ -568,6 +589,16 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       if (side === 'p2') seenOf(view.p2.species).item = b;
       if (animate) { popup(cls, `${itemIcon(b)}${itemName(b)}`); sfx('item'); }
       return say((tags.includes('[eat]') ? T.ate : T.usedItem)(who(a), itemName(b)), animate, cls);
+    case '-item': { // un Pokémon consigue o enseña un objeto: Cosecha, Reciclaje, Truco, Ladrón, Recogida, Cacheo, Globo Helio
+      if (side === 'p2') seenOf(view.p2.species).item = b;
+      if (animate) { popup(cls, `${itemIcon(b)}${itemName(b)}`); sfx('item'); }
+      const item = itemName(b), from = fromTag(tags, 'ability') || fromTag(tags, 'move') || '';
+      const of = tags.match(/\[of\] (p[12]a?: [^|]+)/)?.[1];
+      if (from === 'Frisk' && of) return say(T.frisk(who(of), who(a), item), animate, cls);
+      const msg = {Harvest: T.harvest, Recycle: T.recycled, Pickup: T.pickedUp, Thief: T.stole, Covet: T.stole}[from]
+        || (b === 'Air Balloon' && !from ? T.balloon : T.obtained);
+      return say(msg(who(a), item), animate, cls);
+    }
     case '-ability':
       if (side === 'p2') seenOf(view.p2.species).ability = b;
       if (animate) { popup(cls, `<small>${parseId(a).name}</small>${abilityName(b)}`); sfx('item'); await wait(700); }
@@ -715,7 +746,21 @@ function drawWeather() {
     .filter(([, txt]) => txt).map(([id, txt]) => `${itemIcon(FIELD_ICON[id])}${txt}`);
   $('.weather-badge').hidden = !badges.length;
   $('.weather-badge').innerHTML = badges.join(' · ');
+  $('.weather-badge').title = T.fieldHint;
 }
+// Al tocar el indicador: una ficha con lo que hace cada clima o efecto que hay ahora en el campo.
+const fieldKey = id => (id === 'Snowscape' ? 'Snow' : id);
+$('.weather-badge').onclick = e => {
+  e.stopPropagation(); // no cuenta como "saltar animación"
+  const ids = [view.weather, ...view.field].filter(id => id && FIELD_INFO[fieldKey(id)]);
+  if (!ids.length) return;
+  sfx('click');
+  $('#field-list').innerHTML = ids.map(id => {
+    const [name, text] = FIELD_INFO[fieldKey(id)];
+    return `<section>${itemIcon(FIELD_ICON[id])}<div><b>${name}</b><p>${text}</p></div></section>`;
+  }).join('');
+  $('#dlg-field').showModal();
+};
 
 // Trampas y barreras en el lado de cada uno: piedras, púas y red bajo el Pokémon, y un panel de color para
 // Reflejo / Pantalla de Luz / Velo Aurora. El resto (Viento Afín, Velo Sagrado…) como etiqueta pequeña.
@@ -797,7 +842,18 @@ document.querySelectorAll('.tabs button').forEach(b => (b.onclick = () => {
 // Mecanismo elegido para el próximo ataque: '' | 'terastallize' | 'mega' | 'dynamax'.
 let gimmickOn = '';
 const GIMMICK_BTN = [['canTerastallize', 'terastallize', 'tera'], ['canMegaEvo', 'mega', 'mega'], ['canDynamax', 'dynamax', 'dmax']];
+// Detalles de los ataques (descripción entera, potencia, precisión, prioridad, contacto): sobre todo para el móvil,
+// donde por defecto la descripción va recortada. Se recuerda la elección.
+const movesFull = () => ls.get('redle:moveinfo') === '1';
+function drawMovesToggle() {
+  $('#moves').classList.toggle('full', movesFull());
+  $('#btn-moves-info').textContent = movesFull() ? T.movesInfoOff : T.movesInfoOn;
+  $('#btn-moves-info').setAttribute('aria-pressed', movesFull());
+}
+$('#btn-moves-info').onclick = () => { sfx('click'); ls.set('redle:moveinfo', movesFull() ? '0' : '1'); drawMovesToggle(); };
+
 function drawControls() {
+  drawMovesToggle();
   $('.forfeit-btn')?.remove();
   const req = battle.p1.activeRequest;
   const moves = $('#moves'), switches = $('#switches');
@@ -805,7 +861,7 @@ function drawControls() {
   if (!req || req.wait) return;
   const me = battle.p1.active[0], foe = battle.p2.active[0];
   // Revival Blessing (Bendición): hay que elegir a un Pokémon debilitado para revivirlo.
-  const revive = req.forceSwitch && !!battle.p1.slotConditions[0]?.revivalblessing;
+  const revive = !!(req.forceSwitch && battle.p1.slotConditions[0]?.revivalblessing); // booleano: toggle(x, undefined) alterna la clase
   $('#prompt').textContent = revive ? T.revivePick : req.forceSwitch ? T.who : T.what(me.name);
   switches.classList.toggle('revive', revive);
   const r = req.active?.[0];
@@ -827,17 +883,33 @@ function drawControls() {
   // Con Dinamax (activo o a punto de usarse) los botones muestran los Maxiataques.
   const maxMode = !req.forceSwitch && (me.volatiles.dynamax || gimmickOn === 'dynamax');
   if (!req.forceSwitch) {
+    // Precisión real con lo que hay en el campo, para que no sorprenda (Gravedad ×5/3; Trueno/Vendaval con lluvia o
+    // sol; Ventisca con granizo o nieve). null si no cambia.
+    const realAcc = move => {
+      if (move.accuracy === true || move.category === 'Status' && move.target === 'self') return null;
+      const w = battle.field.effectiveWeather(), why = [];
+      let acc = move.accuracy;
+      if (['thunder', 'hurricane'].includes(move.id) && w === 'raindance') { acc = 100; why.push('RainDance'); }
+      else if (['thunder', 'hurricane'].includes(move.id) && w === 'sunnyday') { acc = 50; why.push('SunnyDay'); }
+      if (move.id === 'blizzard' && ['hail', 'snow', 'snowscape'].includes(w)) { acc = 100; why.push('Hail'); }
+      if (battle.field.pseudoWeather.gravity && acc < 100) { acc = Math.min(100, Math.floor(acc * 5 / 3)); why.push('Gravity'); }
+      return acc !== move.accuracy ? {acc, why: why.at(-1)} : null;
+    };
     req.active[0].moves.forEach((m, i) => {
       const move = dex.moves.get(maxMode && r.maxMoves?.maxMoves?.[i] ? r.maxMoves.maxMoves[i].move : m.id);
       const cat = move.category === 'Status' ? T.status : move.category === 'Physical' ? T.physical : T.special;
       const mult = typeMultiplier(me, foe, m.id);
       const hint = mult === null ? '' : mult === 0 ? T.noEffect : mult > 1 ? T.superEff : mult < 1 ? T.notVery : '';
       const power = move.isMax ? dex.moves.get(m.id).maxMove?.basePower : move.basePower; // potencia real del Maxiataque
-      const info = [cat, power && move.category !== 'Status' ? `${T.power} ${power}` : '', move.accuracy === true ? '' : `${T.acc} ${move.accuracy}`].filter(Boolean).join(' · ');
+      const real = realAcc(move);
+      const accTxt = move.accuracy === true ? '' : real ? `${T.acc} <s>${move.accuracy}</s> <span class="acc-real">${real.acc}</span>` : `${T.acc} ${move.accuracy}`;
+      const info = [cat, power && move.category !== 'Status' ? `${T.power} ${power}` : '', accTxt,
+        move.priority ? `${T.priority} ${move.priority > 0 ? '+' : ''}${move.priority}` : '', move.flags?.contact ? T.contact : ''].filter(Boolean).join(' · ');
+      const accTag = real ? `<span class="acc-tag" title="${T.accNote}">${itemIcon(FIELD_ICON[real.why])}${real.acc}%</span>` : '';
       // Descripción como en los juegos al elegir un ataque (los Maxiataques no tienen texto oficial).
       const desc = move.isMax ? (move.id === 'maxguard' ? T.maxGuardDesc : T.maxDesc(typeName(move.type))) : moveDesc(move.id);
       const b = el('button', `move t-${move.type.toLowerCase()}`,
-        `<b>${m.id === 'recharge' ? T.recharge : moveName(move.id)}</b><span class="line">${typeBadge(move.type)}<span>PP ${m.pp ?? '-'}/${m.maxpp ?? '-'}</span></span><span class="info">${info}</span>${desc ? `<span class="desc">${desc}</span>` : ''}${hint ? `<em class="${mult > 1 ? 'good' : 'bad'}">${hint}</em>` : ''}`);
+        `<b>${m.id === 'recharge' ? T.recharge : moveName(move.id)}</b><span class="line">${typeBadge(move.type)}${accTag}<span>PP ${m.pp ?? '-'}/${m.maxpp ?? '-'}</span></span><span class="info">${info}</span>${desc ? `<span class="desc">${desc}</span>` : ''}${hint ? `<em class="${mult > 1 ? 'good' : 'bad'}">${hint}</em>` : ''}`);
       b.disabled = !!m.disabled || m.pp === 0;
       if (desc) b.title = desc;
       b.onclick = () => choose(`move ${i + 1}${gimmickOn ? ' ' + gimmickOn : ''}`);
@@ -928,10 +1000,13 @@ function closeDay(won, reached) {
 // Resultado de hoy tal y como se envía (y se compara para el puesto del día).
 const myResult = () => {
   const d = day();
-  return LIGA ? {day: TODAY, mode: MODE, won: d.result === 'win', turns: null, reached: d.reached, kos: null}
-    : {day: TODAY, mode: MODE, won: d.result === 'win', turns: d.turns, reached: null, kos: d.red.filter(a => !a).length,
+  // Liga: si eres Campeón, se guarda la repetición del combate contra el Campeón (ronda 5), la más espectacular.
+  const champ = d.rounds?.[LEAGUE.rounds - 1];
+  return LIGA ? {day: TODAY, mode: MODE, won: d.result === 'win', turns: null, reached: d.reached, kos: null,
+      replay: d.result === 'win' && champ ? encodeReplay({m: MODE, d: DATE, r: LEAGUE.rounds - 1, p: champ.picks, c: champ.choices}) : null}
+    : {day: TODAY, mode: MODE, won: d.result === 'win', turns: d.turns, reached: null, kos: d.red.filter(a => !a).length, tries: attempt(),
       // Si ganas, tu repetición queda para que otros vean cómo se hizo (solo tras jugar su intento).
-      replay: d.result === 'win' ? encodeReplay({m: MODE, d: DATE, r: 0, p: d.picks, c: d.choices}) : null};
+      replay: d.result === 'win' ? encodeReplay({m: MODE, d: DATE, r: 0, a: attempt(), p: d.picks, c: d.choices}) : null};
 };
 
 function finish(animate) {
@@ -965,6 +1040,13 @@ function finish(animate) {
     }));
     return;
   }
+  const left = maxTries() - attempt();
+  if (!LIGA && r.result === 'loss' && left > 0) {
+    if (animate) jingle('lose'); else playMusic(null);
+    $('#prompt').textContent = T.triesLeft(left);
+    $('#moves').append(ballBtn(T.tryAgain(attempt() + 1, maxTries()), retry), ballBtn('▶ ' + T.replay, watchReplay, 'ballbtn alt'));
+    return;
+  }
   closeDay(r.result === 'win', LIGA ? (r.result === 'win' ? LEAGUE.rounds : round()) : 0);
   if (animate) jingle(r.result === 'win' ? 'win' : 'lose');
   else playMusic(null);
@@ -972,6 +1054,20 @@ function finish(animate) {
   $('#moves').append(ballBtn(T.seeResult, showResult),
     ballBtn('▶ ' + T.replay, watchReplay, 'ballbtn alt'), ...practiceOptions().map(([txt, fn]) => ballBtn(txt, fn, 'ballbtn alt')));
   if (animate) resultTimer = setTimeout(showResult, 2500);
+}
+
+// Otro intento: se guarda el anterior y se vuelve a la pantalla de equipo (se puede elegir otro líder).
+function retry() {
+  const d = day();
+  (d.tries ||= []).push({turns: d.turns, kos: d.red.filter(a => !a).length});
+  for (const k of ['result', 'turns', 'mine', 'red', 'mvp', 'started']) delete d[k];
+  d.choices = [];
+  d.attempt = (d.attempt || 1) + 1;
+  save();
+  sfx('switch');
+  resetView();
+  renderDraft();
+  window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 // Qué práctica se ofrece al acabar: el mismo equipo siempre; uno aleatorio solo si ya ganaste el reto de hoy.
@@ -1007,7 +1103,7 @@ function replayEnd() {
 // Enlace que reproduce este combate en cualquier navegador.
 function replayLink() {
   const r = rec();
-  const hash = encodeReplay({m: MODE, d: DATE, r: round(), p: r.picks, c: r.choices});
+  const hash = encodeReplay({m: MODE, d: DATE, r: round(), ...(attempt() > 1 ? {a: attempt()} : {}), p: r.picks, c: r.choices});
   return `${location.origin}${location.pathname}?vs=${MODE}#r=${hash}`;
 }
 
@@ -1039,6 +1135,7 @@ function summary() {
   return [...stats.values()];
 }
 
+const triesTag = () => (maxTries() > 1 ? ` ${day().result === 'win' ? attempt() : 'X'}/${maxTries()}` : '');
 const mvpOf = rows => rows.reduce((m, r) => (r.kos * 1000 + r.dmg > m.kos * 1000 + m.dmg ? r : m), rows[0]);
 
 function shareText() {
@@ -1051,7 +1148,7 @@ function shareText() {
   const red = d.red.map(a => (a ? '🔴' : '⚫')).join('');
   const left = d.red.filter(Boolean).length;
   const head = d.result === 'win' ? T.shareWin(d.turns) : `${T.shareLoss(d.turns)} · ${T.shareLeft(left)}`;
-  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${streakLine()}${url}`;
+  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${streakLine()}${url}`;
 }
 const streakLine = () => { const s = playStreak(); return s.n > 1 ? T.shareStreak(s.n) + '\n' : ''; };
 
@@ -1071,7 +1168,7 @@ function bumpStreak() {
 }
 
 function showResult() {
-  const d = store.days[DATE], done = d?.result;
+  const d = store.days[DATE], done = d?.closed ? d.result : null;
   $('#result-title').textContent = !done ? T.stats : LIGA ? (done === 'win' ? T.leagueWon : T.leagueLost(d.reached + 1)) : done === 'win' ? T.won : T.lost;
   $('#result-body').innerHTML = !done ? '' : LIGA
     ? `<div class="lineup small-lineup">${LINEUP.map((id, i) => `<figure class="${d.rounds[i]?.result === 'win' ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : ''}"><img src="${trainerImg(id)}" alt="" width="48" height="48"><figcaption><b>${BOSSES[id].name}</b></figcaption></figure>`).join('')}</div><p>${done === 'win' ? T.leagueWonSub : T.leagueLostSub}</p>`
@@ -1108,6 +1205,7 @@ function showResult() {
     if (PRACTICE) add(T.backToday, goToday);
   }
   drawGlobal(done);
+  drawInstall(done);
   tickCountdown();
   if (!$('#dlg-stats').open) $('#dlg-stats').showModal();
 }
@@ -1116,9 +1214,10 @@ function showResult() {
 async function drawGlobal(done) {
   const box = $('#global');
   box.innerHTML = '';
-  if (!done || PRACTICE || REPLAY) return;
+  if (!done || REPLAY) return;
+  if (PRACTICE) return drawWins(box); // en práctica ya jugaste el reto: puedes ver cómo ganaron otros
   box.innerHTML = '<i class="sk sk-line"></i><i class="sk sk-line short"></i>'; // esqueleto mientras responde Supabase
-  const [all, rank, top, wins] = await Promise.all([dailyStats(TODAY), dailyRank(myResult()), dailyTop(TODAY, MODE), LIGA ? null : dailyWins(TODAY, MODE)]);
+  const [all, rank, top, wins] = await Promise.all([dailyStats(TODAY), dailyRank(myResult()), dailyTop(TODAY, MODE), dailyWins(TODAY, MODE)]);
   const g = all?.[MODE];
   if (!g || !g.players) { box.innerHTML = ''; return; }
   const pct = n => Math.round(100 * n / g.players);
@@ -1130,13 +1229,24 @@ async function drawGlobal(done) {
   } else {
     box.innerHTML = `<h3>${itemIcon('Poke Ball')} ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalWins(pct(g.wins))}${g.avgTurns ? ` · ${T.globalTurns(g.avgTurns)}` : ''}</p>`;
   }
-  if (rank) box.insertAdjacentHTML('beforeend', `<p class="rank">${T.rankLine(rank.pos, rank.total)}</p>`);
+  if (rank) box.insertAdjacentHTML('beforeend', `<p class="rank">${T.rankLine(rank.pos, Math.max(rank.total, rank.pos))}</p>`);
   if (Array.isArray(top) && top.length) box.insertAdjacentHTML('beforeend', `<h4>${T.topTitle}</h4><ol class="top">${top.map(r =>
-    `<li class="${r.me ? 'me' : ''}"><span>${r.nickname ? esc(r.nickname) : T.anon}</span><em>${LIGA ? `${r.reached ?? 0}/5` : r.won ? T.topTurns(r.turns) : T.topKos(r.kos ?? 0)}</em></li>`).join('')}</ol>`);
-  // Victorias de hoy con su repetición (ya has jugado tu intento, así que no hay spoilers).
-  const valid = (wins || []).filter(w => /^[\w-]{1,6000}$/.test(w.replay || ''));
-  if (valid.length) box.insertAdjacentHTML('beforeend', `<h4>${T.winsTitle}</h4><ul class="wins">${valid.map(w =>
-    `<li><span>${w.nickname ? esc(w.nickname) : T.anon}</span><em>${T.topTurns(w.turns)}</em><a class="watch" href="?vs=${MODE}#r=${w.replay}" target="_blank" rel="noopener">▶ ${T.watch}</a></li>`).join('')}</ul>`);
+    `<li class="${r.me ? 'me' : ''}"><span>${r.nickname ? esc(r.nickname) : T.anon}</span><em>${LIGA ? `${r.reached ?? 0}/5` : r.won ? T.topTurns(r.turns) + (r.tries > 1 ? ` · ${r.tries}/3` : '') : T.topKos(r.kos ?? 0)}</em></li>`).join('')}</ol>`);
+  await drawWins(box, wins);
+}
+
+// Victorias con su repetición (solo después de haber jugado tu intento, así que no hay spoilers). Si hoy nadie ha
+// ganado todavía, las de ayer, para que siempre haya algo que mirar y aprender.
+async function drawWins(box, today) {
+  const ok = list => (list || []).filter(w => /^[\w-]{1,6000}$/.test(w.replay || ''));
+  let wins = ok(today ?? await dailyWins(TODAY, MODE)), title = LIGA ? T.winsTitleLiga : T.winsTitle;
+  if (!wins.length) {
+    wins = ok(await dailyWins(YESTERDAY, MODE));
+    title = wins.length ? T.winsYesterday : '';
+  }
+  if (!wins.length) return box.insertAdjacentHTML('beforeend', `<p class="wins-empty">${T.winsNone}</p>`);
+  box.insertAdjacentHTML('beforeend', `<h4>${title}</h4><ul class="wins">${wins.map(w =>
+    `<li><span>${w.nickname ? esc(w.nickname) : T.anon}</span><em>${LIGA ? T.champion : T.topTurns(w.turns)}${w.tries > 1 ? ` · ${w.tries}/3` : ''}</em><a class="watch" href="?vs=${MODE}#r=${w.replay}" target="_blank" rel="noopener">▶ ${T.watch}</a></li>`).join('')}</ul>`);
 }
 
 // ---------- medallas, tarjeta de entrenador, apodo, código de entrenador y sugerencias ----------
@@ -1245,13 +1355,15 @@ function backup() {
 }
 
 // Novedades: lista de cambios con un punto rojo en el enlace hasta que se abre (se recuerda la última vista).
-function drawNewsDot() { $('#btn-news .news-dot').hidden = (+ls.get('redle:news') || 0) >= NEWS[0].id; }
+// Las que llevan fecha futura no salen hasta ese día (se puede subir el código antes de que entren en vigor).
+const NEWS_NOW = NEWS.filter(n => n.date <= TODAY);
+function drawNewsDot() { $('#btn-news .news-dot').hidden = (+ls.get('redle:news') || 0) >= NEWS_NOW[0].id; }
 $('#btn-news').onclick = () => {
   const seen = +ls.get('redle:news') || 0;
   const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString(LANG, {day: 'numeric', month: 'long'});
-  $('#news-list').innerHTML = NEWS.map(n => `<section class="${n.id > seen ? 'unseen' : ''}"><h3>${fmt(n.date)}${n.id > seen ? ` <em>${T.newsNew}</em>` : ''}</h3>
+  $('#news-list').innerHTML = NEWS_NOW.map(n => `<section class="${n.id > seen ? 'unseen' : ''}"><h3>${fmt(n.date)}${n.id > seen ? ` <em>${T.newsNew}</em>` : ''}</h3>
     <ul>${(LANG === 'es' ? n.es : n.en).map(x => `<li>${x}</li>`).join('')}</ul></section>`).join('');
-  ls.set('redle:news', NEWS[0].id);
+  ls.set('redle:news', NEWS_NOW[0].id);
   drawNewsDot();
   $('#dlg-news').showModal();
 };
@@ -1273,6 +1385,86 @@ $('#btn-fb-send').onclick = async () => {
   b.disabled = false;
   $('#fb-status').textContent = ok ? T.fbThanks : T.fbError;
   if (ok) $('#fb-msg').value = '';
+};
+
+// Instalar Redle como app, para volver cada día con un toque. Se ofrece al terminar un reto (cuando más apetece
+// volver mañana), salvo si ya está instalada o se dijo que no. Android/Chrome: el aviso del navegador; iPhone: cómo hacerlo.
+let installEvent = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; });
+const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent) || navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+function drawInstall(done) {
+  const box = $('#install-box');
+  box.hidden = !done || PRACTICE || REPLAY || installed() || ls.get('redle:install') === 'no' || !(installEvent || isIOS());
+  if (box.hidden) return;
+  $('#install-text').textContent = installEvent ? T.installText : T.installIOS;
+  $('#btn-install').hidden = !installEvent;
+}
+$('#btn-install').onclick = async () => {
+  if (!installEvent) return;
+  installEvent.prompt();
+  const {outcome} = await installEvent.userChoice.catch(() => ({}));
+  installEvent = null;
+  if (outcome === 'accepted') $('#install-box').hidden = true;
+};
+$('#btn-install-no').onclick = () => { ls.set('redle:install', 'no'); $('#install-box').hidden = true; };
+
+// Resultado como imagen (1080x1080) para redes: dibujado a mano porque el CDN de Showdown no deja usar sus sprites en
+// un canvas exportable (sin CORS). Poké Balls, bloques de vida, las fuentes de Redle y el color del rival.
+async function shareImage() {
+  const d = day(), S = 1080, cv = el('canvas'), g = cv.getContext('2d');
+  cv.width = cv.height = S;
+  await Promise.all(['900 40px Nunito', '40px "Luckiest Guy"', '700 40px "Pixelify Sans"'].map(f => document.fonts.load(f).catch(() => {})));
+  const css = getComputedStyle(document.body), dex = css.getPropertyValue('--dex').trim() || '#dc0a2d', dark = css.getPropertyValue('--dex-dark').trim() || '#8f0a1c';
+  const bg = g.createLinearGradient(0, 0, 0, S);
+  bg.addColorStop(0, dex); bg.addColorStop(1, dark);
+  g.fillStyle = bg; g.fillRect(0, 0, S, S);
+  g.fillStyle = '#ffffff10';
+  for (let x = -S; x < S; x += 60) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 30, 0); g.lineTo(x + 30 + S, S); g.lineTo(x + S, S); g.fill(); }
+  const text = (t, x, y, font, color = '#fff', stroke = '#0006', align = 'center') => {
+    g.font = font; g.textAlign = align; g.lineJoin = 'round'; g.lineWidth = 10; g.strokeStyle = stroke; g.strokeText(t, x, y); g.fillStyle = color; g.fillText(t, x, y);
+  };
+  const ball = (x, y, r, on) => {
+    g.save(); g.lineWidth = r * 0.16; g.strokeStyle = '#2b2b2b';
+    g.beginPath(); g.arc(x, y, r, Math.PI, 0); g.fillStyle = on ? '#ff3b3b' : '#555'; g.fill(); g.stroke();
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI); g.fillStyle = on ? '#fff' : '#888'; g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(x - r, y); g.lineTo(x + r, y); g.stroke();
+    g.beginPath(); g.arc(x, y, r * 0.32, 0, 2 * Math.PI); g.fillStyle = on ? '#fff' : '#999'; g.fill(); g.stroke(); g.restore();
+  };
+  const strip = s => String(s).replace(/^[^\p{L}\p{N}¡¿]+/u, '');
+  text(`REDLE #${DAY}`, S / 2, 150, '110px "Luckiest Guy"', '#ffcb05', '#2a3f8f');
+  text(LIGA ? T.league : `vs ${B.name}${triesTag()}`, S / 2, 250, '700 72px "Pixelify Sans"');
+  const head = LIGA ? strip(T.leagueShare(d.reached)) : d.result === 'win' ? strip(T.shareWin(d.turns)) : `${strip(T.shareLoss(d.turns))}`;
+  text(head, S / 2, 360, '900 54px Nunito', '#fff', '#0007');
+  if (LIGA) {
+    // Los 5 rivales: Poké Ball encendida = vencido.
+    LINEUP.forEach((id, i) => { const x = S / 2 + (i - 2) * 180; ball(x, 560, 70, d.rounds[i]?.result === 'win'); text(BOSSES[id].name, x, 680, '700 38px "Pixelify Sans"'); });
+  } else {
+    // Tu equipo: bloques con la vida que les quedó. El rival: Poké Balls (apagada = debilitado).
+    text(T.you, 120, 520, '900 44px Nunito', '#fff', '#0007', 'left');
+    d.mine.forEach((f, i) => {
+      const x = 330 + i * 115, color = f === 0 ? '#e8402f' : f < 0.5 ? '#ffcb05' : '#47d35a';
+      g.fillStyle = '#2b2b2b'; g.fillRect(x - 6, 470, 102, 72); g.fillStyle = color; g.fillRect(x, 476, 90, 60);
+    });
+    text(B.name, 120, 680, '900 44px Nunito', '#fff', '#0007', 'left');
+    d.red.forEach((a, i) => ball(375 + i * 115, 665, 44, !!a));
+    if (!d.result || d.result === 'loss') text(T.shareLeft(d.red.filter(Boolean).length), S / 2, 800, '900 42px Nunito', '#ffe08a', '#0007');
+    else if (d.mvp) text(`${T.mvp}: ${d.mvp}`, S / 2, 800, '900 46px Nunito', '#ffe08a', '#0007');
+  }
+  const st = playStreak().n;
+  if (st > 1) text(strip(T.shareStreak(st)), S / 2, 890, '900 42px Nunito', '#fff', '#0007');
+  g.fillStyle = '#ffcb05'; g.strokeStyle = '#2b2b2b'; g.lineWidth = 8;
+  g.beginPath(); g.roundRect ? g.roundRect(S / 2 - 300, 940, 600, 100, 50) : g.rect(S / 2 - 300, 940, 600, 100); g.fill(); g.stroke(); // roundRect: iOS 16+
+  text('redle.pages.dev', S / 2, 1008, '900 54px Nunito', '#2b2b2b', '#ffcb05');
+  return new Promise(res => cv.toBlob(res, 'image/png'));
+}
+$('#btn-share-img').onclick = async () => {
+  const blob = await shareImage(), file = new File([blob], `redle-${DAY}.png`, {type: 'image/png'});
+  try {
+    if (navigator.canShare?.({files: [file]})) return await navigator.share({files: [file], text: shareText()});
+  } catch { return; }
+  const a = el('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); // en el ordenador: descargar
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 };
 
 $('#btn-share').onclick = async () => {

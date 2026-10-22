@@ -9,7 +9,7 @@ Red, Blue, Lance, Steven, Wallace, Cynthia, Iris y Leon. Sin ROM ni emulador: fu
 
 1. Cada día recibes un equipo de 6 Pokémon por rival, el mismo para todo el mundo.
 2. Ves tu equipo y el del rival, y eliges quién empieza.
-3. Tienes un solo intento por rival. Algunos días hay una **regla del día** (combate inverso, Espacio Raro, clima…).
+3. Tienes tres intentos al día por rival (uno en la Liga). Algunos días hay una **regla del día** (combate inverso, Espacio Raro, clima…).
 4. Compartes el resultado y, si quieres, un **enlace a la repetición** de tu combate.
 
 ```
