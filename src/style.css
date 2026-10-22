@@ -657,3 +657,10 @@ body.boss-cynthia {
 .news h3 em { font: 800 10px var(--body); font-style: normal; padding: 1px 6px; border-radius: 6px; background: var(--dex); color: #fff; vertical-align: middle; }
 .news ul { margin: 0; padding-left: 18px; } .news li { margin: 4px 0; font-size: 14px; line-height: 1.4; }
 @media (prefers-reduced-motion: reduce) { .news-dot { animation: none; } }
+
+/* Victorias de hoy con su repetición */
+.wins { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.wins li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: var(--panel-2); font-size: 13px; margin: 0; }
+.wins li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.wins li em { font-style: normal; font-weight: 800; color: var(--muted); }
+.wins .watch { padding: 2px 10px; border-radius: 8px; background: #3d8be0; color: #fff; font: 800 12px var(--body); text-decoration: none; white-space: nowrap; }

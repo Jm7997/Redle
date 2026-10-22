@@ -6,7 +6,7 @@ import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
 import {NEWS} from './news.js';
-import {sendResult, dailyStats, dailyRank, dailyTop, sendFeedback, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
+import {sendResult, dailyStats, dailyRank, dailyTop, dailyWins, sendFeedback, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
 const dex = Dex.forGen(9);
@@ -473,6 +473,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     case 'move': {
       const target = c.startsWith('p') ? c.slice(0, 2) : side === 'p1' ? 'p2' : 'p1';
       if (side === 'p2') seenOf(view.p2.species).moves.add(b);
+      view.lastMove = {side, move: b};
       await say(T.uses(who(a), `<i>${moveName(b)}</i>`), animate, cls);
       if (animate && !tags.includes('[still]') && !tags.includes('[miss]')) {
         sfx('attack', dex.moves.get(b).type);
@@ -518,7 +519,15 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     // El aviso de eficacia llega antes que el daño: se guarda y se muestra con el golpe.
     case '-supereffective': view.eff = 'super'; return say(T.super, animate, 'eff');
     case '-resisted': view.eff = 'weak'; return say(T.resisted, animate);
-    case '-immune': if (animate) sfx('miss'); return say(T.immune(who(a)), animate);
+    case '-immune': {
+      if (animate) sfx('miss');
+      // Bromista: sus movimientos de estado no afectan a los tipo Siniestro (desde la 7.ª gen). Sin esto parecía un fallo.
+      const lm = view.lastMove, mv = lm && dex.moves.get(lm.move);
+      const types = view.tera[side][view[side].name] ? [view.tera[side][view[side].name]] : dex.species.get(view[side].species).types;
+      if (mv?.category === 'Status' && lm.side !== side && battle?.[lm.side]?.active[0]?.ability === 'prankster' && types.includes('Dark'))
+        return say(T.pranksterDark(who(a)), animate);
+      return say(T.immune(who(a)), animate);
+    }
     case '-crit': if (animate) { sfx('crit'); flash('#fff', 200); } return say(T.crit, animate, 'eff');
     case '-miss': if (animate) sfx('miss'); return say(T.miss(who(b || a)), animate);
     case '-fail': return say(T.fail, animate);
@@ -920,7 +929,9 @@ function closeDay(won, reached) {
 const myResult = () => {
   const d = day();
   return LIGA ? {day: TODAY, mode: MODE, won: d.result === 'win', turns: null, reached: d.reached, kos: null}
-    : {day: TODAY, mode: MODE, won: d.result === 'win', turns: d.turns, reached: null, kos: d.red.filter(a => !a).length};
+    : {day: TODAY, mode: MODE, won: d.result === 'win', turns: d.turns, reached: null, kos: d.red.filter(a => !a).length,
+      // Si ganas, tu repetición queda para que otros vean cómo se hizo (solo tras jugar su intento).
+      replay: d.result === 'win' ? encodeReplay({m: MODE, d: DATE, r: 0, p: d.picks, c: d.choices}) : null};
 };
 
 function finish(animate) {
@@ -1086,7 +1097,11 @@ function showResult() {
     if (battle?.ended) add('▶ ' + T.replay, watchReplay);
     if (battle?.ended && !PRACTICE) {
       const b = add(T.shareReplay, async () => {
-        try { await navigator.clipboard.writeText(replayLink()); b.textContent = T.replayCopied; } catch {}
+        // En el móvil, el menú de compartir del sistema (WhatsApp, Discord…); en el ordenador, copiar el enlace.
+        try {
+          if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({title: 'Redle', url: replayLink()});
+          else { await navigator.clipboard.writeText(replayLink()); b.textContent = T.replayCopied; }
+        } catch {}
       });
     }
     for (const [txt, fn] of practiceOptions()) add(txt, fn);
@@ -1103,7 +1118,7 @@ async function drawGlobal(done) {
   box.innerHTML = '';
   if (!done || PRACTICE || REPLAY) return;
   box.innerHTML = '<i class="sk sk-line"></i><i class="sk sk-line short"></i>'; // esqueleto mientras responde Supabase
-  const [all, rank, top] = await Promise.all([dailyStats(TODAY), dailyRank(myResult()), dailyTop(TODAY, MODE)]);
+  const [all, rank, top, wins] = await Promise.all([dailyStats(TODAY), dailyRank(myResult()), dailyTop(TODAY, MODE), LIGA ? null : dailyWins(TODAY, MODE)]);
   const g = all?.[MODE];
   if (!g || !g.players) { box.innerHTML = ''; return; }
   const pct = n => Math.round(100 * n / g.players);
@@ -1118,6 +1133,10 @@ async function drawGlobal(done) {
   if (rank) box.insertAdjacentHTML('beforeend', `<p class="rank">${T.rankLine(rank.pos, rank.total)}</p>`);
   if (Array.isArray(top) && top.length) box.insertAdjacentHTML('beforeend', `<h4>${T.topTitle}</h4><ol class="top">${top.map(r =>
     `<li class="${r.me ? 'me' : ''}"><span>${r.nickname ? esc(r.nickname) : T.anon}</span><em>${LIGA ? `${r.reached ?? 0}/5` : r.won ? T.topTurns(r.turns) : T.topKos(r.kos ?? 0)}</em></li>`).join('')}</ol>`);
+  // Victorias de hoy con su repetición (ya has jugado tu intento, así que no hay spoilers).
+  const valid = (wins || []).filter(w => /^[\w-]{1,6000}$/.test(w.replay || ''));
+  if (valid.length) box.insertAdjacentHTML('beforeend', `<h4>${T.winsTitle}</h4><ul class="wins">${valid.map(w =>
+    `<li><span>${w.nickname ? esc(w.nickname) : T.anon}</span><em>${T.topTurns(w.turns)}</em><a class="watch" href="?vs=${MODE}#r=${w.replay}" target="_blank" rel="noopener">▶ ${T.watch}</a></li>`).join('')}</ul>`);
 }
 
 // ---------- medallas, tarjeta de entrenador, apodo, código de entrenador y sugerencias ----------

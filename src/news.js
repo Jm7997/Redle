@@ -3,6 +3,15 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 5, date: '2026-10-22',
+    es: ['<b>Victorias de hoy</b>: después de jugar tu intento, mira la repetición de quienes ganaron y cómo lo hicieron.',
+      'Comparte la repetición de tu combate: en el móvil se abre el menú para enviarla por WhatsApp, Discord… Tu amigo puede pausarla y saltar de turno.',
+      'Ahora se explica por qué <b>Bromista</b> no funciona contra los tipo Siniestro (como el Spiritomb de Cynthia). ¡Gracias por avisar!'],
+    en: ['<b>Today\'s wins</b>: after playing your attempt, watch the replays of those who won and see how they did it.',
+      'Share your battle replay: on mobile it opens the share menu (WhatsApp, Discord…). Your friend can pause it and skip turns.',
+      'The game now explains why <b>Prankster</b> doesn\'t work on Dark types (like Cynthia\'s Spiritomb). Thanks for reporting it!'],
+  },
+  {
     id: 4, date: '2026-10-18',
     es: ['Tu equipo trae ahora <b>IVs perfectos</b>. Los EVs y la naturaleza siguen siendo al azar, así que el reto sigue siendo duro, pero más justo. ¡Gracias por vuestros comentarios!'],
     en: ['Your team now has <b>perfect IVs</b>. EVs and nature are still random, so it stays tough, but fairer. Thanks for your feedback!'],

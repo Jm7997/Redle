@@ -61,7 +61,7 @@ const STRINGS = {
     go1: n => `¡Adelante, ${n}!`,
     foe: n => `${n} enemigo`, uses: (u, m) => `¡${u} usa ${m}!`,
     lost_: (w, p) => `${w} pierde un ${p}% de sus PS.`, gained: (w, p) => `${w} recupera un ${p}% de sus PS.`,
-    super: '¡Es muy eficaz!', resisted: 'No es muy eficaz...', immune: w => `No afecta a ${w}...`, crit: '¡Un golpe crítico!',
+    super: '¡Es muy eficaz!', resisted: 'No es muy eficaz...', immune: w => `No afecta a ${w}...`, pranksterDark: w => `¡${w} es de tipo Siniestro: los movimientos de estado potenciados por Bromista no le afectan!`, crit: '¡Un golpe crítico!',
     miss: w => `¡${w} esquiva el ataque!`, fail: '¡Pero falla!', faint: w => `¡${w} se ha debilitado!`,
     st: {brn: w => `¡${w} se ha quemado!`, par: w => `¡${w} está paralizado! Quizás no pueda moverse.`, slp: w => `¡${w} se ha dormido!`, psn: w => `¡${w} ha sido envenenado!`, tox: w => `¡${w} ha sido gravemente envenenado!`, frz: w => `¡${w} se ha congelado!`},
     cure: {slp: w => `¡${w} se ha despertado!`, frz: w => `¡${w} ya no está congelado!`, _: w => `${w} se ha recuperado de su estado.`},
@@ -123,7 +123,7 @@ const STRINGS = {
     go1: n => `Go! ${n}!`,
     foe: n => `The opposing ${n}`, uses: (u, m) => `${u} used ${m}!`,
     lost_: (w, p) => `${w} lost ${p}% of its HP.`, gained: (w, p) => `${w} restored ${p}% of its HP.`,
-    super: "It's super effective!", resisted: "It's not very effective...", immune: w => `It doesn't affect ${w}...`, crit: 'A critical hit!',
+    super: "It's super effective!", resisted: "It's not very effective...", immune: w => `It doesn't affect ${w}...`, pranksterDark: w => `${w} is Dark-type: Prankster-boosted status moves don't affect it!`, crit: 'A critical hit!',
     miss: w => `${w} avoided the attack!`, fail: 'But it failed!', faint: w => `${w} fainted!`,
     st: {brn: w => `${w} was burned!`, par: w => `${w} is paralyzed! It may be unable to move!`, slp: w => `${w} fell asleep!`, psn: w => `${w} was poisoned!`, tox: w => `${w} was badly poisoned!`, frz: w => `${w} was frozen solid!`},
     cure: {slp: w => `${w} woke up!`, frz: w => `${w} thawed out!`, _: w => `${w} was cured of its status.`},
@@ -277,7 +277,7 @@ Object.assign(T, es ? {
   codeHint: 'Con este código recuperas tu progreso (medallas, rachas y estadísticas) en otro móvil u ordenador. No lo compartas: quien lo tenga puede usar tu progreso.',
   restoreLabel: 'Usar el código de otro dispositivo', restoreBtn: 'Recuperar', restoreConfirm: '¿Recuperar ese progreso? Sustituirá el de este navegador.',
   restoreBad: 'Código no válido.', restoreNone: 'No hay progreso guardado con ese código.', backupNote: 'Tu progreso se guarda solo al terminar cada reto.',
-  topTitle: 'Top del día', topTurns: t => `${t} turnos`, topKos: k => `${k}/6 K.O.`, shareCard: 'Compartir tarjeta',
+  topTitle: 'Top del día', winsTitle: 'Victorias de hoy: mira cómo lo hicieron', watch: 'Ver', topTurns: t => `${t} turnos`, topKos: k => `${k}/6 K.O.`, shareCard: 'Compartir tarjeta',
   cardShare: (name, m, total, streak) => `Redle · Tarjeta de entrenador
 ${name}
 🏅 Medallas: ${m}/${total}
@@ -315,7 +315,7 @@ ${name}
   codeHint: 'Use this code to get your progress (badges, streaks and stats) on another phone or computer. Keep it private: anyone with it can use your progress.',
   restoreLabel: 'Use a code from another device', restoreBtn: 'Restore', restoreConfirm: 'Restore that progress? It will replace the one in this browser.',
   restoreBad: 'Invalid code.', restoreNone: 'There is no saved progress for that code.', backupNote: 'Your progress is backed up automatically after each challenge.',
-  topTitle: "Today's top", topTurns: t => `${t} turns`, topKos: k => `${k}/6 KOs`, shareCard: 'Share card',
+  topTitle: "Today's top", winsTitle: "Today's wins: see how they did it", watch: 'Watch', topTurns: t => `${t} turns`, topKos: k => `${k}/6 KOs`, shareCard: 'Share card',
   cardShare: (name, m, total, streak) => `Redle · Trainer card
 ${name}
 🏅 Badges: ${m}/${total}
