@@ -3,6 +3,15 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 7, date: '2026-10-30',
+    es: ['<b>Los rivales vuelven a apretar</b>. Con los 3 intentos y el entrenamiento completo, 3 de cada 4 ganabais… y Red no se ha pasado años en el Monte Plateado para eso. Tu equipo llega ahora medio entrenado y los equipos del día se eligen más duros. ¡Ganar vuelve a ser algo para presumir!',
+      '<b>Medallas nuevas</b> en tu tarjeta de entrenador: ganar a la primera, sin un rasguño, por los pelos, en 15 turnos o menos… y la de <b>Maestro Pokémon</b>, por ganar a los 8 rivales. Las que ya te merecías por tus victorias anteriores aparecen solas.',
+      'Al compartir, se ve qué porcentaje de gente ha ganado hoy. A ver quién se atreve.'],
+    en: ['<b>The rivals are tough again</b>. With 3 tries and fully trained teams, 3 out of 4 of you were winning… and Red didn\'t spend years on Mt. Silver for that. Your team now comes half-trained and daily teams are picked tougher. Winning is something to brag about again!',
+      '<b>New badges</b> on your trainer card: first try, not a scratch, by a hair, 15 turns or fewer… and <b>Pokémon Master</b> for beating all 8 rivals. The ones you already earned with past wins show up on their own.',
+      'Shared results now show what percentage of players won today. Dare your friends.'],
+  },
+  {
     id: 6, date: '2026-10-24',
     es: ['<b>3 intentos al día</b> contra cada rival, como en Wordle. Si pierdes, vuelves a la pantalla de equipo y lo intentas otra vez (puedes cambiar de líder). Cuenta el intento en que ganes: 1/3, 2/3…',
       'Si hoy nadie ha ganado todavía, verás las <b>victorias de ayer</b> para aprender de ellas. También en el modo práctica.',

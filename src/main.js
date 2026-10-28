@@ -259,7 +259,7 @@ function renderDraft() {
   $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
   $('#rules').hidden = !$('#stage-rules').innerHTML;
   // Aviso de entrenamiento: tu equipo al azar (Brazal Recio) frente al rival entrenado al máximo (Brazal Firme).
-  $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${T.trainYou}</b><small>${POOL_DATE >= '2026-10-24' ? T.trainYouTipFull : POOL_DATE >= '2026-10-18' ? T.trainYouTipIV : T.trainYouTip}</small></span>`;
+  $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${T.trainYou}</b><small>${POOL_DATE >= '2026-10-30' ? T.trainYouTipHalf : POOL_DATE >= '2026-10-24' ? T.trainYouTipFull : POOL_DATE >= '2026-10-18' ? T.trainYouTipIV : T.trainYouTip}</small></span>`;
   $('#train-boss').innerHTML = `${itemIcon('Macho Brace')}<span><b>${T.trainBoss}</b><small>${T.trainBossTip}</small></span>`;
   // Fichas compactas por defecto (sprite, tipos y objeto); estadísticas, habilidad y ataques se despliegan con un toque.
   const details = ls.get('redle:details') === '1';
@@ -992,7 +992,7 @@ function closeDay(won, reached) {
   else s.streak = 0;
   if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
   save();
-  if (won) award(MODE);
+  if (won) { award(MODE); if (!LIGA) awardFeats(d, attempt()); }
   bumpStreak();
   sendResult(myResult());
   backup();
@@ -1142,14 +1142,16 @@ function shareText() {
   const d = day(), url = `${location.origin}${location.pathname}?vs=${MODE}`;
   if (LIGA) {
     const marks = LINEUP.map((_, i) => d.rounds[i]?.result === 'win' ? '✅' : d.rounds[i]?.result === 'loss' ? '❌' : '⬜').join('');
-    return `Redle ${T.league} #${DAY} 🏟️\n${T.leagueShare(d.reached)}\n${marks}\n${LINEUP.map(id => BOSSES[id].name).join(' · ')}\n${streakLine()}${url}`;
+    return `Redle ${T.league} #${DAY} 🏟️\n${T.leagueShare(d.reached)}\n${marks}\n${LINEUP.map(id => BOSSES[id].name).join(' · ')}\n${globalLine()}${streakLine()}${url}`;
   }
   const mine = d.mine.map(f => (f === 0 ? '🟥' : f < 0.5 ? '🟨' : '🟩')).join('');
   const red = d.red.map(a => (a ? '🔴' : '⚫')).join('');
   const left = d.red.filter(Boolean).length;
   const head = d.result === 'win' ? T.shareWin(d.turns) : `${T.shareLoss(d.turns)} · ${T.shareLeft(left)}`;
-  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${streakLine()}${url}`;
+  return `Redle #${DAY} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${globalLine()}${streakLine()}${url}`;
 }
+let todayWinPct = null; // % del día que ganó, para picar a quien lo lea
+const globalLine = () => todayWinPct === null ? '' : T.shareGlobal(todayWinPct, LIGA) + '\n';
 const streakLine = () => { const s = playStreak(); return s.n > 1 ? T.shareStreak(s.n) + '\n' : ''; };
 
 // Racha de días seguidos jugando (cualquier modo). Con esta dificultad, la racha de victorias casi nunca pasa de 1.
@@ -1212,6 +1214,7 @@ function showResult() {
 
 // Estadísticas de todos los jugadores de hoy en este modo (solo tras jugar, para no condicionar).
 async function drawGlobal(done) {
+  if (done && newMedals.length) $('#result-body').insertAdjacentHTML('beforeend', `<p class="new-medals">${newMedals.map(id => `<span>${T.newMedal(medalTitle(id))}</span>`).join('')}</p>`);
   const box = $('#global');
   box.innerHTML = '';
   if (!done || REPLAY) return;
@@ -1221,6 +1224,7 @@ async function drawGlobal(done) {
   const g = all?.[MODE];
   if (!g || !g.players) { box.innerHTML = ''; return; }
   const pct = n => Math.round(100 * n / g.players);
+  if (g.players >= 10) todayWinPct = pct(g.wins); // con pocos jugadores el % no dice nada
   if (LIGA) {
     const mine = day().reached, worse = g.reached.slice(0, mine).reduce((a, b) => a + b, 0);
     box.innerHTML = `<h3>${itemIcon('Poke Ball')} ${T.globalTitle}</h3><p>${T.globalPlayers(g.players)} · ${T.globalChampions(g.wins, pct(g.wins))}</p>
@@ -1254,13 +1258,32 @@ const esc = t => String(t).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const MODES = [...Object.keys(BOSSES), 'liga'];
 const STREAK_MEDALS = [[7, 'Poke Ball'], [30, 'Ultra Ball'], [100, 'Master Ball']]; // racha de días: Poké, Ultra y Master Ball
 const medals = () => readJSON('redle:medals');
-function award(id) {
+const newMedals = []; // las conseguidas en esta visita, para celebrarlas en el resultado
+function award(id, quiet) {
   const m = medals();
-  if (!m[id]) { m[id] = TODAY; ls.set('redle:medals', JSON.stringify(m)); }
+  if (m[id]) return;
+  m[id] = TODAY; ls.set('redle:medals', JSON.stringify(m));
+  if (!quiet) newMedals.push(id);
+}
+// Hazañas: cómo ganaste, no solo a quién. [id, objeto, se cumple con el día ganado y su intento]
+const FEATS = [
+  ['first', 'Quick Claw', (d, a) => a === 1],
+  ['flawless', 'Full Restore', d => d.mine?.length && d.mine.every(f => f > 0)],
+  ['clutch', 'Focus Sash', d => d.mine?.filter(f => f > 0).length === 1],
+  ['fast', 'Choice Scarf', d => d.turns > 0 && d.turns <= 15],
+];
+function awardFeats(d, attempt, quiet) {
+  for (const [id, , ok] of FEATS) if (ok(d, attempt)) award(id, quiet);
+  if (Object.keys(BOSSES).every(id => medals()[id])) award('all', quiet);
 }
 // Medallas de lo ganado antes de que existieran (en el historial guardado de cada modo y la mejor racha).
-for (const id of MODES) if (Object.values(readJSON(keyOf(id)).days || {}).some(d => d.result === 'win')) award(id);
-for (const [n] of STREAK_MEDALS) if ((readJSON('redle:streak').best || 0) >= n) award('streak' + n);
+for (const id of MODES) for (const d of Object.values(readJSON(keyOf(id)).days || {})) if (d.result === 'win') {
+  award(id, true);
+  if (id !== 'liga') awardFeats(d, d.attempt || 1, true);
+}
+for (const [n] of STREAK_MEDALS) if ((readJSON('redle:streak').best || 0) >= n) award('streak' + n, true);
+
+const medalTitle = id => BOSSES[id] ? T.medalOf(BOSSES[id].name) : id === 'liga' ? T.medalLiga : id.startsWith('streak') ? T.medalStreak(+id.slice(6)) : T.feat[id];
 
 // Una medalla por rival (su sprite en color si le has ganado alguna vez), la de Campeón de la Liga y las de racha.
 function medalsHtml() {
@@ -1269,6 +1292,8 @@ function medalsHtml() {
     ...Object.values(BOSSES).map(b => [b.id, T.medalOf(b.name), `<img src="${trainerImg(b.id)}" alt="" width="40" height="40">`]),
     ['liga', T.medalLiga, itemIcon('Master Ball')],
     ...STREAK_MEDALS.map(([n, item]) => ['streak' + n, T.medalStreak(n), `${itemIcon(item)}<small>${n}</small>`]),
+    ...FEATS.map(([id, item]) => [id, T.feat[id], itemIcon(item)]),
+    ['all', T.feat.all, itemIcon('Star Piece')],
   ];
   const got = list.filter(([id]) => m[id]).length;
   return `<h3>${T.medalsTitle} <small>${got}/${list.length}</small></h3><div class="medal-row">${list.map(([id, title, inner]) =>

@@ -163,17 +163,17 @@ const NATURES = ['Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty', 'Bold', 'Doci
 // esa es la desventaja, no el nivel. Determinista por día y especie.
 // Desde el 18-10-2026 tus IVs son perfectos (31); los EVs y la naturaleza siguen al azar. Los IVs se sortean igual
 // para que los EVs y naturalezas de cada día no cambien, y los días anteriores se reproducen tal cual.
-const PERFECT_IVS_FROM = '2026-10-18', FULL_EVS_FROM = '2026-10-24';
+const PERFECT_IVS_FROM = '2026-10-18', FULL_EVS_FROM = '2026-10-24', HALF_EVS_FROM = '2026-10-30';
 export function wildTraining(set, date, maxEVs = 508, maxIVs = 31) {
   const r = rng(`training:${date}:${set.species}`);
   const day = String(date).match(/\d{4}-\d\d-\d\d/)?.[0];
   const ivs = Object.fromEntries(STATS.map(s => [s, Math.floor(r() * (maxIVs + 1))]));
   if (!day || day >= PERFECT_IVS_FROM) for (const s of STATS) ivs[s] = 31;
   const evs = Object.fromEntries(STATS.map(s => [s, 0]));
-  // Desde el 24-10-2026, entrenado del todo como un Pokémon a nivel 100: los 508 EVs, pero repartidos al azar
-  // (sin optimizar). Antes, un total al azar entre 0 y el tope de cada rival.
-  const full = !day || day >= FULL_EVS_FROM;
-  for (let left = full ? 127 : Math.floor(r() * (maxEVs / 4 + 1)); left > 0;) {
+  // Desde el 30-10-2026, medio entrenado: 252 EVs repartidos al azar (con los 508 del 24 al 29 se ganaba el 75 %).
+  // Del 24 al 29, los 508. Antes, un total al azar entre 0 y el tope de cada rival.
+  const full = !day || day >= FULL_EVS_FROM, half = !day || day >= HALF_EVS_FROM;
+  for (let left = half ? Math.min(63, Math.floor(maxEVs / 4)) : full ? 127 : Math.floor(r() * (maxEVs / 4 + 1)); left > 0;) {
     const s = STATS[Math.floor(r() * 6)];
     if (evs[s] < 252) { evs[s] += 4; left--; }
   }

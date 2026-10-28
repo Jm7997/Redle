@@ -5,12 +5,14 @@
 //   < 2,5 K.O. simulados → la gente gana ~5 % (casi siempre 0 %)     3,25-4 → ~23 %
 //   2,5-3,25 → ~8 %                                                   4-4,75 → ~31 %      > 4,75 → ~83 %
 // Rango aceptado: 2,75-4,5. Nunca cambia días ya jugados: empieza mañana y conserva lo anterior.
+// Desde el 30-10-2026 (3 intentos y EVs a la mitad) se exige más: como mucho 1 victoria simulada de 12 y al menos
+// 2,75 K.O. de media (que se pueda ganar). Con 508 EVs y el criterio anterior la gente ganaba el 75 % con 3 intentos.
 import {writeFileSync} from 'node:fs';
 import {newBattle, play, aiChoice, poolFor, ruleFor, today, BOSSES} from '../src/game.js';
 import {BALANCE} from '../src/balance.js';
 
-const DAYS = +(process.argv[2] || 180), K = 12, EPS = 0.15, LO = 2.75, HI = 4.5, MID = 3.6, TRIES = 8;
-const FIRST = '2026-10-24'; // primer día con equilibrio (y con la IA v3, con la que se calibra)
+const DAYS = +(process.argv[2] || 180), K = 12, EPS = 0.15, MIN_KO = 2.75, MAX_WINS = 1, TRIES = 8;
+const FIRST = '2026-10-30'; // primer día con este criterio (antes del 30, la tabla anterior se conserva)
 
 // Un combate simulado: el jugador elige como la IA salvo un 15 % de las veces (al azar) y con un líder al azar.
 function sim(date, boss, team, seed) {
@@ -30,7 +32,14 @@ function sim(date, boss, team, seed) {
   }
   return b.p2.pokemon.filter(p => p.fainted).length;
 }
-const score = (date, boss, i) => { const team = poolFor(boss, date, i); let k = 0; for (let n = 0; n < K; n++) k += sim(date, boss, team, 1000 + n * 7919); return k / K; };
+// {ko: K.O. medios, wins: combates ganados de K}
+const score = (date, boss, i) => {
+  const team = poolFor(boss, date, i); let ko = 0, wins = 0;
+  for (let n = 0; n < K; n++) { const k = sim(date, boss, team, 1000 + n * 7919); ko += k; wins += k === 6; }
+  return {ko: ko / K, wins};
+};
+// Si ningún sorteo cumple: el que menos victorias dé, y entre esos el más cercano al mínimo de K.O.
+const gap = ({ko, wins}) => Math.max(0, wins - MAX_WINS) + Math.max(0, MIN_KO - ko);
 
 const tomorrow = new Date(Date.parse(today() + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10);
 // Inicio opcional (3.º argumento) para generar por tramos; nunca antes de mañana ni del primer día con equilibrio.
@@ -44,15 +53,15 @@ for (let d = 0; d < DAYS; d++) {
     total++;
     let best = 0, bestGap = Infinity;
     for (let i = 0; i < TRIES; i++) {
-      const v = score(date, boss, i);
-      if (v >= LO && v <= HI) { best = i; bestGap = 0; break; }
-      const gap = Math.abs(v - MID);
-      if (gap < bestGap) [best, bestGap] = [i, gap];
+      const g = gap(score(date, boss, i));
+      if (!g) { best = i; bestGap = 0; break; }
+      if (g < bestGap) [best, bestGap] = [i, g];
     }
     if (best) { out[`${boss}:${date}`] = best; rerolled++; }
   }
   if (d % 10 === 9) console.log(`${d + 1}/${DAYS} días · ${rerolled}/${total} cambiados · ${((Date.now() - t0) / 60000).toFixed(1)} min`);
 }
+if (process.env.PART) { writeFileSync(process.env.PART, JSON.stringify(Object.fromEntries(Object.entries(out).filter(([k]) => k.split(':')[1] >= start)))); process.exit(); } // tramos en paralelo
 const body = Object.entries(out).sort().map(([k, v]) => `  '${k}': ${v},`).join('\n');
 writeFileSync(new URL('../src/balance.js', import.meta.url), `// Tabla de equilibrio generada por scripts/build-balance.mjs: "rival:día" -> sorteo alternativo a usar ese día.
 // Solo aparecen los días en que el sorteo normal era casi imposible o demasiado fácil. No editar a mano.

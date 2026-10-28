@@ -700,3 +700,8 @@ body.boss-cynthia {
 .moves.full .move .desc { display: block; -webkit-line-clamp: unset; overflow: visible; }
 
 .wins-empty { margin: 10px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+
+.new-medals { display: grid; gap: 4px; margin: 8px 0 0; }
+.new-medals span { padding: 6px 10px; border-radius: 10px; background: radial-gradient(circle at 30% 20%, #fff6d0, #f3cf6a); color: #5a3d00; font-weight: 800; font-size: 13px; animation: medal-pop .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+.new-medals span:nth-child(2) { animation-delay: .15s; } .new-medals span:nth-child(3) { animation-delay: .3s; }
+@keyframes medal-pop { from { opacity: 0; transform: scale(.6); } }
