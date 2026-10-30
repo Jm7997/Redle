@@ -877,3 +877,30 @@ body.boss-cynthia {
 @media (prefers-reduced-motion: reduce) { #splash, #season-fx img, #fame::before, .fame-mon.show, .fame-plate.show, .fame-small { animation: none; } #season-fx { display: none; } }
 .fame-end { order: 5; }
 .fame-row { order: 4; }
+
+/* ---------- Resultado: otra vez y novedades de la Pokédex ---------- */
+.ballbtn.again { margin: 10px 0 12px; }
+.ballbtn.again .txt { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.ballbtn.again small { margin-top: 3px; font: 800 12px var(--body); opacity: .9; }
+.dex-new { margin: 0 0 12px; padding: 8px 10px; border-radius: 12px; border: 2px solid #ffd23f88; background: var(--panel-2); text-align: center; }
+.dex-new[hidden] { display: none; }
+.dex-new .icons { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 6px; }
+.dex-new-mon { position: relative; display: inline-grid; place-items: center; padding: 4px 2px 8px; }
+.dex-new-mon em { position: absolute; left: 50%; bottom: -2px; translate: -50% 0; padding: 0 4px; border-radius: 6px; background: #ffd23f; color: #3a2a00; font: 900 9px var(--body); font-style: normal; animation: dex-new .9s ease-in-out infinite alternate; }
+@keyframes dex-new { to { scale: 1.1; } }
+@media (prefers-reduced-motion: reduce) { .dex-new-mon em { animation: none; } }
+.dex-new button { border: 0; background: none; box-shadow: none; padding: 0; color: inherit; font: 900 14px var(--body); cursor: pointer; }
+
+/* Novedades: el "!" de cuando un entrenador te ve */
+.news-btn { position: relative; color: var(--dex); font-size: 17px; line-height: 1; }
+.news-btn .news-dot { position: absolute; top: -3px; right: -3px; margin: 0; }
+.news-btn.has-news { background: #ffd23f; animation: news-alert 1.1s ease-in-out infinite; }
+@keyframes news-alert { 0%, 60%, 100% { transform: none; } 70% { transform: translateY(-4px) scale(1.12); } 85% { transform: translateY(0) scale(.96); } }
+@media (max-width: 400px) {
+  .hbtns .icon { width: 31px; height: 31px; }
+  .hbtns { gap: 3px; }
+  .lens { width: 28px; height: 28px; }
+  .logo { font-size: 21px; }
+}
+@media (prefers-reduced-motion: reduce) { .news-btn.has-news { animation: none; } }
+@media (max-width: 340px) { .dex-lights { display: none; } }

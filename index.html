@@ -34,6 +34,7 @@
     <div class="dex-lights" aria-hidden="true"><span class="lens"></span><i class="led r"></i><i class="led y"></i><i class="led g"></i></div>
     <h1 class="logo">Redle <span id="day-num"></span><em id="splash" aria-hidden="true"></em></h1>
     <div class="hbtns">
+      <button class="icon news-btn" id="btn-news-top" aria-label="!">!<i class="news-dot" hidden></i></button>
       <button class="icon" id="btn-help" aria-label="?">?</button>
       <button class="icon" id="btn-settings" aria-label="⚙">⚙</button>
       <button class="icon" id="btn-mute" aria-label="♪">♪</button>
@@ -153,6 +154,8 @@
   <dialog id="dlg-stats">
     <h2 id="result-title"></h2>
     <div id="result-body"></div>
+    <div id="result-again"></div>
+    <div id="dex-new" class="dex-new" hidden></div>
     <div class="stats" id="stats"></div>
     <div id="medals" class="medals"></div>
     <button class="secondary" id="btn-trainer" data-i18n="trainerBtn"></button>

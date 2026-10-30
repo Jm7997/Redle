@@ -3,6 +3,11 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 10, date: '2026-10-30',
+    es: ['Al acabar un reto verás qué Pokémon <b>nuevos</b> entran en tu Pokédex.', 'Botón grande de <b>¡Otra vez!</b> en el resultado: una práctica más con tu equipo, sin que cuente.'],
+    en: ['When a challenge ends you\'ll see which <b>new</b> Pokémon join your Pokédex.', 'Big <b>Again!</b> button on the result screen: one more practice with your team, without it counting.'],
+  },
+  {
     id: 9, date: '2026-10-30',
     es: ['<b>Salón de la Fama:</b> cuando ganas un reto, tu equipo pasa uno a uno entre destellos y queda inscrito para siempre, como al llegar a la cima en los juegos. Tus victorias anteriores ya están dentro, con su repetición. Lo tienes en tu tarjeta de entrenador.',
       '<b>Pokédex:</b> se va rellenando con los equipos que te tocan. En silueta los que aún no has visto y en color aquellos con los que has ganado. ¿Hasta dónde llegas?',

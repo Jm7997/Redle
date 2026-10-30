@@ -1220,6 +1220,7 @@ function closeDay(won, reached) {
   if (won) { s.wins++; s.streak = s.last === YESTERDAY ? s.streak + 1 : 1; s.best = Math.max(s.best, s.streak); s.last = TODAY; }
   else s.streak = 0;
   if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
+  d.dexNew = dexNewToday(won);
   save();
   if (won) { award(MODE); if (!LIGA) awardFeats(d, attempt()); if (SEASON) award(`season:${SEASON.id}:${TODAY.slice(0, 4)}`); }
   bumpStreak();
@@ -1348,6 +1349,25 @@ function fameScene() {
     $('.fame-end button').textContent = T.fameContinue;
     $('.fame-end button').onclick = e => { e.stopPropagation(); box.hidden = true; done(); };
   });
+}
+
+// Lo que este reto añade a la Pokédex: si ganas, los que pasan a color; si pierdes, los que ves por primera vez.
+function dexNewToday(won) {
+  const base = s => dex.species.get(s).baseSpecies;
+  const before = playedDays().filter(e => !(e.id === MODE && e.date === TODAY) && (e.won || !won));
+  const known = new Set(before.flatMap(e => e.team.map(base)));
+  return [...new Set(POOL.map(s => base(s.species)))].filter(s => !known.has(s));
+}
+function drawDexNew(d) {
+  const box = $('#dex-new'), list = d?.closed || d?.result ? d.dexNew || [] : [];
+  box.hidden = !list.length || !!PRACTICE;
+  if (box.hidden) return;
+  box.innerHTML = `<button class="linklike">${(d.result === 'win' ? T.dexNewWon : T.dexNewSeen)(list.length)} →</button><div class="icons">${list.map(s => `<span class="dex-new-mon">${icon(s)}<em>${T.dexNewTag}</em></span>`).join('')}</div>`;
+  box.querySelector('button').onclick = () => {
+    const first = pokedexList().find(p => p.name === list[0]);
+    if (first) { dexRegion = first.gen; dexPick = first.name; }
+    sfx('click'); drawDex(); $('#dlg-dex').showModal();
+  };
 }
 
 let dexRegion = 1, dexPick = '';
@@ -1503,6 +1523,10 @@ function showResult() {
     $('#summary').innerHTML = `<h3>${T.summary}</h3><table><tr><th></th><th>${T.kos}</th><th>${T.dmg}</th><th>${T.taken}</th></tr>${rows.map(r =>
       `<tr class="${r === mvp ? 'mvp' : ''}"><td>${icon(r.species)}${r.species}${r === mvp ? ` <b>${T.mvp}</b>` : ''}</td><td>${r.kos}</td><td>${Math.round(r.dmg)}%</td><td>${Math.round(r.taken)}%</td></tr>`).join('')}</table>`;
   }
+  drawDexNew(d);
+  // Lo primero al acabar: volver a intentarlo, grande y a mano. El resto de opciones van abajo.
+  const [again, ...others] = done ? practiceOptions() : [];
+  $('#result-again').replaceChildren(...(again ? [ballBtn(`${T.again}<small>${T.againNote}</small>`, again[1], 'ballbtn again')] : []));
   $('#result-actions').innerHTML = '';
   if (done) {
     const add = (txt, fn) => { const b = el('button', 'secondary', txt); b.onclick = fn; $('#result-actions').append(b); return b; };
@@ -1516,7 +1540,7 @@ function showResult() {
         } catch {}
       });
     }
-    for (const [txt, fn] of practiceOptions()) add(txt, fn);
+    for (const [txt, fn] of others) add(txt, fn);
     if (PRACTICE) add(T.backToday, goToday);
   }
   drawGlobal(done);
@@ -1703,8 +1727,12 @@ function backup() {
 // Novedades: lista de cambios con un punto rojo en el enlace hasta que se abre (se recuerda la última vista).
 // Las que llevan fecha futura no salen hasta ese día (se puede subir el código antes de que entren en vigor).
 const NEWS_NOW = NEWS.filter(n => n.date <= TODAY);
-function drawNewsDot() { $('#btn-news .news-dot').hidden = (+ls.get('redle:news') || 0) >= NEWS_NOW[0].id; }
-$('#btn-news').onclick = () => {
+const hasNews = () => (+ls.get('redle:news') || 0) < NEWS_NOW[0].id;
+function drawNewsDot() {
+  document.querySelectorAll('.news-dot').forEach(d => { d.hidden = !hasNews(); });
+  $('#btn-news-top').classList.toggle('has-news', hasNews());
+}
+function openNews() {
   const seen = +ls.get('redle:news') || 0;
   const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString(LANG, {day: 'numeric', month: 'long'});
   $('#news-list').innerHTML = NEWS_NOW.map(n => `<section class="${n.id > seen ? 'unseen' : ''}"><h3>${fmt(n.date)}${n.id > seen ? ` <em>${T.newsNew}</em>` : ''}</h3>
@@ -1712,7 +1740,8 @@ $('#btn-news').onclick = () => {
   ls.set('redle:news', NEWS_NOW[0].id);
   drawNewsDot();
   $('#dlg-news').showModal();
-};
+}
+$('#btn-news').onclick = $('#btn-news-top').onclick = openNews;
 drawNewsDot();
 
 // Sugerencias y fallos, con datos técnicos para poder reproducirlos.
@@ -1882,12 +1911,16 @@ $('#btn-settings').onclick = () => { drawSettings(); $('#dlg-settings').showModa
 drawSettings();
 backgroundMons();
 // Etiquetas accesibles de los botones de iconos y fin de la pantalla de carga.
-for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats']]) $('#' + id).setAttribute('aria-label', T[key]);
+for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats'], ['btn-news-top', 'newsLink']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();
 document.querySelectorAll('img').forEach(im => { if (im.complete) im.classList.add('ok'); }); // las que llegaron antes
 // Las descripciones llegan aparte: si ya hay botones de ataque en pantalla, se repintan con ellas.
 loadMoveDescs().then(() => { if (battle && !busy && !battle.ended && !REPLAY) drawControls(); }).catch(() => {});
 
+const midDay = !LOCKED && !!rec().started; // antes de pintar: startBattle y renderDraft no lo cambian
 if (LOCKED) renderTeaser();
-else if (REPLAY || rec().started) startBattle(false);
+else if (REPLAY || midDay) startBattle(false);
 else renderDraft();
+// Si vuelves y hay algo que no has visto, se abre una vez. Nunca a mitad de combate ni en una repetición, y a quien
+// llega por primera vez no se le molesta: para esos casos queda el botón "!" parpadeando.
+if (hasNews() && ls.get('redle:welcome') && !REPLAY && !PRACTICE && !midDay) openNews();
