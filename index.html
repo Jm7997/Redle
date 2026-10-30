@@ -13,7 +13,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Redle">
   <meta property="og:title" content="Redle — un combate Pokémon diario contra los campeones">
-  <meta property="og:description" content="8 campeones con sus equipos reales, un modo Liga de 5 rivales seguidos y reglas del día. Un intento al día. ¿Podrás con ellos?">
+  <meta property="og:description" content="8 campeones con sus equipos reales, un modo Liga de 5 rivales seguidos, reglas del día y combates dobles los domingos. ¿Podrás con ellos?">
   <meta property="og:url" content="https://redle.pages.dev/">
   <meta property="og:image" content="https://redle.pages.dev/og.png">
   <link rel="canonical" href="https://redle.pages.dev/">
@@ -28,10 +28,11 @@
 <body>
   <div id="loading" aria-hidden="true"><div class="sk-head"></div><div class="sk-wrap"><div class="sk-tabs"><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i></div><div class="sk sk-vs"></div><div class="sk sk-text"></div><div class="sk-cols"><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div></div>
   <div id="bg-mons" aria-hidden="true"></div>
+  <div id="season-fx" aria-hidden="true"></div>
 
   <header class="dex">
     <div class="dex-lights" aria-hidden="true"><span class="lens"></span><i class="led r"></i><i class="led y"></i><i class="led g"></i></div>
-    <h1 class="logo">Redle <span id="day-num"></span></h1>
+    <h1 class="logo">Redle <span id="day-num"></span><em id="splash" aria-hidden="true"></em></h1>
     <div class="hbtns">
       <button class="icon" id="btn-help" aria-label="?">?</button>
       <button class="icon" id="btn-settings" aria-label="⚙">⚙</button>
@@ -43,13 +44,17 @@
   <nav class="bosses" id="bosses" aria-label="Rival"></nav>
 
   <main>
+    <p id="season" class="season-chip" hidden></p>
+    <a id="sunday-banner" class="sunday-banner" hidden></a>
+    <!-- Los días que no son domingo: quién viene a los dobles -->
+    <section id="sunday" class="sunday box" hidden></section>
     <!-- Vista previa de los dos equipos -->
     <section id="draft" hidden>
       <div id="welcome" class="welcome box" hidden><p data-i18n="welcome"></p><button class="primary" id="btn-welcome" data-i18n="gotIt"></button></div>
       <div class="versus">
         <figure class="mystery"><span class="who"><img src="https://play.pokemonshowdown.com/sprites/trainers/ethan.png" alt="" width="96" height="96"><b aria-hidden="true">?</b></span><figcaption data-i18n="you2"></figcaption></figure>
         <span class="vs">VS</span>
-        <figure class="boss"><img class="boss-sprite" alt="" width="96" height="96"><figcaption class="boss-name"></figcaption></figure>
+        <figure class="boss"><span class="boss-faces"><img class="boss-sprite" alt="" width="96" height="96"><img class="boss-sprite second" alt="" width="96" height="96" hidden></span><figcaption class="boss-name"></figcaption></figure>
       </div>
       <div id="lineup" class="lineup" hidden></div>
       <p class="intro-text box" data-i18n="lead"></p>
@@ -72,8 +77,11 @@
           <div class="fx-layer fx-field" aria-hidden="true"></div><div class="fx-layer fx-weather" aria-hidden="true"></div>
           <div class="side-fx foe" aria-hidden="true"></div><div class="side-fx me" aria-hidden="true"></div>
           <span class="zzz foe" aria-hidden="true" hidden>z<i>z</i><b>Z</b></span><span class="zzz me" aria-hidden="true" hidden>z<i>z</i><b>Z</b></span>
+          <span class="zzz foe b" aria-hidden="true" hidden>z<i>z</i><b>Z</b></span><span class="zzz me b" aria-hidden="true" hidden>z<i>z</i><b>Z</b></span>
           <img class="mon foe" alt="">
           <img class="mon me" alt="">
+          <img class="mon foe b" alt="">
+          <img class="mon me b" alt="">
           <button class="hud foe" id="foe-hud">
             <div class="row"><b class="name"></b><span class="gender"></span><small class="lvl"></small></div>
             <div class="types"></div>
@@ -81,6 +89,19 @@
             <div class="row meta"><span class="status"></span><span class="hp"></span></div>
           </button>
           <div class="hud me">
+            <div class="row"><b class="name"></b><span class="gender"></span><small class="lvl"></small></div>
+            <div class="types"></div>
+            <div class="hpline"><span class="ps">HP</span><div class="bar"><i></i></div></div>
+            <div class="row meta"><span class="status"></span><span class="hp"></span></div>
+            <div class="exp"><i></i></div>
+          </div>
+          <button class="hud foe b" hidden>
+            <div class="row"><b class="name"></b><span class="gender"></span><small class="lvl"></small></div>
+            <div class="types"></div>
+            <div class="hpline"><span class="ps">HP</span><div class="bar"><i></i></div></div>
+            <div class="row meta"><span class="status"></span><span class="hp"></span></div>
+          </button>
+          <div class="hud me b" hidden>
             <div class="row"><b class="name"></b><span class="gender"></span><small class="lvl"></small></div>
             <div class="types"></div>
             <div class="hpline"><span class="ps">HP</span><div class="bar"><i></i></div></div>
@@ -112,7 +133,15 @@
 
   <footer><span data-i18n="footer"></span> <button class="linklike" id="btn-legal" data-i18n="legalTitle"></button> · <button class="linklike" id="btn-news"><span data-i18n="newsLink"></span><i class="news-dot" hidden></i></button> · <button class="linklike" id="btn-feedback" data-i18n="feedbackLink"></button></footer>
 
-  <div id="intro" hidden><img class="boss-sprite" alt="" width="160" height="160"><p data-i18n="challenge"></p><small class="intro-rule" hidden></small></div>
+  <div id="intro" hidden><div class="boss-faces"><img class="boss-sprite" alt="" width="160" height="160"><img class="boss-sprite second" alt="" width="160" height="160" hidden></div><p data-i18n="challenge"></p><small class="intro-rule" hidden></small></div>
+
+  <div id="fame" hidden>
+    <p class="fame-title"></p>
+    <img class="fame-mon" alt="">
+    <div class="fame-plate"></div>
+    <div class="fame-end" hidden><p></p><button class="primary"></button></div>
+    <div class="fame-row"></div>
+  </div>
 
   <dialog id="dlg-help">
     <h2 data-i18n="howTitle"></h2>
@@ -163,6 +192,7 @@
   <dialog id="dlg-trainer">
     <h2 data-i18n="trainerTitle"></h2>
     <div id="trainer-card" class="trainer-card"></div>
+    <div class="tc-links"><button class="secondary" id="btn-fame"></button><button class="secondary" id="btn-dex"></button></div>
     <button class="secondary" id="btn-share-card" data-i18n="shareCard"></button>
     <div class="field">
       <label for="nick" data-i18n="nickLabel"></label>
@@ -177,6 +207,21 @@
       <div class="row"><input id="restore-code" maxlength="36" autocomplete="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><button class="secondary" id="btn-restore" data-i18n="restoreBtn"></button></div>
       <p class="small" id="restore-msg" data-i18n="backupNote"></p>
     </div>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-fame">
+    <h2 data-i18n="fameTitle"></h2>
+    <div id="fame-list" class="fame-list"></div>
+    <button data-close data-i18n="close"></button>
+  </dialog>
+
+  <dialog id="dlg-dex">
+    <h2 data-i18n="dexTitle"></h2>
+    <p class="small" id="dex-count"></p>
+    <div id="dex-tabs" class="dex-tabs"></div>
+    <div id="dex-card" class="dex-card"></div>
+    <div id="dex-grid" class="dex-grid"></div>
     <button data-close data-i18n="close"></button>
   </dialog>
 

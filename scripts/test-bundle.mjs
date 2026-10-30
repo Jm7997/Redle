@@ -16,7 +16,7 @@ try {
     build: {ssr: 'src/game.js', outDir: out, emptyOutDir: true, rollupOptions: {output: {entryFileNames: 'game.mjs'}}},
   });
   const g = await import(pathToFileURL(join(out, 'game.mjs')).href);
-  for (const boss of Object.keys(g.BOSSES)) {
+  for (const boss of [...Object.keys(g.BOSSES), g.DOUBLES.id]) {
     for (let d = 0; d < 25; d++) {
       const date = `bundle-${d}`, team = g.dailyPool(date, boss), b = g.newBattle(date, team, boss), choices = [];
       g.play(b, null);

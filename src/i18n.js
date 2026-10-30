@@ -65,7 +65,10 @@ const STRINGS = {
     miss: w => `¡${w} esquiva el ataque!`, fail: '¡Pero falla!', faint: w => `¡${w} se ha debilitado!`,
     st: {brn: w => `¡${w} se ha quemado!`, par: w => `¡${w} está paralizado! Quizás no pueda moverse.`, slp: w => `¡${w} se ha dormido!`, psn: w => `¡${w} ha sido envenenado!`, tox: w => `¡${w} ha sido gravemente envenenado!`, frz: w => `¡${w} se ha congelado!`},
     cure: {slp: w => `¡${w} se ha despertado!`, frz: w => `¡${w} ya no está congelado!`, _: w => `${w} se ha recuperado de su estado.`},
-    cant: {slp: w => `${w} está dormido como un tronco.`, par: w => `¡${w} está paralizado y no se puede mover!`, frz: w => `¡${w} está congelado!`, flinch: w => `¡${w} retrocede!`, recharge: w => `${w} tiene que recargar.`, _: w => `${w} no puede moverse.`},
+    prepareMove: {'Solar Beam': w => `¡${w} está absorbiendo luz!`, 'Solar Blade': w => `¡${w} está absorbiendo luz!`, Fly: w => `¡${w} ha volado muy alto!`, Bounce: w => `¡${w} ha saltado muy alto!`, Dig: w => `¡${w} se ha escondido bajo tierra!`, Dive: w => `¡${w} se ha sumergido!`, 'Phantom Force': w => `¡${w} se ha desvanecido!`, 'Shadow Force': w => `¡${w} se ha desvanecido!`},
+    illusionEnd: w => `¡La ilusión de ${w} se ha roto!`, noDrop: w => `¡Las características de ${w} no bajan!`, noDropBy: (w, a) => `¡${a} evita que bajen las características de ${w}!`, typeChange: (w, t) => `¡${w} ahora es de tipo ${t}!`, disabled: (w, m) => `¡${m} de ${w} ha quedado anulado!`, healBlock: w => `¡${w} no puede curarse!`, healBlockEnd: w => `¡${w} ya puede volver a curarse!`, saltCure: w => `¡${w} está en salazón!`, lighter: w => `¡${w} se ha vuelto más ligero!`, confusionEnd: w => `¡${w} ya no está confuso!`, encoreEnd: w => `¡${w} deja de repetir su ataque!`, tauntEnd: w => `¡${w} ya no cae en la Mofa!`, disableEnd: w => `¡${w} ya puede volver a usar su ataque!`, trapped: w => `¡${w} no puede escapar!`, poltergeist: (w, i) => `¡${i} de ${w} va a por él!`, healBell: '¡Un sonido relajante cura al equipo!', disguise: w => `¡El disfraz de ${w} ha servido de señuelo!`, iceFace: w => `¡La cara de hielo de ${w} ha parado el golpe!`,
+    lastWord: {red: '<b>Red:</b> ...', blue: '<b>Blue:</b> ¡No te emociones! ¡Aún me queda el mejor!', lance: '<b>Lance:</b> Un dragón nunca se rinde. Yo tampoco.', steven: '<b>Steven:</b> Esta piedra no se ha pulido en un día. Veamos si aguantas.', wallace: '<b>Wallace:</b> Reservaba lo más hermoso para el final.', cynthia: '<b>Cynthia:</b> Hacía tiempo que nadie me llevaba tan lejos.', iris: '<b>Iris:</b> ¡Aún no! ¡Mis dragones no saben perder!', leon: '<b>Leon:</b> ¡Esto sí que es un combate de campeones!', dobles: '<b>¡Sin banquillo!</b> A tus rivales solo les quedan estos dos.'},
+    cant: {Truant: w => `¡${w} está holgazaneando!`, Disable: w => `¡${w} no puede usar ese ataque!`, Taunt: w => `¡${w} no puede usar ese ataque por la Mofa!`, slp: w => `${w} está dormido como un tronco.`, par: w => `¡${w} está paralizado y no se puede mover!`, frz: w => `¡${w} está congelado!`, flinch: w => `¡${w} retrocede!`, recharge: w => `${w} tiene que recargar.`, _: w => `${w} no puede moverse.`},
     boost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'sube mucho' : 'sube'}!`, maxedStat: (w, s) => `¡${w} ha perdido PS y ha maximizado su ${s}!`, unboost: (w, s, n) => `¡${s} de ${w} ${n >= 2 ? 'baja mucho' : 'baja'}!`,
     stat: {atk: 'El Ataque', def: 'La Defensa', spa: 'El Ataque Especial', spd: 'La Defensa Especial', spe: 'La Velocidad', accuracy: 'La Precisión', evasion: 'La Evasión'},
     leftovers: w => `${w} recupera PS gracias a los Restos.`, poisonDmg: w => `El veneno resta PS a ${w}.`, burnDmg: w => `La quemadura resta PS a ${w}.`,
@@ -127,7 +130,10 @@ const STRINGS = {
     miss: w => `${w} avoided the attack!`, fail: 'But it failed!', faint: w => `${w} fainted!`,
     st: {brn: w => `${w} was burned!`, par: w => `${w} is paralyzed! It may be unable to move!`, slp: w => `${w} fell asleep!`, psn: w => `${w} was poisoned!`, tox: w => `${w} was badly poisoned!`, frz: w => `${w} was frozen solid!`},
     cure: {slp: w => `${w} woke up!`, frz: w => `${w} thawed out!`, _: w => `${w} was cured of its status.`},
-    cant: {slp: w => `${w} is fast asleep.`, par: w => `${w} is paralyzed! It can't move!`, frz: w => `${w} is frozen solid!`, flinch: w => `${w} flinched!`, recharge: w => `${w} must recharge!`, _: w => `${w} can't move!`},
+    prepareMove: {'Solar Beam': w => `${w} absorbed light!`, 'Solar Blade': w => `${w} absorbed light!`, Fly: w => `${w} flew up high!`, Bounce: w => `${w} sprang up!`, Dig: w => `${w} burrowed its way under the ground!`, Dive: w => `${w} hid underwater!`, 'Phantom Force': w => `${w} vanished instantly!`, 'Shadow Force': w => `${w} vanished instantly!`},
+    illusionEnd: w => `${w}'s illusion wore off!`, noDrop: w => `${w}'s stats were not lowered!`, noDropBy: (w, a) => `${a} prevents ${w}'s stats from being lowered!`, typeChange: (w, t) => `${w} is now ${t} type!`, disabled: (w, m) => `${w}'s ${m} was disabled!`, healBlock: w => `${w} was prevented from healing!`, healBlockEnd: w => `${w} can heal again!`, saltCure: w => `${w} is being salt cured!`, lighter: w => `${w} became nimble!`, confusionEnd: w => `${w} snapped out of confusion!`, encoreEnd: w => `${w}'s encore ended!`, tauntEnd: w => `${w} shook off the taunt!`, disableEnd: w => `${w}'s move is no longer disabled!`, trapped: w => `${w} can no longer escape!`, poltergeist: (w, i) => `${w} is about to be attacked by its ${i}!`, healBell: 'A soothing sound heals the team!', disguise: w => `${w}'s disguise served it as a decoy!`, iceFace: w => `${w}'s ice face took the hit!`,
+    lastWord: {red: '<b>Red:</b> ...', blue: "<b>Blue:</b> Don't get excited! I saved the best for last!", lance: '<b>Lance:</b> A dragon never gives up. Neither do I.', steven: '<b>Steven:</b> This stone took years to polish. Let\'s see if you can crack it.', wallace: '<b>Wallace:</b> I was saving the most beautiful for last.', cynthia: "<b>Cynthia:</b> It's been a long time since anyone pushed me this far.", iris: "<b>Iris:</b> Not yet! My dragons don't know how to lose!", leon: "<b>Leon:</b> Now THAT'S a champion time!", dobles: '<b>No bench left!</b> Your rivals are down to these two.'},
+    cant: {Truant: w => `${w} is loafing around!`, Disable: w => `${w} can't use that move!`, Taunt: w => `${w} can't use that move after the taunt!`, slp: w => `${w} is fast asleep.`, par: w => `${w} is paralyzed! It can't move!`, frz: w => `${w} is frozen solid!`, flinch: w => `${w} flinched!`, recharge: w => `${w} must recharge!`, _: w => `${w} can't move!`},
     boost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'rose sharply' : 'rose'}!`, maxedStat: (w, s) => `${w} cut its own HP and maximized its ${s}!`, unboost: (w, s, n) => `${w}'s ${s} ${n >= 2 ? 'harshly fell' : 'fell'}!`,
     stat: {atk: 'Attack', def: 'Defense', spa: 'Sp. Atk', spd: 'Sp. Def', spe: 'Speed', accuracy: 'accuracy', evasion: 'evasiveness'},
     leftovers: w => `${w} restored a little HP using its Leftovers!`, poisonDmg: w => `${w} was hurt by poison!`, burnDmg: w => `${w} was hurt by its burn!`,
@@ -246,8 +252,38 @@ export const FIELD_INFO = es ? {
 };
 export const ruleHtml = rule => RULE_TEXT[rule] ? `${itemIcon(RULE_ICON[rule])} <b>${es ? 'Regla del día' : "Today's rule"}: ${RULE_TEXT[rule][0]}</b> — ${RULE_TEXT[rule][1]}` : '';
 
-export function setBoss(id, name, team, gens, tries = 1) {
-  const b = BOSS_TEXT[LANG][id];
+// Domingo de dobles: nombre de cada dupla y su idea, contada como la contaría un entrenador.
+const DUO_TEXT = es ? {
+  kanto: ['Los dos de Pueblo Paleta', 'Blue llama al sol y Red lo aprovecha: con el campo soleado, sus plantas van a toda velocidad.'],
+  hoenn: ['Los Campeones de Hoenn', 'La lluvia de Wallace acelera a sus Pokémon y el acero de Steven aguanta lo que venga.'],
+  storm: ['Tormenta de dragones', 'Terremoto a discreción: los compañeros de Garchomp vuelan o levitan, así que solo tiemblas tú.'],
+  tailwind: ['Viento en las alas', 'Viento Afín desde el primer turno y dos Campeones que ya no te dejan atacar primero.'],
+  twisted: ['Dimensiones del revés', 'Espacio Raro nada más empezar: aquí los lentos y pesados atacan antes que nadie.'],
+  peak: ['Los reyes de la cima', 'La leyenda del Monte Plateado y el Campeón invicto de Galar. Sin trucos: pegan muy fuerte.'],
+  intimidate: ['Mirada de Kanto', 'Intimidación por partida doble: tus físicos pegarán como si llevaran guantes de boxeo.'],
+  beauty: ['Belleza en combate', 'Ludicolo trae la lluvia y Togekiss atrae los golpes. Elegantes, pero sin piedad.'],
+  tamers: ['Domadores de dragones', 'Iris y Leon se reparten el campo: dragones al ataque y dos muros que los protegen.'],
+  frozen: ['El mar helado', 'Lluvia para Wallace y el frío de Red: un temporal de Agua y Hielo.'],
+  fortress: ['La fortaleza', 'Claydol retuerce el tiempo y los golpes más pesados de Kanto y Hoenn caen primero.'],
+  dragons: ['El clan del dragón', 'Lance e Iris, maestros de dragones: Viento Afín y dragones por todas partes.'],
+} : {
+  kanto: ['The Pallet Town pair', 'Blue calls the sun and Red cashes in: under harsh sunlight their Grass types move at full speed.'],
+  hoenn: ['The Hoenn Champions', "Wallace's rain speeds up his team and Steven's steel takes whatever comes."],
+  storm: ['Dragon storm', "Earthquake all day: Garchomp's partners fly or levitate, so you're the only one shaking."],
+  tailwind: ['Wind beneath their wings', 'Tailwind from turn one and two Champions who will never let you move first.'],
+  twisted: ['Twisted dimensions', 'Trick Room right away: here the slow and heavy strike before anyone else.'],
+  peak: ['Kings of the summit', 'The legend of Mt. Silver and the unbeaten Champion of Galar. No tricks: they just hit very hard.'],
+  intimidate: ['The Kanto stare', 'Double Intimidate: your physical attackers will feel like they are wearing boxing gloves.'],
+  beauty: ['Beauty in battle', 'Ludicolo brings the rain and Togekiss draws the hits. Elegant, but merciless.'],
+  tamers: ['Dragon tamers', 'Iris and Leon split the field: dragons on the attack and two walls keeping them safe.'],
+  frozen: ['The frozen sea', "Rain for Wallace and Red's cold: a storm of Water and Ice."],
+  fortress: ['The fortress', 'Claydol twists time and the heaviest hitters of Kanto and Hoenn land first.'],
+  dragons: ['Clan of the dragon', 'Lance and Iris, dragon masters: Tailwind and dragons everywhere.'],
+};
+
+export function setBoss(id, name, team, gens, tries = 1, duo) {
+  const b = duo ? (es ? {place: DUO_TEXT[duo][0], where: DUO_TEXT[duo][0], challenge: `¡${name} quieren luchar!`, wonSub: 'Dos contra dos y no han podido contigo. Hoy mandas tú.', title: 'la dupla'}
+    : {place: DUO_TEXT[duo][0], where: DUO_TEXT[duo][0], challenge: `${name} want to battle!`, wonSub: "Two on two and they couldn't stop you. Today you're in charge.", title: 'the duo'}) : BOSS_TEXT[LANG][id];
   const itemsText = es ? `${itemIcon('Leftovers')} <b>Todos los Pokémon de ${name} llevan objeto</b>.` : `${itemIcon('Leftovers')} <b>All of ${name}'s Pokémon hold an item</b>.`;
   const rule = gensText(gens);
   Object.assign(T, es ? {
@@ -275,6 +311,24 @@ export function setBoss(id, name, team, gens, tries = 1) {
     shareWin: t => `🏆 Beat ${name} in ${t} turns!`, shareLoss: t => `💀 ${name} won (turn ${t})`, red: name,
     redSends: n => `${name} sent out ${n}!`, win: `You defeated ${name}!`, lose: `${name} defeated you...`,
   });
+  if (!duo) return;
+  T.duoName = Object.fromEntries(Object.entries(DUO_TEXT).map(([k, v]) => [k, v[0]]));
+  T.duoIdea = Object.fromEntries(Object.entries(DUO_TEXT).map(([k, v]) => [k, v[1]]));
+  Object.assign(T, es ? {
+    lead: `<b>${DUO_TEXT[duo][0]}.</b> ${DUO_TEXT[duo][1]} <b>Toca los dos Pokémon que quieres que empiecen</b> y pulsa ¡Listo!`,
+    bossTeam: `El equipo de ${name}`, stageRules: `${itemIcon('Leftovers')} <b>Combate Doble:</b> dos Pokémon en el campo a la vez por cada lado. Los ataques que golpean a varios hacen un 25 % menos, y Terremoto también alcanza a tu compañero.`,
+    won: `¡Has ganado a ${name}!`, lost: `${name} siguen invictos...`, lose: `${name} te han derrotado...`,
+    shareWin: t => `🏆 ¡${name} derrotados en ${t} turnos!`, shareLoss: t => `💀 ${name} ganaron (turno ${t})`,
+    how: ['Cada domingo, <b>dos rivales hacen equipo</b>: 3 Pokémon de cada uno, con sets para luchar juntos.', 'Recibes un <b>equipo de 6 para dobles</b>, el mismo para todo el mundo. <b>Elige a los dos</b> que empiezan.',
+      'Cada turno eliges qué hace cada uno de tus dos Pokémon y a quién ataca.', `Tienes <b>${tries} intentos</b>: si pierdes, vuelves a la pantalla de equipo.`, 'Comparte tu resultado y vuelve el domingo que viene.'],
+  } : {
+    lead: `<b>${DUO_TEXT[duo][0]}.</b> ${DUO_TEXT[duo][1]} <b>Tap the two Pokémon you want to lead</b> and press Ready!`,
+    bossTeam: `${name}'s team`, stageRules: `${itemIcon('Leftovers')} <b>Double Battle:</b> two Pokémon on the field per side. Moves that hit several targets deal 25% less, and Earthquake also reaches your partner.`,
+    won: `You beat ${name}!`, lost: `${name} remain undefeated...`, lose: `${name} defeated you...`,
+    shareWin: t => `🏆 ${name} defeated in ${t} turns!`, shareLoss: t => `💀 ${name} won (turn ${t})`,
+    how: ['Every Sunday <b>two rivals team up</b>: 3 Pokémon each, with sets built to fight together.', 'You get a <b>team of 6 for doubles</b>, the same for everyone. <b>Pick the two</b> that lead.',
+      'Each turn you choose what each of your two Pokémon does and who it attacks.', `You get <b>${tries} tries</b>: if you lose, you go back to team select.`, 'Share your result and come back next Sunday.'],
+  });
 }
 
 // Modo Liga y repeticiones.
@@ -297,6 +351,17 @@ Object.assign(T, es ? {
   fbBug: 'Fallo', fbIdea: 'Idea', fbOther: 'Otro', fbMessage: 'Tu mensaje', fbContact: 'Contacto opcional (Reddit, Discord…) si quieres respuesta',
   fbSend: 'Enviar', fbThanks: '¡Gracias! Mensaje enviado.', fbError: 'No se pudo enviar (sin conexión o demasiados mensajes hoy).', fbShort: 'Escribe un poco más.',
   trainerBtn: 'Tarjeta de entrenador', trainerTitle: 'Tarjeta de entrenador', medalsTitle: 'Medallas', medalOf: n => `Ganar a ${n}`,
+  splash: ["¡Cuidado con la hierba alta!","Magikarp usa Salpicadura.","Pero no pasó nada.","Red sigue sin decir nada.","Blue siempre va un paso por delante.","Snorlax bloquea el camino.","Zubat, Zubat, Zubat…","Un Geodude salvaje te mira.","Aquí no puedes usar eso.","Confía en tu Pikachu.","Ditto imita esta frase.","Psyduck tiene dolor de cabeza.","Slowpoke llegará mañana.","La Caja de Bill está llena.","Mi Rattata es de los mejores.","Sigue sin ser muy eficaz...","¡Es muy eficaz!","Protección cada dos turnos.","Ese 95 % no era tan seguro.","Wallace recomienda Milotic.","Steven busca piedras raras.","Leon se ha vuelto a perder.","Lance y su Hiperrayo.","Un Wobbuffet te mira fijamente.","Metrónomo podría ganar esto.","Hoy es buen día para un Eevee.","Vuelve al Centro Pokémon.","¡El equipo Rocket despega!","Nada de Pociones en la cima.","Tu Pokémon quiere aprender algo.","Agárrate a tu Cinta Focus.","Cuenta otra vez los K.O.","Cynthia aún no ha sudado.","Iris tiene hambre de dragones.","Esta vez sí aciertas Hipnosis.","Nadie olvida su primer Pokémon."], splashSunday: '¡Hoy toca Combate Doble!',
+  season: {halloween: ['Halloween en Redle', 'Gengar anda suelto esta noche.'], christmas: ['Navidad en Redle', 'Delibird reparte regalos… más o menos.'], valentine: ['San Valentín en Redle', 'Luvdisc busca pareja de dobles.'], pokemonday: ['Día de Pokémon', '¡Feliz Día de Pokémon!'], spring: ['Primavera en Redle', 'Deerling estrena pelaje.'], summer: ['Verano en Redle', 'Lapras te lleva a la playa.']},
+  seasonLeft: n => n === 0 ? '¡Último día!' : n === 1 ? 'Termina mañana.' : `Termina en ${n} días.`, seasonMedal: 'Gana un reto y llévate su medalla de recuerdo.',
+  fameTitle: 'Salón de la Fama', fameEntry: n => `Entrada n.º ${n}`, fameEmpty: 'Aquí quedarán tus equipos campeones. Gana un reto y estrena el Salón.', fameWelcome: n => `¡${n} y su equipo entran en el Salón de la Fama!`, fameContinue: 'Continuar',
+  dexTitle: 'Pokédex', dexCount: (w, s, t) => `Has ganado con ${w} · has visto ${s} · de ${t}`, dexHint: 'Toca un Pokémon. Se rellena con los equipos que te van tocando: en color, con los que has ganado.', dexUnknown: 'Aún no te ha tocado en ningún equipo.', dexSeen: 'Te ha tocado, pero aún no has ganado con él.', dexWon: n => n === 1 ? 'Has ganado con él 1 vez.' : `Has ganado con él ${n} veces.`, dexMvp: n => n === 1 ? 'MVP 1 vez.' : `MVP ${n} veces.`,
+  regions: ['Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Teselia', 'Kalos', 'Alola', 'Galar', 'Paldea'],
+  doublesTab: 'Dobles', doublesToday: '¡Hoy!', doublesSoon: 'El domingo', medalDoubles: 'Ganar un Combate Doble', sentBy: (t, n) => `¡${t} envía a ${n}!`,
+  sundayToday: n => `<b>¡Hoy es domingo de dobles!</b> ${n} te retan a la vez. Entra →`, sundayNext: n => `<b>Este domingo, Combate Doble:</b> ${n} hacen equipo →`,
+  sundayTitle: 'Combate Doble del domingo', sundayIn: d => d === 1 ? '¡Mañana mismo!' : d === 0 ? '¡Es hoy!' : `Faltan ${d} días. Vuelve el domingo.`, sundayBack: 'Volver al reto de hoy',
+  sundayRules: ['Dos entrenadores hacen equipo: 3 Pokémon de cada uno, con sets pensados para luchar juntos.', '6 contra 6, con <b>dos Pokémon en el campo a la vez</b>, como en el campeonato mundial.', 'Eliges a tus <b>dos</b> Pokémon de salida y a quién ataca cada uno.', 'Solo los domingos. <b>3 intentos</b> y una medalla nueva para quien gane.'],
+  pickTarget: m => `¿A quién apunta <b>${m}</b>?`, undo: '← Cambiar la elección anterior', hitsAlly: '¡También a tu compañero!', redirect: w => `¡${w} atrae todos los ataques!`, helpingHand: w => `¡${w} echa una mano a su compañero!`, guardTeam: w => `¡${w} protege a su equipo!`, swapped: w => `¡${w} cambia de sitio con su compañero!`,
   medalLiga: 'Campeón de la Liga', newMedal: m => `🎖️ ¡Medalla nueva! ${m}`,
   feat: {first: '¡A la primera! Gana sin gastar intentos', flawless: 'Sin un rasguño: gana sin que se debilite ninguno', clutch: 'Por los pelos: gana con un solo Pokémon en pie', fast: 'Rápido como Ninjask: gana en 15 turnos o menos', all: 'Maestro Pokémon: gana a los 8 rivales'},
   shareGlobal: (p, liga) => liga ? `🏆 Hoy solo el ${p} % se ha coronado` : `🌍 Hoy solo ha ganado el ${p} %`, medalStreak: n => `${n} días seguidos`, anon: 'Entrenador anónimo',
@@ -337,6 +402,17 @@ ${name}
   fbBug: 'Bug', fbIdea: 'Idea', fbOther: 'Other', fbMessage: 'Your message', fbContact: 'Optional contact (Reddit, Discord…) if you want a reply',
   fbSend: 'Send', fbThanks: 'Thanks! Message sent.', fbError: "Couldn't send it (offline or too many messages today).", fbShort: 'Write a bit more.',
   trainerBtn: 'Trainer card', trainerTitle: 'Trainer card', medalsTitle: 'Badges', medalOf: n => `Beat ${n}`,
+  splash: ["Watch out for tall grass!","Magikarp used Splash.","But nothing happened.","Red still has nothing to say.","Blue is always one step ahead.","Snorlax is blocking the way.","Zubat, Zubat, Zubat…","A wild Geodude stares at you.","You can't use that here.","Trust your Pikachu.","Ditto is copying this line.","Psyduck has a headache.","Slowpoke will be here tomorrow.","Bill's PC is full.","My Rattata is top percentage.","It's not very effective...","It's super effective!","Protect every other turn.","That 95% was not so safe.","Wallace recommends Milotic.","Steven is looking for rare stones.","Leon got lost again.","Lance and his Hyper Beam.","A Wobbuffet stares at you.","Metronome could win this.","A good day for an Eevee.","Back to the Pokémon Center.","Team Rocket blasts off again!","No Potions at the summit.","Your Pokémon wants to learn a move.","Hold on to that Focus Sash.","Count your KOs again.","Cynthia has not broken a sweat.","Iris is hungry for dragons.","This time Hypnosis will land.","Nobody forgets their first Pokémon."], splashSunday: "It's Double Battle day!",
+  season: {halloween: ['Halloween in Redle', 'Gengar is on the loose tonight.'], christmas: ['Christmas in Redle', 'Delibird is delivering presents… sort of.'], valentine: ["Valentine's in Redle", 'Luvdisc is looking for a doubles partner.'], pokemonday: ['Pokémon Day', 'Happy Pokémon Day!'], spring: ['Spring in Redle', 'Deerling has a new coat.'], summer: ['Summer in Redle', 'Lapras is taking you to the beach.']},
+  seasonLeft: n => n === 0 ? 'Last day!' : n === 1 ? 'Ends tomorrow.' : `Ends in ${n} days.`, seasonMedal: 'Win a challenge to keep its souvenir badge.',
+  fameTitle: 'Hall of Fame', fameEntry: n => `Entry No. ${n}`, fameEmpty: 'Your champion teams will live here. Win a challenge to open the Hall.', fameWelcome: n => `${n} and their team enter the Hall of Fame!`, fameContinue: 'Continue',
+  dexTitle: 'Pokédex', dexCount: (w, s, t) => `Won with ${w} · seen ${s} · of ${t}`, dexHint: 'Tap a Pokémon. It fills up with the teams you get: in color, the ones you have won with.', dexUnknown: 'It has not been on your team yet.', dexSeen: 'It was on your team, but you have not won with it yet.', dexWon: n => n === 1 ? 'You have won with it once.' : `You have won with it ${n} times.`, dexMvp: n => n === 1 ? 'MVP once.' : `MVP ${n} times.`,
+  regions: ['Kanto', 'Johto', 'Hoenn', 'Sinnoh', 'Unova', 'Kalos', 'Alola', 'Galar', 'Paldea'],
+  doublesTab: 'Doubles', doublesToday: 'Today!', doublesSoon: 'On Sunday', medalDoubles: 'Win a Double Battle', sentBy: (t, n) => `${t} sent out ${n}!`,
+  sundayToday: n => `<b>It's Doubles Sunday!</b> ${n} challenge you together. Go →`, sundayNext: n => `<b>This Sunday, Double Battle:</b> ${n} team up →`,
+  sundayTitle: 'Sunday Double Battle', sundayIn: d => d === 1 ? 'Tomorrow!' : d === 0 ? "It's today!" : `${d} days to go. Come back on Sunday.`, sundayBack: "Back to today's challenge",
+  sundayRules: ['Two trainers team up: 3 Pokémon each, with sets built to fight together.', '6 vs 6, with <b>two Pokémon on the field at once</b>, just like the World Championships.', 'You pick your <b>two</b> leads and who each one attacks.', 'Sundays only. <b>3 tries</b> and a new badge for whoever wins.'],
+  pickTarget: m => `Who should <b>${m}</b> hit?`, undo: '← Change the previous choice', hitsAlly: 'Hits your partner too!', redirect: w => `${w} became the center of attention!`, helpingHand: w => `${w} is ready to help its partner!`, guardTeam: w => `${w} protected its team!`, swapped: w => `${w} swapped places with its partner!`,
   medalLiga: 'League Champion', newMedal: m => `🎖️ New badge! ${m}`,
   feat: {first: 'First try! Win without using up tries', flawless: 'Not a scratch: win without a single faint', clutch: 'By a hair: win with only one Pokémon standing', fast: 'Fast as Ninjask: win in 15 turns or fewer', all: 'Pokémon Master: beat all 8 rivals'},
   shareGlobal: (p, liga) => liga ? `🏆 Only ${p}% became Champion today` : `🌍 Only ${p}% won today`, medalStreak: n => `${n}-day streak`, anon: 'Anonymous trainer',

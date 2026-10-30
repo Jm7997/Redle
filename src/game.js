@@ -57,9 +57,11 @@ export const leaguePool = date => pool(`liga:${date}`, LEAGUE);
 
 // Reglas del día: el mismo giro para todos los combates de ese día (o ninguno). Si el rival trae su
 // propio clima (granizo de Red), las reglas de clima no se aplican contra él.
+// Los dobles del domingo no tienen regla del día: la gracia es la sinergia de cada dupla.
 export const RULES = ['inverse', 'trickroom', 'gravity', 'sun', 'rain', 'sand', 'snow'];
 const RULE_WEATHER = {sun: 'sunnyday', rain: 'raindance', sand: 'sandstorm', snow: 'snowscape'};
 export function ruleFor(date, boss) {
+  if (boss === DOUBLES.id) return 'none';
   const r = rng(`regla:${date}`)();
   const rule = r < 0.4 ? 'none' : RULES[Math.floor((r - 0.4) / 0.6 * RULES.length)];
   return RULE_WEATHER[rule] && BOSSES[boss]?.weather ? 'none' : rule;
@@ -91,25 +93,45 @@ const NOT_ALLOWED = new Set(['Restricted Legendary', 'Sub-Legendary', 'Mythical'
 // Los 6 Pokémon del día contra `boss`: sets de Random Battle Gen 9 de Showdown, sin legendarios,
 // solo de las generaciones del rival (Red: Gen 1-2; Cynthia: Gen 1-4), a nivel 100.
 // Equipo número `i` de ese día y rival (0 = el sorteo normal; los demás, sorteos alternativos).
-export const poolFor = (boss, date, i = 0) => pool(i ? `${boss}:${date}~${i}` : `${boss}:${date}`, {...BOSSES[boss], team: teamOf(boss, date)});
+export const poolFor = (boss, date, i = 0) => pool(i ? `${boss}:${date}~${i}` : `${boss}:${date}`, {...configOf(boss), team: teamOf(boss, date)});
 // Equipo del día: el sorteo normal salvo que la tabla de equilibrio (balance.js) diga que era casi imposible o
 // demasiado fácil; entonces, el sorteo alternativo que sí cae en el rango. Ver scripts/build-balance.mjs.
 export const dailyPool = (date, boss = 'red') => poolFor(boss, date, BALANCE[`${boss}:${date}`] || 0);
 
-function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmicks = []}) {
-  const gen = TeamGenerators.getTeamGenerator(`gen${format}randombattle`, seedFor(`pool:${key}`));
+// Equipo de cualquier modo en un día (para el Salón de la Fama y la Pokédex, que salen del historial).
+export const poolOf = (mode, date) => (mode === 'liga' ? leaguePool(date) : dailyPool(date, mode));
+// Todos los Pokémon que te pueden tocar en cualquier modo, sin repetir formas, en orden de Pokédex.
+let dexCache;
+export function pokedexList() {
+  if (dexCache) return dexCache;
+  const seed = [1, 2, 3, 4], ids = [...Object.keys(TeamGenerators.getTeamGenerator('gen9randombattle', seed).randomSets),
+    ...Object.keys(TeamGenerators.getTeamGenerator('gen9randomdoublesbattle', seed).randomDoublesSets),
+    ...Object.keys(TeamGenerators.getTeamGenerator('gen8randombattle', seed).randomSets)];
+  const list = new Map();
+  for (const id of ids) {
+    const sp = dex.species.get(id);
+    if (sp.bst < 420 || sp.tags.some(t => NOT_ALLOWED.has(t))) continue;
+    const base = dex.species.get(sp.baseSpecies);
+    list.set(base.name, {name: base.name, num: base.num, gen: base.gen});
+  }
+  return (dexCache = [...list.values()].sort((a, b) => a.num - b.num));
+}
+
+function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmicks = [], doubles = false}) {
+  const gen = TeamGenerators.getTeamGenerator(`gen${format}random${doubles ? 'doubles' : ''}battle`, seedFor(`pool:${key}`));
   const dex = Dex.forGen(format);
+  const sets = doubles ? gen.randomDoublesSets : gen.randomSets; // cada formato tiene su propia lista de Pokémon
   const taken = new Set(team.map(s => dex.species.get(s.species).baseSpecies));
   // ponytail: corte por stats base; afinar con datos de partidas reales
-  const candidates = Object.keys(gen.randomSets).map(id => dex.species.get(id))
+  const candidates = Object.keys(sets).map(id => dex.species.get(id))
     .filter(sp => sp.gen >= lo && sp.gen <= hi && sp.bst >= 420 && !sp.tags.some(t => NOT_ALLOWED.has(t)) && !taken.has(sp.baseSpecies));
   const r = rng(`pick:${key}`), out = [], seen = new Set();
   while (out.length < POOL_SIZE) {
     const sp = candidates[Math.floor(r() * candidates.length)];
     if (seen.has(sp.baseSpecies)) continue;
     seen.add(sp.baseSpecies);
-    const set = gen.randomSet(sp.name, {}, out.length === 0);
-    if (!gimmicks.includes('tera')) noTeraBlast(set, gen.randomSets[sp.id], key);
+    const set = gen.randomSet(sp.name, {}, out.length === 0, doubles);
+    if (!gimmicks.includes('tera')) noTeraBlast(set, sets[sp.id], key);
     out.push({...set, level: 100, gigantamax: false, ...wildTraining(set, key, maxEVs, maxIVs)});
   }
   luckyGimmick(out, key, gimmicks, dex);
@@ -301,9 +323,108 @@ export const BOSSES = {
 };
 export const RED_TEAM = BOSSES.red.team;
 
+// ---------- Domingo de dobles ----------
+// Cada domingo, dos rivales hacen equipo: 3 Pokémon de cada uno, con sets pensados para dobles y una idea común
+// (sol, lluvia, Espacio Raro, Viento Afín…). 6 contra 6, dos en el campo a la vez, como en el VGC. A diferencia de los
+// equipos de arriba, aquí los ataques NO son los de los juegos: son las versiones de dobles de sus Pokémon de siempre.
+// No se repiten especies dentro de una dupla (el marcador y la lista de debilitados van por nombre).
+export const DOUBLES = {id: 'dobles', gens: [1, 9], maxEVs: 252, doubles: true, from: '2026-11-01'};
+const DS = {
+  red: {
+    Pikachu: mon('Pikachu', 'Light Ball', 'Lightning Rod', 'Jolly', ev('atk', 'spe'), ['Fake Out', 'Volt Tackle', 'Iron Tail', 'Protect']),
+    Venusaur: mon('Venusaur', 'Sitrus Berry', 'Chlorophyll', 'Modest', ev('spa', 'spe'), ['Sleep Powder', 'Giga Drain', 'Sludge Bomb', 'Protect']),
+    Charizard: mon('Charizard', 'Life Orb', 'Solar Power', 'Timid', ev('spa', 'spe'), ['Heat Wave', 'Air Slash', 'Solar Beam', 'Protect']),
+    Blastoise: mon('Blastoise', 'Sitrus Berry', 'Torrent', 'Modest', ev('hp', 'spa'), ['Muddy Water', 'Ice Beam', 'Flash Cannon', 'Protect']),
+    Lapras: mon('Lapras', 'Leftovers', 'Water Absorb', 'Modest', ev('hp', 'spa'), ['Blizzard', 'Hydro Pump', 'Ice Shard', 'Protect']),
+    Snorlax: mon('Snorlax', 'Sitrus Berry', 'Thick Fat', 'Brave', ev('hp', 'atk'), ['Body Slam', 'Crunch', 'Earthquake', 'Protect']),
+  },
+  blue: {
+    Arcanine: mon('Arcanine', 'Sitrus Berry', 'Intimidate', 'Adamant', ev('hp', 'atk'), ['Flare Blitz', 'Extreme Speed', 'Sunny Day', 'Protect']),
+    Exeggutor: mon('Exeggutor', 'Life Orb', 'Chlorophyll', 'Modest', ev('spa', 'spe'), ['Leaf Storm', 'Psychic', 'Sleep Powder', 'Protect']),
+    Pidgeot: mon('Pidgeot', 'Sharp Beak', 'Keen Eye', 'Timid', ev('spa', 'spe'), ['Tailwind', 'Hurricane', 'Heat Wave', 'Protect']),
+    Gyarados: mon('Gyarados', 'Sitrus Berry', 'Intimidate', 'Adamant', ev('atk', 'spe'), ['Dragon Dance', 'Waterfall', 'Ice Fang', 'Protect']),
+    Machamp: mon('Machamp', 'Assault Vest', 'No Guard', 'Adamant', ev('hp', 'atk'), ['Dynamic Punch', 'Stone Edge', 'Knock Off', 'Bullet Punch']),
+    Rhydon: mon('Rhydon', 'Eviolite', 'Lightning Rod', 'Adamant', ev('hp', 'atk'), ['Rock Slide', 'Earthquake', 'Megahorn', 'Protect']),
+  },
+  lance: {
+    Dragonite: mon('Dragonite', 'Lum Berry', 'Inner Focus', 'Adamant', ev('atk', 'spe'), ['Extreme Speed', 'Dragon Claw', 'Fire Punch', 'Protect']),
+    Aerodactyl: mon('Aerodactyl', 'Focus Sash', 'Pressure', 'Jolly', ev('atk', 'spe'), ['Tailwind', 'Rock Slide', 'Taunt', 'Protect']),
+    Gyarados: mon('Gyarados', 'Leftovers', 'Intimidate', 'Jolly', ev('atk', 'spe'), ['Waterfall', 'Crunch', 'Thunder Wave', 'Protect']),
+    Charizard: mon('Charizard', 'Charcoal', 'Blaze', 'Timid', ev('spa', 'spe'), ['Heat Wave', 'Air Slash', 'Dragon Pulse', 'Protect']),
+  },
+  steven: {
+    Metagross: mon('Metagross', 'Sitrus Berry', 'Clear Body', 'Adamant', ev('hp', 'atk'), ['Meteor Mash', 'Zen Headbutt', 'Bullet Punch', 'Protect']),
+    Claydol: mon('Claydol', 'Mental Herb', 'Levitate', 'Quiet', ev('hp', 'spa'), ['Trick Room', 'Earth Power', 'Psychic', 'Protect']),
+    Aggron: mon('Aggron', 'Life Orb', 'Rock Head', 'Brave', ev('hp', 'atk'), ['Head Smash', 'Heavy Slam', 'Rock Slide', 'Protect']),
+    Skarmory: mon('Skarmory', 'Rocky Helmet', 'Sturdy', 'Jolly', ev('hp', 'spe'), ['Tailwind', 'Brave Bird', 'Iron Head', 'Protect']),
+    Armaldo: mon('Armaldo', 'Life Orb', 'Swift Swim', 'Adamant', ev('atk', 'spe'), ['Liquidation', 'Rock Slide', 'X-Scissor', 'Protect']),
+  },
+  wallace: {
+    Milotic: mon('Milotic', 'Sitrus Berry', 'Competitive', 'Modest', ev('hp', 'spa'), ['Muddy Water', 'Ice Beam', 'Recover', 'Protect']),
+    Ludicolo: mon('Ludicolo', 'Life Orb', 'Swift Swim', 'Modest', ev('spa', 'spe'), ['Fake Out', 'Hydro Pump', 'Giga Drain', 'Rain Dance']),
+    Wailord: mon('Wailord', 'Sitrus Berry', 'Pressure', 'Modest', ev('hp', 'spa'), ['Water Spout', 'Ice Beam', 'Rain Dance', 'Protect']),
+    Tentacruel: mon('Tentacruel', 'Black Sludge', 'Liquid Ooze', 'Timid', ev('spa', 'spe'), ['Muddy Water', 'Sludge Bomb', 'Icy Wind', 'Protect']),
+  },
+  cynthia: {
+    Garchomp: mon('Garchomp', 'Life Orb', 'Rough Skin', 'Jolly', ev('atk', 'spe'), ['Earthquake', 'Dragon Claw', 'Rock Slide', 'Protect']),
+    Togekiss: mon('Togekiss', 'Sitrus Berry', 'Serene Grace', 'Timid', ev('hp', 'spa'), ['Follow Me', 'Air Slash', 'Tailwind', 'Protect']),
+    Lucario: mon('Lucario', 'Focus Sash', 'Inner Focus', 'Adamant', ev('atk', 'spe'), ['Close Combat', 'Extreme Speed', 'Meteor Mash', 'Protect']),
+    Spiritomb: mon('Spiritomb', 'Leftovers', 'Pressure', 'Quiet', ev('hp', 'spa'), ['Trick Room', 'Dark Pulse', 'Shadow Ball', 'Will-O-Wisp']),
+    Milotic: mon('Milotic', 'Leftovers', 'Marvel Scale', 'Quiet', ev('hp', 'spa'), ['Scald', 'Ice Beam', 'Recover', 'Protect']),
+    Roserade: mon('Roserade', 'Focus Sash', 'Natural Cure', 'Timid', ev('spa', 'spe'), ['Sleep Powder', 'Energy Ball', 'Sludge Bomb', 'Protect']),
+  },
+  iris: {
+    Hydreigon: mon('Hydreigon', 'Life Orb', 'Levitate', 'Timid', ev('spa', 'spe'), ['Dark Pulse', 'Draco Meteor', 'Flamethrower', 'Protect']),
+    Haxorus: mon('Haxorus', 'Focus Sash', 'Mold Breaker', 'Jolly', ev('atk', 'spe'), ['Dragon Dance', 'Dual Chop', 'Earthquake', 'Protect']),
+    Archeops: mon('Archeops', '', 'Defeatist', 'Jolly', ev('atk', 'spe'), ['Acrobatics', 'Rock Slide', 'Tailwind', 'Protect']),
+    Druddigon: mon('Druddigon', 'Rocky Helmet', 'Rough Skin', 'Adamant', ev('hp', 'atk'), ['Dragon Claw', 'Fire Punch', 'Sucker Punch', 'Protect']),
+    Lapras: mon('Lapras', 'Leftovers', 'Water Absorb', 'Modest', ev('hp', 'spa'), ['Ice Beam', 'Surf', 'Sing', 'Protect']),
+  },
+  leon: {
+    Charizard: mon('Charizard', 'Life Orb', 'Blaze', 'Timid', ev('spa', 'spe'), ['Heat Wave', 'Air Slash', 'Focus Blast', 'Protect']),
+    Aegislash: mon('Aegislash', 'Leftovers', 'Stance Change', 'Quiet', ev('hp', 'spa'), ["King's Shield", 'Shadow Ball', 'Flash Cannon', 'Wide Guard']),
+    Dragapult: mon('Dragapult', 'Focus Sash', 'Clear Body', 'Jolly', ev('atk', 'spe'), ['Dragon Darts', 'Phantom Force', 'Thunder Wave', 'Protect']),
+    Cinderace: mon('Cinderace', 'Life Orb', 'Libero', 'Jolly', ev('atk', 'spe'), ['Pyro Ball', 'Sucker Punch', 'Gunk Shot', 'Protect']),
+    Seismitoad: mon('Seismitoad', 'Sitrus Berry', 'Water Absorb', 'Modest', ev('hp', 'spa'), ['Muddy Water', 'Earth Power', 'Sludge Wave', 'Protect']),
+    Haxorus: mon('Haxorus', 'Life Orb', 'Mold Breaker', 'Jolly', ev('atk', 'spe'), ['Dragon Claw', 'Close Combat', 'Earthquake', 'Protect']),
+  },
+};
+// Las duplas, en el orden en que salen los domingos. Los dos primeros de cada lista empiezan el combate.
+const DUO_LIST = [
+  ['kanto', 'red', 'blue', ['Venusaur', 'Charizard', 'Pikachu'], ['Arcanine', 'Exeggutor', 'Pidgeot']], // sol
+  ['hoenn', 'wallace', 'steven', ['Ludicolo', 'Milotic', 'Tentacruel'], ['Metagross', 'Armaldo', 'Skarmory']], // lluvia y acero
+  ['storm', 'cynthia', 'iris', ['Garchomp', 'Togekiss', 'Milotic'], ['Hydreigon', 'Archeops', 'Haxorus']], // Terremoto sin tocar al aliado
+  ['tailwind', 'lance', 'leon', ['Aerodactyl', 'Dragonite', 'Gyarados'], ['Charizard', 'Dragapult', 'Cinderace']], // Viento Afín
+  ['twisted', 'steven', 'cynthia', ['Claydol', 'Aggron', 'Metagross'], ['Spiritomb', 'Milotic', 'Lucario']], // Espacio Raro
+  ['peak', 'red', 'leon', ['Pikachu', 'Snorlax', 'Blastoise'], ['Aegislash', 'Dragapult', 'Charizard']],
+  ['intimidate', 'lance', 'blue', ['Gyarados', 'Dragonite', 'Aerodactyl'], ['Arcanine', 'Machamp', 'Rhydon']], // Intimidación
+  ['beauty', 'wallace', 'cynthia', ['Ludicolo', 'Milotic', 'Wailord'], ['Togekiss', 'Lucario', 'Roserade']],
+  ['tamers', 'iris', 'leon', ['Hydreigon', 'Druddigon', 'Archeops'], ['Seismitoad', 'Aegislash', 'Haxorus']],
+  ['frozen', 'wallace', 'red', ['Ludicolo', 'Tentacruel', 'Wailord'], ['Lapras', 'Blastoise', 'Snorlax']], // lluvia
+  ['fortress', 'steven', 'blue', ['Claydol', 'Aggron', 'Metagross'], ['Machamp', 'Rhydon', 'Exeggutor']], // Espacio Raro
+  ['dragons', 'lance', 'iris', ['Aerodactyl', 'Dragonite', 'Charizard'], ['Haxorus', 'Hydreigon', 'Lapras']],
+];
+export const DUOS = DUO_LIST.map(([id, a, b, as, bs]) => ({id, trainers: [a, b], name: `${BOSSES[a].name} & ${BOSSES[b].name}`,
+  team: as.flatMap((sp, i) => [{...DS[a][sp], trainer: a}, {...DS[b][bs[i]], trainer: b}])}));
+export const isSunday = date => new Date(date + 'T12:00:00Z').getUTCDay() === 0;
+// ¿Se juega hoy? Cualquier otro día se enseña quién viene el domingo.
+export const doublesOpen = date => date >= DOUBLES.from && isSunday(date);
+// El domingo de esa fecha o el siguiente.
+export function nextSunday(date) {
+  const t = Date.parse(date + 'T12:00:00Z');
+  return new Date(t + (7 - new Date(t).getUTCDay()) % 7 * 864e5).toISOString().slice(0, 10);
+}
+export function duoOf(key) {
+  const d = dateOf(key), sunday = nextSunday(d && d > DOUBLES.from ? d : DOUBLES.from);
+  return DUOS[Math.round((Date.parse(sunday) - Date.parse(DOUBLES.from)) / (7 * 864e5)) % DUOS.length];
+}
+// Datos de un modo: un rival o los dobles.
+const configOf = boss => (boss === DOUBLES.id ? DOUBLES : BOSSES[boss]);
+
 // Equipo del rival para un combate o día (`key` lleva la fecha): el antiguo si el rival lo cambió después.
 const dateOf = key => String(key).match(/\d{4}-\d\d-\d\d/)?.[0];
 export function teamOf(boss, key) {
+  if (boss === DOUBLES.id) return duoOf(key).team;
   const b = BOSSES[boss], d = dateOf(key);
   return b.oldTeam && d && d < b.oldTeam.until ? b.oldTeam.team : b.team;
 }
@@ -340,12 +461,12 @@ function bossTeam(boss, plan, key) {
 // Mecanismos por combate: en la Liga, todos (Tera, Mega y Dinamax); contra un rival, los de su generación.
 // Las rondas de la Liga se reconocen porque su clave empieza por "liga".
 export function battleGimmicks(key, boss) {
-  return String(key).startsWith('liga') ? LEAGUE.gimmicks : BOSSES[boss].gimmicks || [];
+  return String(key).startsWith('liga') ? LEAGUE.gimmicks : configOf(boss).gimmicks || [];
 }
 export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   const gimmicks = battleGimmicks(key, boss), league = String(key).startsWith('liga');
-  const format = league ? 9 : BOSSES[boss].format || 9;
-  const formatid = `gen${format}customgame${format === 9 && !gimmicks.includes('tera') ? '@@@Terastal Clause' : ''}`;
+  const config = configOf(boss), format = league ? 9 : config.format || 9;
+  const formatid = `gen${format}${config.doubles ? 'doubles' : ''}customgame${format === 9 && !gimmicks.includes('tera') ? '@@@Terastal Clause' : ''}`;
   const battle = new Battle({formatid, seed: seedFor(`battle:${boss}:${key}`)});
   battle.setPlayer('p1', {name: 'Tú', team});
   battle.bossPlan = bossPlan(key, boss);
@@ -354,12 +475,12 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   const day = String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9';
   battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : 3;
   battle.aiLegacy = battle.aiV === 1; // IA anterior (ver abilityBlocks)
-  battle.setPlayer('p2', {name: BOSSES[boss].name, team: bossTeam(boss, battle.bossPlan, key)});
+  battle.setPlayer('p2', {name: config.doubles ? duoOf(key).name : config.name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
   if (format !== 8 && gimmicks.includes('dynamax')) {
     for (const side of battle.sides) { side.dynamaxUsed = false; side.canDynamaxNow = function () { return !this.dynamaxUsed; }; }
   }
-  const weather = BOSSES[boss].weather;
+  const weather = config.weather;
   if (weather) {
     battle.field.setWeather(weather, battle.p2.pokemon[0]);
     battle.field.weatherState.duration = 0; // 0 = no se acaba
@@ -559,6 +680,7 @@ export function aiChoice(battle, sideId = 'p2') {
   const req = side.activeRequest;
   if (!req || req.wait) return null;
   if (req.teamPreview) return 'default'; // el orden ya viene dado: el primero sale a combatir
+  if (battle.gameType === 'doubles') return doublesChoice(battle, side);
   const foe = side.foe.active[0];
   if (req.forceSwitch && side.slotConditions[0]?.revivalblessing) {
     const dead = side.pokemon.map((p, i) => [p, i]).filter(([p]) => p.fainted).sort((a, b) => b[0].maxhp - a[0].maxhp)[0];
@@ -591,6 +713,118 @@ export function aiChoice(battle, sideId = 'p2') {
   const gimmick = r.canMegaEvo ? ' mega' : r.canDynamax && me.set.dynamax ? ' dynamax'
     : r.canTerastallize && sideId === 'p2' && teraNow(battle, side, me, foe) ? ' terastallize' : '';
   return 'move ' + (best + 1) + gimmick;
+}
+
+// ---------- IA en dobles ----------
+// Misma estimación que en individuales, más lo propio del formato: Sorpresa el primer turno, Viento Afín y Espacio Raro
+// de entrada, clima solo si el equipo le saca partido, redirigir, Protección cuando hay peligro, ataques a los dos rivales
+// (al 75 %) sin dañar al compañero, y no gastar dos ataques en quien ya va a caer.
+const WEATHER_FANS = {sunnyday: ['chlorophyll', 'solarpower'], raindance: ['swiftswim', 'raindish']};
+const alive = list => list.filter(p => p && !p.fainted);
+const meanSpeed = list => list.reduce((a, p) => a + speed(p), 0) / (list.length || 1);
+// Lo que vale una jugada a un objetivo, contando lo que ya le ha reservado el compañero este turno.
+function aimedScore(user, target, slot, threat, planned) {
+  const left = target.hp / target.maxhp - (planned.get(target) || 0);
+  const dmg = estimate(user, target, slot.id), score = scoreMove(user, target, slot, threat);
+  if (planned.has(target) && left <= 0) return score * 0.2; // ya cae con el golpe del compañero
+  return dmg >= left && dmg < target.hp / target.maxhp ? Math.max(score, 1.5) : score; // entre los dos, K.O.
+}
+function doublesScore(me, ally, foes, slot, threat, plan) {
+  const move = dex.moves.get(slot.id), battle = me.battle, side = me.side, field = battle.field;
+  const hp = me.hp / me.maxhp, team = alive(side.pokemon), allyIn = ally && !ally.fainted;
+  if (move.stallingMove) {
+    if (me.volatiles.stall) return 0;
+    const pressure = foes.reduce((a, f) => a + bestDamage(f, me), 0);
+    return pressure >= hp ? (allyIn ? 1.05 : 0.5) : 0.1;
+  }
+  if (move.id === 'fakeout') return me.activeMoveActions ? 0 : null;
+  if (['followme', 'ragepowder'].includes(move.id)) {
+    if (!allyIn) return 0;
+    const needsCover = ally.moveSlots.some(m => ['tailwind', 'trickroom', 'dragondance', 'swordsdance'].includes(m.id));
+    return needsCover && !ally.activeMoveActions ? 1.9 : foes.some(f => bestDamage(f, ally) >= ally.hp / ally.maxhp) ? 1.2 : 0.2;
+  }
+  if (move.id === 'helpinghand') return allyIn && foes.some(f => bestDamage(ally, f) >= 0.3) ? 0.7 : 0;
+  if (move.id === 'tailwind') return side.sideConditions.tailwind ? 0 : meanSpeed(alive(side.active)) < meanSpeed(foes) ? 1.95 : 1.1;
+  if (move.id === 'trickroom') return field.pseudoWeather.trickroom || plan.room ? 0 : meanSpeed(alive(side.active)) < meanSpeed(foes) ? 1.95 : 0.1;
+  if (WEATHER_FANS[move.id]) {
+    if (field.effectiveWeather() === move.id) return 0;
+    return team.some(p => WEATHER_FANS[move.id].includes(p.ability)) ? 1.95 : 0.1;
+  }
+  return null; // sin regla propia: se puntúa contra cada objetivo
+}
+// La mejor jugada del Pokémon del hueco `i`: {score, text, target}.
+function slotPlan(side, i, plan) {
+  const me = side.active[i], ally = side.active[1 - i], foes = alive(side.foe.active), r = side.activeRequest.active[i];
+  const threat = Math.max(0, ...foes.map(f => bestDamage(f, me)));
+  let best = {score: -1, text: 'default'};
+  const take = (score, text, target) => { if (score > best.score) best = {score, text, target}; };
+  r.moves.forEach((m, j) => {
+    if (m.disabled || m.pp === 0) return;
+    const move = dex.moves.get(m.id), base = `move ${j + 1}`, kind = m.target;
+    if (!kind) return take(1, base); // atado a un ataque (segundo turno de Rayo Meteórico, Enfado…): sin objetivo que elegir
+    const own = doublesScore(me, ally, foes, m, threat, plan), aimsFoe = ['normal', 'any', 'adjacentFoe'].includes(kind);
+    if (own !== null) {
+      if (aimsFoe) return foes[0] && take(own, `${base} ${side.foe.active.indexOf(foes[0]) + 1}`); // Sorpresa ya gastada
+      return take(own, ['adjacentAlly', 'adjacentAllyOrSelf'].includes(kind) ? `${base} ${-(1 - i + 1)}` : base);
+    }
+    if (aimsFoe) {
+      for (const f of foes) {
+        let score = aimedScore(me, f, m, threat, plan.aimed);
+        if (move.id === 'fakeout') score = f.hasType('Ghost') || f.ability === 'innerfocus' || plan.flinched === f ? 0 : 1.8 + estimate(me, f, m.id);
+        if (move.status === 'slp' && score > 0) score = plan.slept === f ? 0.1 : 1.3;
+        take(score, `${base} ${side.foe.active.indexOf(f) + 1}`, f);
+      }
+    } else if (kind === 'allAdjacentFoes' || kind === 'allAdjacent') {
+      let score = foes.reduce((a, f) => a + Math.min(1.5, estimate(me, f, m.id) * 0.75 >= f.hp / f.maxhp ? 1.5 : estimate(me, f, m.id) * 0.75), 0);
+      if (kind === 'allAdjacent' && ally && !ally.fainted) {
+        const hurt = estimate(me, ally, m.id) * 0.75;
+        score -= hurt >= ally.hp / ally.maxhp ? 2 : hurt * 1.5;
+      }
+      take(score, base);
+    } else if (['adjacentAlly', 'adjacentAllyOrSelf'].includes(kind)) take(0.05, `${base} ${-(1 - i + 1)}`);
+    else take(foes.length ? scoreMove(me, foes[0], m, threat) : 0.05, base);
+  });
+  return best;
+}
+// A quién sacar: el del banquillo que mejor aguante a los rivales que hay en el campo y más les haga.
+function doublesSwitch(side, used) {
+  const foes = alive(side.foe.active);
+  const value = p => foes.reduce((a, f) => a + bestDamage(p, f) - bestDamage(f, p), 0);
+  let best = 0, bestValue = -Infinity;
+  side.pokemon.forEach((p, i) => { if (!p.fainted && !p.isActive && !used.has(i) && value(p) > bestValue) [best, bestValue] = [i + 1, value(p)]; });
+  return best;
+}
+function doublesChoice(battle, side) {
+  const req = side.activeRequest, used = new Set();
+  if (req.forceSwitch) {
+    return req.forceSwitch.map((forced, i) => {
+      if (!forced) return 'pass';
+      if (side.slotConditions[i]?.revivalblessing) {
+        const dead = side.pokemon.map((p, n) => [p, n]).filter(([p]) => p.fainted).sort((a, b) => b[0].maxhp - a[0].maxhp)[0];
+        return dead ? `switch ${dead[1] + 1}` : 'pass';
+      }
+      const n = doublesSwitch(side, used);
+      if (!n) return 'pass';
+      used.add(n - 1);
+      return `switch ${n}`;
+    }).join(', ');
+  }
+  const plan = {aimed: new Map(), room: false, flinched: null, slept: null};
+  return side.active.map((me, i) => {
+    if (me.fainted || me.volatiles.commanding) return 'pass';
+    const best = slotPlan(side, i, plan), r = req.active[i];
+    // Sin nada útil y con alguien mejor en el banquillo: cambia.
+    if (best.score < 0.15 && !r.trapped) {
+      const n = doublesSwitch(side, used);
+      if (n) { used.add(n - 1); return `switch ${n}`; }
+    }
+    const moveId = /^move (\d)/.test(best.text) ? r.moves[+best.text[5] - 1].id : '';
+    if (best.target) plan.aimed.set(best.target, (plan.aimed.get(best.target) || 0) + estimate(me, best.target, moveId));
+    if (moveId === 'trickroom') plan.room = true;
+    if (moveId === 'fakeout') plan.flinched = best.target;
+    if (best.target && dex.moves.get(moveId).status === 'slp') plan.slept = best.target;
+    return best.text;
+  }).join(', ');
 }
 
 // ¿Teracristaliza ahora el rival? Solo si su plan es Tera, o si el Pokémon reservado para Mega/Dinamax

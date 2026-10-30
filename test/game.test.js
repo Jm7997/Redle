@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf, poolFor} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf, poolFor, poolOf, pokedexList, DOUBLES, DUOS, duoOf, doublesOpen, nextSunday} from '../src/game.js';
+import {SEASONS, seasonOf, seasonDaysLeft} from '../src/seasons.js';
 import {BALANCE} from '../src/balance.js';
 
 test('el reto del día es igual para todos y cambia cada día', () => {
@@ -172,7 +173,7 @@ test('equilibrio diario: solo días desde el 24-10, sorteo alternativo determini
   for (const [key, i] of entries) {
     const [boss, date] = key.split(':');
     assert.ok(date >= '2026-10-24', `${key}: nunca se cambian días ya jugados`);
-    assert.ok(BOSSES[boss] && Number.isInteger(i) && i > 0, key);
+    assert.ok((BOSSES[boss] || boss === DOUBLES.id) && Number.isInteger(i) && i > 0, key);
   }
   if (entries.length) {
     const [key, i] = entries[0], [boss, date] = key.split(':');
@@ -183,4 +184,108 @@ test('equilibrio diario: solo días desde el 24-10, sorteo alternativo determini
   }
   // Los días anteriores siguen con el sorteo de siempre.
   assert.deepEqual(dailyPool('2026-10-20', 'red').map(s => s.species), poolFor('red', '2026-10-20', 0).map(s => s.species));
+});
+
+test('dobles: un domingo cada dupla, solo se juega en domingo y la semana anuncia la siguiente', () => {
+  assert.equal(doublesOpen('2026-10-25'), false); // domingo anterior al estreno
+  assert.equal(doublesOpen('2026-11-01'), true);
+  assert.equal(doublesOpen('2026-11-02'), false);
+  assert.equal(nextSunday('2026-11-02'), '2026-11-08');
+  assert.equal(duoOf('2026-10-30').id, DUOS[0].id);
+  assert.equal(duoOf('2026-11-02').id, DUOS[1].id);
+  assert.equal(duoOf('2026-11-08').id, DUOS[1].id);
+  assert.equal(duoOf('practica-abc-2026-11-08').id, DUOS[1].id);
+  const sunday = n => new Date(Date.parse('2026-11-01T12:00:00Z') + n * 7 * 864e5).toISOString().slice(0, 10);
+  assert.equal(new Set(Array.from({length: DUOS.length}, (_, i) => duoOf(sunday(i)).id)).size, DUOS.length);
+  assert.equal(duoOf(sunday(DUOS.length)).id, DUOS[0].id);
+});
+
+test('dobles: 3 Pokémon de cada entrenador, sin repetir especie y con sets legales', () => {
+  const dex = Dex.forGen(9), id = t => t.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const learns = (species, move) => {
+    for (let sp = dex.species.get(species); sp?.exists; sp = sp.prevo ? dex.species.get(sp.prevo) : null) if (dex.data.Learnsets[sp.id]?.learnset?.[id(move)]) return true;
+    return false;
+  };
+  assert.equal(learns('Pikachu', 'Spore'), false); // la comprobación no da todo por bueno
+  for (const duo of DUOS) {
+    assert.equal(duo.team.length, 6);
+    assert.equal(new Set(duo.team.map(s => s.species)).size, 6, duo.id);
+    for (const t of duo.trainers) assert.equal(duo.team.filter(s => s.trainer === t).length, 3, duo.id);
+    for (const set of duo.team) {
+      assert.ok(Object.values(dex.species.get(set.species).abilities).includes(set.ability), `${set.species} ${set.ability}`);
+      for (const m of set.moves) assert.ok(learns(set.species, m), `${set.species} no aprende ${m}`);
+    }
+  }
+});
+
+test('dobles: combates completos con la IA por los dos lados se reproducen igual', () => {
+  const noTime = log => log.filter(l => !l.startsWith('|t:|'));
+  DUOS.forEach((duo, w) => {
+    const date = new Date(Date.parse('2026-11-01T12:00:00Z') + w * 7 * 864e5).toISOString().slice(0, 10);
+    const team = dailyPool(date, DOUBLES.id), choices = [];
+    assert.equal(duoOf(date).id, duo.id);
+    const b = newBattle(date, team, DOUBLES.id, 'none');
+    assert.equal(b.gameType, 'doubles');
+    play(b, null);
+    while (!b.ended && choices.length < 300) {
+      const c = aiChoice(b, 'p1') || 'default';
+      assert.ok(play(b, c), `${duo.id}: elección rechazada "${c}"`);
+      choices.push(c);
+    }
+    assert.ok(b.ended, duo.id);
+    const again = replay(date, team, choices, DOUBLES.id, 'none');
+    assert.equal(again.winner, b.winner);
+    assert.deepEqual(noTime(again.log), noTime(b.log));
+  });
+});
+
+test('dobles: el sorteo de equipo funciona cualquier domingo y en sus alternativas', () => {
+  for (let w = 0; w < 80; w++) {
+    const date = new Date(Date.parse('2026-11-01T12:00:00Z') + w * 7 * 864e5).toISOString().slice(0, 10);
+    for (let i = 0; i < 8; i++) assert.equal(new Set(poolFor(DOUBLES.id, date, i).map(s => s.species)).size, POOL_SIZE, date);
+  }
+});
+
+test('dobles: la IA no gasta Terremoto en su compañero ni cancela su propio Espacio Raro', () => {
+  const battle = (active, foe) => {
+    const b = newBattle('2026-11-29', foe, DOUBLES.id, 'none'); // Claydol y Spiritomb salen juntos
+    play(b, null);
+    return b;
+  };
+  const team = dailyPool('2026-11-29', DOUBLES.id);
+  assert.equal(duoOf('2026-11-29').id, 'twisted');
+  const b = battle(null, team);
+  const first = aiChoice(b, 'p2').split(', ');
+  const moves = first.map((c, i) => b.p2.activeRequest.active[i].moves[+c.split(' ')[1] - 1]?.id);
+  assert.equal(moves.filter(m => m === 'trickroom').length, 1, moves.join());
+});
+
+test('Pokédex: están todos los Pokémon que te pueden tocar en cualquier modo, sin repetir', () => {
+  const all = pokedexList(), names = new Set(all.map(p => p.name)), dex = Dex.forGen(9);
+  assert.equal(names.size, all.length);
+  assert.ok(all.every((p, i) => !i || all[i - 1].num <= p.num), 'en orden de Pokédex');
+  for (let d = 0; d < 60; d++) {
+    const date = new Date(Date.parse('2026-11-01T12:00:00Z') + d * 864e5).toISOString().slice(0, 10);
+    for (const mode of [...Object.keys(BOSSES), 'liga', DOUBLES.id]) for (const set of poolOf(mode, date)) {
+      assert.ok(names.has(dex.species.get(set.species).baseSpecies), `${mode} ${date}: ${set.species}`);
+    }
+  }
+});
+
+test('temporadas: por fecha, cruzando el año nuevo, y con los días que quedan', () => {
+  assert.equal(seasonOf('2026-10-30').id, 'halloween');
+  assert.equal(seasonOf('2026-11-02').id, 'halloween');
+  assert.equal(seasonOf('2026-11-03'), null);
+  assert.equal(seasonOf('2026-12-31').id, 'christmas');
+  assert.equal(seasonOf('2027-01-06').id, 'christmas');
+  assert.equal(seasonOf('2027-01-07'), null);
+  assert.equal(seasonDaysLeft('2026-10-30', seasonOf('2026-10-30')), 3);
+  assert.equal(seasonDaysLeft('2026-12-31', seasonOf('2026-12-31')), 6);
+  assert.equal(seasonDaysLeft('2027-01-06', seasonOf('2027-01-06')), 0);
+  const dex = Dex.forGen(9);
+  for (const s of SEASONS) {
+    assert.equal(s.mons.length, new Set(s.mons).size, s.id);
+    for (const m of s.mons) assert.ok(dex.species.get(m).exists, m);
+    assert.ok(dex.items.get(s.medal).exists, s.medal);
+  }
 });

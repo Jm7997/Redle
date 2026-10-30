@@ -2,7 +2,8 @@
 // resultado, repeticiones compartibles y ajustes.
 import {Dex} from '@pkmn/sim';
 import {Sprites, Icons} from '@pkmn/img';
-import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, play, replay, typeMultiplier} from './game.js';
+import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, DOUBLES, duoOf, nextSunday, doublesOpen, poolOf, pokedexList, play, replay, typeMultiplier} from './game.js';
+import {SEASONS, seasonOf, seasonDaysLeft} from './seasons.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, loadMoveDescs, itemIcon, FIELD_ICON, FIELD_INFO, RULE_TEXT, RULE_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm} from './audio.js';
 import {NEWS} from './news.js';
@@ -19,6 +20,9 @@ const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 // ---------- ambientación de cada rival ----------
 // era: carpeta de sprites de Showdown del juego del rival. colors: cabecera, cabecera oscura, y degradado/borde de las fichas de su equipo.
 const SD = 'https://play.pokemonshowdown.com/', G6 = SD + 'sprites/gen6bgs/';
+// Los dobles toman el escenario del primer entrenador y la música de los dos, con el color del evento.
+const duoStage = ({trainers: [a, b]}) => ({...STAGES[a], era: 'ani', emoji: STAGES[a].emoji + STAGES[b].emoji,
+  music: [...new Set([...STAGES[a].music, ...STAGES[b].music])], colors: ['#6b3fc4', '#2a1763', '#d9c2fb', '#5c36a8', '#241353']});
 const STAGES = {
   blue: {era: 'gen4', sprite: 'blue', emoji: '🌿', bg: G6 + 'bg-city.jpg', music: ['bw2-kanto-gym-leader', 'hgss-kanto-trainer', 'xy-rival'], colors: ['#2f7de1', '#163f80', '#7fb4f0', '#2a64b8', '#123a73']},
   red: {era: 'gen4', sprite: 'red', emoji: '⛰️', bg: SD + 'fx/bg-icecave.png', music: ['hgss-kanto-trainer', 'bw2-kanto-gym-leader', 'hgss-johto-trainer']},
@@ -39,7 +43,9 @@ const params = new URLSearchParams(location.search);
 // El combate es determinista: basta con el modo, la fecha, la ronda, el orden del equipo y las elecciones.
 // Se codifican en el #hash del enlace. Todo lo que llega por el enlace se valida antes de usarlo.
 const GIMMICK_TOKEN = {terastallize: 't', mega: 'm', dynamax: 'x'};
-const packChoices = cs => cs.map(c => c === 'default' ? 'd' : c === 'forfeit' ? 'f' : c[0] + c.split(' ')[1] + (GIMMICK_TOKEN[c.split(' ')[2]] || '')).join('.');
+// Una elección por Pokémon en el campo (en dobles van dos, separadas por "+"): m1, m1t, m12, m1-2 (ataque a un objetivo), s3, p.
+const packOne = c => c === 'default' ? 'd' : c === 'forfeit' ? 'f' : c === 'pass' ? 'p' : c[0] + c.split(' ')[1] + (GIMMICK_TOKEN[c.split(' ')[2]] || c.split(' ')[2] || '');
+const packChoices = cs => cs.map(c => c.split(', ').map(packOne).join('+')).join('.');
 function encodeReplay(data) {
   const json = JSON.stringify({...data, c: packChoices(data.c)});
   return btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -50,13 +56,14 @@ function parseReplay(hash) {
   try {
     const raw = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
     const mode = String(raw.m), date = String(raw.d), round = raw.r | 0, picks = raw.p, tokens = String(raw.c).split('.');
-    if (mode !== 'liga' && !BOSSES[mode]) return null;
+    if (mode !== 'liga' && mode !== DOUBLES.id && !BOSSES[mode]) return null;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > TODAY) return null; // nunca combates de días futuros
     if (round < 0 || round >= LEAGUE.rounds || (mode !== 'liga' && round)) return null;
     if (!Array.isArray(picks) || [...picks].sort().join() !== '0,1,2,3,4,5') return null;
-    if (tokens.length > 1000 || !tokens.every(t => /^(m[1-4][tmx]?|s[1-6]|d|f)$/.test(t))) return null;
+    if (tokens.length > 1000 || !tokens.every(t => /^(m[1-4][tmx]?|m[1-4]-?[12]|s[1-6]|p|d|f)(\+(m[1-4]-?[12]?|s[1-6]|p))?$/.test(t))) return null;
     const fromToken = Object.fromEntries(Object.entries(GIMMICK_TOKEN).map(([k, v]) => [v, ' ' + k]));
-    const choices = tokens.map(t => t === 'd' ? 'default' : t === 'f' ? 'forfeit' : (t[0] === 'm' ? 'move ' : 'switch ') + t[1] + (fromToken[t[2]] || ''));
+    const unpack = t => t === 'd' ? 'default' : t === 'f' ? 'forfeit' : t === 'p' ? 'pass' : (t[0] === 'm' ? 'move ' : 'switch ') + t[1] + (fromToken[t[2]] || (t.length > 2 ? ' ' + t.slice(2) : ''));
+    const choices = tokens.map(t => t.split('+').map(unpack).join(', '));
     const attempt = raw.a | 0 || 1;
     if (attempt < 1 || attempt > 3 || mode === 'liga' && attempt > 1) return null;
     return {mode, date, round, attempt, picks: picks.map(Number), choices};
@@ -65,8 +72,10 @@ function parseReplay(hash) {
 const REPLAY = parseReplay(location.hash);
 
 // ---------- modo, almacenamiento y práctica ----------
-const MODE = REPLAY ? REPLAY.mode : params.get('vs') === 'liga' ? 'liga' : BOSSES[params.get('vs')] ? params.get('vs') : 'red';
-const LIGA = MODE === 'liga';
+const MODE = REPLAY ? REPLAY.mode : params.get('vs') === 'liga' || params.get('vs') === DOUBLES.id ? params.get('vs') : BOSSES[params.get('vs')] ? params.get('vs') : 'red';
+const LIGA = MODE === 'liga', DOUBLE = MODE === DOUBLES.id;
+// Los dobles solo se juegan los domingos: el resto de la semana su pestaña enseña quién viene.
+const LOCKED = DOUBLE && !REPLAY && !doublesOpen(TODAY);
 const KEY = keyOf(MODE);
 // Datos guardados dañados no deben dejar la página en blanco: se ignoran.
 const readJSON = k => { try { return JSON.parse(ls.get(k) || '{}') || {}; } catch { return {}; } };
@@ -79,7 +88,8 @@ const PRACTICE = !REPLAY && dailyResult ? params.get('practica') : null;
 const TEAM = PRACTICE && dailyResult === 'win' ? params.get('equipo') || 'hoy' : 'hoy';
 const POOL_DATE = REPLAY ? REPLAY.date : TEAM === 'hoy' ? TODAY : 'equipo-' + TEAM;
 const RULE_DATE = REPLAY ? REPLAY.date : TODAY; // la práctica conserva la regla del día
-const DATE = REPLAY ? REPLAY.date : PRACTICE ? 'practica-' + PRACTICE : TODAY;
+// En dobles la clave de práctica lleva la fecha: de ella sale la dupla del domingo.
+const DATE = REPLAY ? REPLAY.date : PRACTICE ? `practica-${PRACTICE}${DOUBLE ? '-' + TODAY : ''}` : TODAY;
 const POOL = LIGA ? leaguePool(POOL_DATE) : dailyPool(POOL_DATE, MODE);
 const LINEUP = LIGA ? leagueLineup(REPLAY ? REPLAY.date : TODAY) : [MODE];
 const rand = () => Math.random().toString(36).slice(2, 8);
@@ -121,8 +131,10 @@ function loadArenaBg(url) {
 for (const ev of ['load', 'error']) document.addEventListener(ev, e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
 function setOpponent(id) {
   // B.team: el equipo que tenía el rival ese día (Lance cambió de equipo el 15-10-2026).
-  OPP = id; B = {...BOSSES[id], team: teamOf(id, PRACTICE ? DATE : RULE_DATE)}; STAGE = STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
-  setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens, maxTries());
+  const duo = id === DOUBLES.id ? duoOf(PRACTICE ? DATE : RULE_DATE) : null;
+  OPP = id; B = duo ? {...DOUBLES, ...duo, duo: duo.id} : {...BOSSES[id], team: teamOf(id, PRACTICE ? DATE : RULE_DATE)};
+  STAGE = duo ? duoStage(duo) : STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
+  setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens, maxTries(), B.duo);
   const body = document.body;
   body.className = body.className.replace(/\bboss-\w+/g, '').trim();
   body.classList.add('boss-' + id);
@@ -130,7 +142,13 @@ function setOpponent(id) {
   for (const [i, v] of ['--dex', '--dex-dark', '--slot-a', '--slot-b', '--slot-edge'].entries()) {
     if (STAGE.colors) body.style.setProperty(v, STAGE.colors[i]); else body.style.removeProperty(v);
   }
-  document.querySelectorAll('.boss-sprite').forEach(im => { im.src = `${SD}sprites/trainers/${STAGE.sprite}.png`; im.alt = B.name; });
+  // En dobles salen los dos entrenadores; en el resto, el segundo sprite se queda oculto.
+  const faces = (B.trainers || [id]).map(t => (STAGES[t] || STAGE).sprite);
+  document.querySelectorAll('.boss-sprite').forEach(im => {
+    const face = faces[im.classList.contains('second') ? 1 : 0];
+    im.hidden = !face;
+    if (face) { im.src = `${SD}sprites/trainers/${face}.png`; im.alt = B.name; }
+  });
   document.querySelectorAll('.boss-name').forEach(e => (e.textContent = B.name));
   loadArenaBg(STAGE.bg);
   document.querySelectorAll('[data-i18n]').forEach(e => (e.innerHTML = T[e.dataset.i18n]));
@@ -139,16 +157,31 @@ function setOpponent(id) {
 setOpponent(LINEUP[round()]);
 document.documentElement.lang = LANG;
 if (LIGA) document.body.classList.add('mode-liga');
+if (DOUBLE) $('.arena').classList.add('doubles');
+
+const SEASON = seasonOf(TODAY);
 
 // Selector de modo: los 8 rivales y la Liga, con el estado del reto de hoy de cada uno.
 const markOf = id => {
   const d = readJSON(keyOf(id)).days?.[TODAY];
   return id === 'liga' && d?.result ? (d.result === 'win' ? itemIcon('Poke Ball') : `${d.reached}/5`) : d?.result === 'win' ? itemIcon('Poke Ball') : d?.result === 'loss' ? (d.closed ? '✗' : `${d.attempt || 1}/3`) : '';
 };
-$('#bosses').innerHTML = [...Object.values(BOSSES).map(b => ({id: b.id, name: b.name, img: `${SD}sprites/trainers/${STAGES[b.id].sprite}.png`})),
-  {id: 'liga', name: T.league, img: ''}].map(b =>
-  `<a href="?vs=${b.id}" class="boss-tab ${b.id}${b.id === MODE ? ' on' : ''}">${b.img ? `<img src="${b.img}" alt="" width="40" height="40">` : `<span class="liga-icon">${itemIcon('Master Ball')}</span>`}
-    <span><b>${b.name}</b><small>${b.id === MODE ? (LIGA ? T.leagueWhere : T.where) : ''}</small></span><i>${markOf(b.id)}</i></a>`).join('');
+const SUNDAY = doublesOpen(TODAY), NEXT_DUO = duoOf(TODAY);
+const duoTab = {id: DOUBLES.id, name: T.doublesTab, sprites: NEXT_DUO.trainers.map(t => `${SD}sprites/trainers/${STAGES[t].sprite}.png`)};
+const tabs = [...Object.values(BOSSES).map(b => ({id: b.id, name: b.name, img: `${SD}sprites/trainers/${STAGES[b.id].sprite}.png`})), {id: 'liga', name: T.league, img: ''}];
+tabs.splice(SUNDAY ? 0 : tabs.length, 0, duoTab); // el domingo, la primera
+$('#bosses').innerHTML = tabs.map(b =>
+  `<a href="?vs=${b.id}" class="boss-tab ${b.id}${b.id === MODE ? ' on' : ''}${b.sprites && SUNDAY ? ' live' : ''}">${b.sprites ? `<span class="duo-faces">${b.sprites.map(u => `<img src="${u}" alt="" width="40" height="40">`).join('')}</span>` : b.img ? `<img src="${b.img}" alt="" width="40" height="40">` : `<span class="liga-icon">${itemIcon('Master Ball')}</span>`}
+    <span><b>${b.name}</b><small>${b.sprites ? (SUNDAY ? T.doublesToday : T.doublesSoon) : b.id === MODE ? (LIGA ? T.leagueWhere : T.where) : ''}</small></span><i>${markOf(b.id)}</i></a>`).join('');
+// Aviso del domingo en las demás pestañas (solo en la pantalla de equipo, no a mitad de combate).
+function showBanner() { return !DOUBLE && !REPLAY && !PRACTICE; }
+{
+  const banner = $('#sunday-banner'), name = NEXT_DUO.name;
+  banner.hidden = !showBanner();
+  banner.href = `?vs=${DOUBLES.id}`;
+  banner.innerHTML = `<span class="duo-faces">${duoTab.sprites.map(u => `<img src="${u}" alt="" width="40" height="40">`).join('')}</span><span>${SUNDAY ? T.sundayToday(name) : T.sundayNext(name)}</span>`;
+  banner.classList.toggle('live', SUNDAY);
+}
 { // centrar la pestaña activa sin mover la página
   const nav = $('#bosses'), on = $('.boss-tab.on');
   if (on) nav.scrollLeft = on.offsetLeft - (nav.clientWidth - on.clientWidth) / 2;
@@ -162,12 +195,12 @@ const spriteOf = (species, back) => Sprites.getPokemon(species, {gen: LIGA ? 'an
 const icon = (species, extra = '') => `<span class="icon-mon ${extra}" style="${Icons.getPokemon(species).style}" title="${species}"></span>`;
 
 const cryId = species => toID(dex.species.get(species).baseSpecies);
-const trainerImg = id => `${SD}sprites/trainers/${STAGES[id].sprite}.png`;
+const trainerImg = id => `${SD}sprites/trainers/${(STAGES[id] || STAGES[B.trainers[0]]).sprite}.png`;
 
 // ---------- fondo con Pokémon ----------
 function backgroundMons() {
   const box = $('#bg-mons');
-  const pick = [...POOL.map(s => s.species), ...B.team.map(s => s.species)];
+  const pick = SEASON ? SEASON.mons : [...POOL.map(s => s.species), ...B.team.map(s => s.species)];
   const cols = innerWidth < 600 ? 3 : 5, rows = 4;
   for (let i = 0; i < cols * rows; i++) {
     const im = el('img');
@@ -210,6 +243,7 @@ function slot(set, tag) {
   const s = el(tag, 'slot');
   s.innerHTML = `
     <img class="sp" src="${spriteOf(set.species).url}" alt="">
+    ${set.trainer ? `<img class="set-trainer" src="${trainerImg(set.trainer)}" alt="${BOSSES[set.trainer].name}" title="${BOSSES[set.trainer].name}">` : ''}
     <div class="top">${sp.name}<small>${T.level}${set.level}</small></div>
     <div class="types">${sp.types.map(typeBadge).join('')}</div>
     <div class="mini-hp"><i></i></div>
@@ -243,16 +277,41 @@ function drawLeagueBar() {
     <small>${T.leagueProgress(n + 1, LEAGUE.rounds - 1 - n)}</small>`;
 }
 
+// Los días que no son domingo: quién viene y qué se traen entre manos.
+function renderTeaser() {
+  $('#draft').hidden = true;
+  $('#battle').hidden = true;
+  const days = Math.round((Date.parse(nextSunday(TODAY)) - Date.parse(TODAY)) / 864e5);
+  const box = $('#sunday');
+  box.hidden = false;
+  box.innerHTML = `<h2>${T.sundayTitle}</h2>
+    <div class="duo-vs">${B.trainers.map((t, i) => `<figure style="--i:${i}"><img src="${trainerImg(t)}" alt="" width="128" height="128"><figcaption>${BOSSES[t].name}</figcaption></figure>`).join('<span class="vs">&amp;</span>')}</div>
+    <p class="duo-name">${T.duoName[B.duo]}</p><p>${T.duoIdea[B.duo]}</p>
+    <p class="duo-when">${T.sundayIn(days)}</p>
+    <ul class="duo-rules">${T.sundayRules.map(r => `<li>${r}</li>`).join('')}</ul>
+    <a class="primary duo-back" href="?vs=red">${T.sundayBack}</a>`;
+}
+
 function renderDraft() {
   const r = rec();
+  $('#sunday-banner').hidden = !showBanner();
+  $('#season').hidden = !SEASON || !!REPLAY;
   $('#draft').hidden = false;
   $('#battle').hidden = true;
   drawLineup();
   $('.intro-text').innerHTML = LIGA ? T.leagueLead(round() + 1, B.name) : T.lead;
   $('#pool').replaceChildren(...POOL.map((set, i) => {
     const s = slot(set, 'button');
-    if (r.picks[0] === i) { s.classList.add('lead'); s.append(el('span', 'ribbon', T.leadTag)); }
-    s.onclick = () => { sfx('click'); r.picks = [i, ...POOL.map((_, j) => j).filter(j => j !== i)]; renderDraft(); };
+    const leads = r.picks.slice(0, DOUBLE ? 2 : 1);
+    if (leads.includes(i)) { s.classList.add('lead'); s.append(el('span', 'ribbon', T.leadTag)); }
+    // En dobles salen dos: el nuevo sustituye al que lleva más tiempo elegido.
+    s.onclick = () => {
+      sfx('click');
+      if (leads.includes(i)) return;
+      const first = DOUBLE ? [leads[1], i] : [i];
+      r.picks = [...first, ...POOL.map((_, j) => j).filter(j => !first.includes(j))];
+      renderDraft();
+    };
     return s;
   }));
   $('#red-team').replaceChildren(...B.team.map(set => slot(set, 'div')));
@@ -276,10 +335,16 @@ function renderDraft() {
 // ---------- combate ----------
 let battle, logIdx = 0, busy = false;
 const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}, dmax: false, gmax: false});
-const freshView = () => ({p1: fresh(), p2: fresh(), fainted: {p1: [], p2: []}, seen: {}, eff: null, weather: '', field: [], side: {p1: {}, p2: {}}, tera: {p1: {}, p2: {}}});
+// Posiciones en el campo: en individuales, una por lado (p1, p2); en dobles, dos (p1a, p1b, p2a, p2b).
+// `off` recoge lo que le pasa a un Pokémon que no está en el campo (en dobles el log no le da hueco).
+const POS = DOUBLE ? ['p1a', 'p1b', 'p2a', 'p2b'] : ['p1', 'p2'];
+const posOf = id => !DOUBLE ? id.slice(0, 2) : id[2] === ':' ? 'off' : id.slice(0, 3);
+const freshView = () => ({...Object.fromEntries(POS.map(p => [p, fresh()])), off: fresh(), fainted: {p1: [], p2: []}, seen: {}, eff: null, weather: '', field: [], side: {p1: {}, p2: {}}, tera: {p1: {}, p2: {}}});
 const view = freshView();
 const team = () => rec().picks.map(i => POOL[i]);
-const img = side => $(`.mon.${side === 'p1' ? 'me' : 'foe'}`);
+const slotSel = pos => `.${pos[1] === '1' ? 'me' : 'foe'}${pos[2] === 'b' ? '.b' : ':not(.b)'}`;
+const img = pos => $(`.mon${slotSel(pos)}`);
+const opposite = pos => POS.find(p => p[1] !== pos[1] && view[p].hp > 0) || POS.find(p => p[1] !== pos[1]);
 const wait = ms => sleep(ms / speed);
 const seenOf = species => (view.seen[species] ||= {moves: new Set()});
 // Lista de pistas del rival: empieza por una distinta cada día (y en cada ronda de la Liga) y al acabar una suena la siguiente.
@@ -290,13 +355,15 @@ function resetView() {
   logIdx = 0;
   Object.assign(view, freshView());
   drawWeather(); drawSide('p1'); drawSide('p2');
-  for (const side of ['p1', 'p2']) { const im = img(side); im.classList.remove('faint', 'enter'); im.removeAttribute('src'); delete im.dataset.species; }
+  for (const pos of POS) { const im = img(pos); im.classList.remove('faint', 'enter', 'acting', 'under'); im.removeAttribute('src'); delete im.dataset.species; }
+  if (DOUBLE) document.querySelectorAll('.hud').forEach(h => { h.hidden = true; });
   $('#log').innerHTML = $('#msg').innerHTML = '';
   $('#moves').innerHTML = $('#switches').innerHTML = $('#prompt').textContent = '';
 }
 
 async function startBattle(isNew) {
   const r = rec();
+  $('#sunday-banner').hidden = $('#season').hidden = true;
   $('#draft').hidden = true;
   $('#battle').hidden = false;
   setupFx($('.arena'));
@@ -327,7 +394,7 @@ async function startBattle(isNew) {
 async function choose(choice) {
   if (busy || REPLAY) return;
   sfx('click');
-  if (!play(battle, choice)) return;
+  if (!play(battle, choice)) return drawControls();
   gimmickOn = '';
   $('.forfeit-btn')?.remove();
   rec().choices.push(choice); // se guarda antes de animar: recargar no da otro intento
@@ -359,10 +426,11 @@ async function consume(animate) {
   skipping = false;
   $('#controls').classList.add('locked');
   $('#prompt').textContent = '';
+  document.querySelector('.mon.acting')?.classList.remove('acting');
   const lines = battle.log.slice(logIdx);
   logIdx = battle.log.length;
   if (!await runLines(lines, animate)) { const t = seek; seek = null; busy = false; return seekTo(t); }
-  drawHud('p1'); drawHud('p2');
+  POS.forEach(p => drawHud(p));
   drawTeamPanel();
   busy = false;
   $('#controls').classList.remove('locked');
@@ -451,25 +519,26 @@ function setHp(side, text, animate) {
 // Procesa una línea del protocolo de Showdown.
 async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
   const tags = [c, ...rest].join('|');
-  const side = a.slice(0, 2), cls = side === 'p1' ? 'me' : side === 'p2' ? 'foe' : '';
+  const side = a.slice(0, 2), pos = posOf(a), cls = side === 'p1' ? 'me' : side === 'p2' ? 'foe' : '';
   // Cartel del objeto o la habilidad que provoca el efecto.
   const item = fromTag(tags, 'item'), ability = fromTag(tags, 'ability');
   if ((item || ability) && cls) {
-    if (side === 'p2' && view.p2.species) Object.assign(seenOf(view.p2.species), item ? {item} : {ability});
+    if (side === 'p2' && view[pos].species) Object.assign(seenOf(view[pos].species), item ? {item} : {ability});
     if (animate) popup(cls, item ? `${itemIcon(item)}${itemName(item)}` : `<small>${parseId(a).name}</small>${abilityName(ability)}`);
   }
   switch (cmd) {
     case 'switch': case 'drag': {
       const {name} = parseId(a);
       const [species, ...details] = b.split(', ');
-      Object.assign(view[side], fresh(), {name, species, gender: details.find(d => d === 'M' || d === 'F') || '', level: +(details.find(d => /^L\d+$/.test(d)) || 'L100').slice(1)});
+      Object.assign(view[pos], fresh(), {name, species, gender: details.find(d => d === 'M' || d === 'F') || '', level: +(details.find(d => /^L\d+$/.test(d)) || 'L100').slice(1)});
       if (side === 'p2') seenOf(species);
-      const im = img(side);
-      im.classList.remove('faint', 'enter');
-      await say(side === 'p1' ? T.go1(`<b>${name}</b>`) : T.redSends(`<b>${name}</b>`), false, cls);
+      const im = img(pos);
+      im.classList.remove('faint', 'enter', 'under');
+      const owner = B.trainers && side === 'p2' ? BOSSES[B.team.find(t => t.species === species || t.name === name)?.trainer]?.name : null; // en dobles, quién lo saca
+      await say(side === 'p1' ? T.go1(`<b>${name}</b>`) : owner ? T.sentBy(owner, `<b>${name}</b>`) : T.redSends(`<b>${name}</b>`), false, cls);
       if (animate) {
         im.style.visibility = 'hidden';
-        setHp(side, c, false);
+        setHp(pos, c, false);
         sfx('switch');
         await throwBall(im, side === 'p2');
         im.style.visibility = '';
@@ -477,17 +546,26 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
         im.addEventListener('animationend', () => im.classList.remove('enter'), {once: true});
         await cry(cryId(species));
         await wait(700);
-      } else setHp(side, c, false);
+      } else setHp(pos, c, false);
+      // Con su último Pokémon, el rival dice algo (una vez por combate; en dobles, cuando ya no le queda banquillo).
+      if (side === 'p2' && !view.lastWord && view.fainted.p2.length === B.team.length - POS.length / 2) {
+        view.lastWord = true;
+        const line = T.lastWord[B.duo ? 'dobles' : OPP];
+        if (line) await say(line, animate, 'foe');
+      }
       return;
     }
     case 'move': {
-      const target = c.startsWith('p') ? c.slice(0, 2) : side === 'p1' ? 'p2' : 'p1';
-      if (side === 'p2') seenOf(view.p2.species).moves.add(b);
-      view.lastMove = {side, move: b};
+      const target = c.startsWith('p') ? posOf(c) : opposite(pos);
+      // Ataques a varios a la vez: el log trae todos los objetivos ([spread] p2a,p2b).
+      const spread = (tags.match(/\[spread\] ([^|]*)/)?.[1] || '').split(',').filter(p => DOUBLE && POS.includes(p));
+      if (side === 'p2') seenOf(view[pos].species).moves.add(b);
+      img(pos).classList.remove('under'); // vuelve de Vuelo, Excavar…
+      view.lastMove = {side, pos, move: b};
       await say(T.uses(who(a), `<i>${moveName(b)}</i>`), animate, cls);
       if (animate && !tags.includes('[still]') && !tags.includes('[miss]')) {
         sfx('attack', dex.moves.get(b).type);
-        await animateMove(b, img(side), img(target));
+        await Promise.all((spread.length ? spread : [target]).map(t => animateMove(b, img(pos), img(t))));
       }
       return;
     }
@@ -495,21 +573,21 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       if (tags.includes('Revival Blessing')) {
         const {name} = parseId(a), i = view.fainted[side].indexOf(name);
         if (i >= 0) view.fainted[side].splice(i, 1);
-        drawHud(side);
+        drawHud(pos);
         if (animate) { sfx('heal'); flash('#fff6c2', 500); }
         return say(T.revived(side === 'p1' ? `<b>${name}</b>` : `<b>${T.foe(name)}</b>`), animate, cls);
       }
       // falls through
     case '-damage': case '-sethp': {
-      const {delta, pct, dur} = setHp(side, b, animate);
+      const {delta, pct, dur} = setHp(pos, b, animate);
       if (!delta || tags.includes('[silent]')) return;
       if (animate) {
         const heal = delta > 0;
-        floatText(img(side), side === 'p1' ? `${heal ? '+' : '−'}${Math.abs(delta)}` : `${heal ? '+' : '−'}${pct}%`, heal);
-        if (heal) { sfx('heal'); sparkle(center(img(side))); }
+        floatText(img(pos), side === 'p1' ? `${heal ? '+' : '−'}${Math.abs(delta)}` : `${heal ? '+' : '−'}${pct}%`, heal);
+        if (heal) { sfx('heal'); sparkle(center(img(pos))); }
         else if (!tags.includes('[from]')) {
           sfx(view.eff === 'super' ? 'super' : view.eff === 'weak' ? 'weak' : 'hit');
-          const im = img(side); im.classList.remove('hit'); void im.offsetWidth; im.classList.add('hit');
+          const im = img(pos); im.classList.remove('hit'); void im.offsetWidth; im.classList.add('hit');
           im.addEventListener('animationend', () => im.classList.remove('hit'), {once: true});
           if (view.eff === 'super') flash('#fff', 140);
         } else sfx('weak');
@@ -533,8 +611,8 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       if (animate) sfx('miss');
       // Bromista: sus movimientos de estado no afectan a los tipo Siniestro (desde la 7.ª gen). Sin esto parecía un fallo.
       const lm = view.lastMove, mv = lm && dex.moves.get(lm.move);
-      const types = view.tera[side][view[side].name] ? [view.tera[side][view[side].name]] : dex.species.get(view[side].species).types;
-      if (mv?.category === 'Status' && lm.side !== side && battle?.[lm.side]?.active[0]?.ability === 'prankster' && types.includes('Dark'))
+      const types = view.tera[side][view[pos].name] ? [view.tera[side][view[pos].name]] : view[pos].types || dex.species.get(view[pos].species).types;
+      if (mv?.category === 'Status' && lm.side !== side && battle?.[lm.side]?.active.some(p => p?.ability === 'prankster') && types.includes('Dark'))
         return say(T.pranksterDark(who(a)), animate);
       // Decir por qué, como en los juegos nuevos: por su habilidad (Levitación, Absorbe Agua…) o por su tipo.
       const ability = fromTag(tags, 'ability');
@@ -545,52 +623,54 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     }
     case '-crit': if (animate) { sfx('crit'); flash('#fff', 200); } return say(T.crit, animate, 'eff');
     case '-miss': if (animate) sfx('miss'); return say(T.miss(who(b || a)), animate);
-    case '-fail': return say(T.fail, animate);
+    case '-fail': // Cuerpo Puro, Foco Interno ante Intimidación…: decir por qué no bajan sus características
+      if (b === 'unboost') return say(ability ? T.noDropBy(who(a), abilityName(ability)) : T.noDrop(who(a)), animate, cls);
+      return say(T.fail, animate);
     case '-hitcount': return say(T.hitcount(b), animate);
     case 'faint': {
       view.fainted[side].push(parseId(a).name);
-      view[side].hp = 0;
-      if (animate) { cry(cryId(view[side].species), true); await wait(500); sfx('faint'); }
-      img(side).classList.add('faint');
-      drawHud(side);
+      view[pos].hp = 0;
+      if (animate) { cry(cryId(view[pos].species), true); await wait(500); sfx('faint'); }
+      img(pos).classList.add('faint');
+      drawHud(pos);
       return say(T.faint(who(a)), animate, cls);
     }
     case '-status':
-      view[side].status = b;
-      drawHud(side);
+      view[pos].status = b;
+      drawHud(pos);
       if (animate) { sfx('status'); flash({brn: '#ff7a1a', par: '#ffe03a', frz: '#8ee8ff', slp: '#9aa0c0'}[b] || '#b04fe0', 240); }
       return say((T.st[b] || T.st.psn)(who(a)), animate, cls);
     case '-curestatus':
-      view[side].status = '';
-      drawHud(side);
+      view[pos].status = '';
+      drawHud(pos);
       if (animate) sfx('heal');
       return say((T.cure[b] || T.cure._)(who(a)), animate, cls);
-    case 'cant': return say((T.cant[b] || T.cant._)(who(a)), animate, cls);
+    case 'cant': return say((T.cant[b.replace(/^(ability|move): /, '')] || T.cant._)(who(a)), animate, cls);
     case '-boost': case '-unboost': {
-      const up = cmd === '-boost', n = +c || 0, boosts = view[side].boosts;
+      const up = cmd === '-boost', n = +c || 0, boosts = view[pos].boosts;
       boosts[b] = Math.max(-6, Math.min(6, (boosts[b] || 0) + (up ? n : -n)));
-      drawHud(side);
+      drawHud(pos);
       if (!n) return say(T.nothing, animate);
-      if (animate) { sfx(up ? 'boost' : 'drop'); statFx(img(side), up); }
+      if (animate) { sfx(up ? 'boost' : 'drop'); statFx(img(pos), up); }
       return say((up ? T.boost : T.unboost)(who(a), T.stat[b] || b, n), animate, cls);
     }
     case '-setboost': { // Tambor y similares fijan la característica de golpe (Tambor: Ataque al +6)
-      view[side].boosts[b] = +c || 0;
-      drawHud(side);
-      if (animate) { sfx('boost'); statFx(img(side), true); }
+      view[pos].boosts[b] = +c || 0;
+      drawHud(pos);
+      if (animate) { sfx('boost'); statFx(img(pos), true); }
       return say(+c >= 6 ? T.maxedStat(who(a), T.stat[b] || b) : T.boost(who(a), T.stat[b] || b, +c), animate, cls);
     }
-    case '-clearallboost': view.p1.boosts = {}; view.p2.boosts = {}; drawHud('p1'); drawHud('p2'); return say(T.clearBoosts, animate);
-    case '-clearboost': view[side].boosts = {}; drawHud(side); return;
+    case '-clearallboost': for (const p of POS) { view[p].boosts = {}; drawHud(p); } return say(T.clearBoosts, animate);
+    case '-clearboost': view[pos].boosts = {}; drawHud(pos); return;
     case '-clearnegativeboost': // Hierba Blanca: quita solo las bajadas (el combate ya las quitaba; faltaba en el marcador)
-      for (const k in view[side].boosts) if (view[side].boosts[k] < 0) delete view[side].boosts[k];
-      drawHud(side); return;
+      for (const k in view[pos].boosts) if (view[pos].boosts[k] < 0) delete view[pos].boosts[k];
+      drawHud(pos); return;
     case '-enditem':
-      if (side === 'p2') seenOf(view.p2.species).item = b;
+      if (side === 'p2') seenOf(view[pos].species).item = b;
       if (animate) { popup(cls, `${itemIcon(b)}${itemName(b)}`); sfx('item'); }
       return say((tags.includes('[eat]') ? T.ate : T.usedItem)(who(a), itemName(b)), animate, cls);
     case '-item': { // un Pokémon consigue o enseña un objeto: Cosecha, Reciclaje, Truco, Ladrón, Recogida, Cacheo, Globo Helio
-      if (side === 'p2') seenOf(view.p2.species).item = b;
+      if (side === 'p2') seenOf(view[pos].species).item = b;
       if (animate) { popup(cls, `${itemIcon(b)}${itemName(b)}`); sfx('item'); }
       const item = itemName(b), from = fromTag(tags, 'ability') || fromTag(tags, 'move') || '';
       const of = tags.match(/\[of\] (p[12]a?: [^|]+)/)?.[1];
@@ -600,7 +680,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       return say(msg(who(a), item), animate, cls);
     }
     case '-ability':
-      if (side === 'p2') seenOf(view.p2.species).ability = b;
+      if (side === 'p2') seenOf(view[pos].species).ability = b;
       if (animate) { popup(cls, `<small>${parseId(a).name}</small>${abilityName(b)}`); sfx('item'); await wait(700); }
       return;
     case '-weather': // |-weather|TIPO|[upkeep]: el tipo va en el primer campo
@@ -616,10 +696,24 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       drawWeather();
       return cmd === '-fieldstart' && T.fieldStart[id] ? say(T.fieldStart[id], animate, 'eff') : null;
     }
-    case '-prepare': return say(T.prepare(who(a)), animate, cls);
+    case '-prepare': // primer turno de Rayo Solar, Vuelo, Excavar… Los que se esconden desaparecen del campo.
+      if (/^(Fly|Bounce|Dig|Dive|Phantom Force|Shadow Force)$/.test(b)) img(pos).classList.add('under');
+      return say((T.prepareMove[b] || T.prepare)(who(a)), animate, cls);
+    case '-anim': // el golpe del segundo turno
+      if (animate) { sfx('attack', dex.moves.get(b).type); await animateMove(b, img(pos), img(c.startsWith('p') ? posOf(c) : opposite(pos))); }
+      return;
+    case 'replace': { // se rompe Ilusión: aparece el Pokémon de verdad
+      Object.assign(view[pos], {name: parseId(a).name, species: b.split(', ')[0], types: null});
+      drawHud(pos);
+      if (animate) { sfx('switch'); flash('#b04fe0', 300); }
+      return say(T.illusionEnd(who(a)), animate, cls);
+    }
     case '-singleturn': // Protección y sus variantes: burbuja alrededor del Pokémon
+      if (/Follow Me|Rage Powder|Spotlight/.test(b)) { if (animate) sfx('item'); return say(T.redirect(who(a)), animate, cls); }
+      if (b.includes('Helping Hand')) { if (animate) sfx('boost'); return say(T.helpingHand(who(a)), animate, cls); }
+      if (b.includes('Wide Guard') || b.includes('Quick Guard')) { if (animate) shield(pos); return say(T.guardTeam(who(a)), animate, cls); }
       if (!/Protect|Detect|Shield|Bunker|Silk Trap|Bulwark|Obstruct|Max Guard/.test(b)) return null;
-      if (animate) shield(side);
+      if (animate) shield(pos);
       return say(T.protect(who(a)), animate, cls);
     case '-sidestart': case '-sideend': { // Trampa Rocas, Púas, Reflejo… (Púas y Púas Tóxicas se acumulan)
       const id = b.replace('move: ', ''), conds = view.side[side];
@@ -634,39 +728,59 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       drawSide('p1'); drawSide('p2');
       return;
     case '-transform': return say(T.mimic(who(a)), animate, cls);
+    case 'swap': { // Cambio Banda de los compañeros (Intercambio): se cambian de sitio
+      if (!DOUBLE) return;
+      [view[side + 'a'], view[side + 'b']] = [view[side + 'b'], view[side + 'a']];
+      drawHud(side + 'a'); drawHud(side + 'b');
+      return say(T.swapped(who(a)), animate, cls);
+    }
+    case '-formechange': // Aegislash con Cambio Táctico, Mimikyu, Cramorant…
+      view[pos].species = b;
+      drawHud(pos);
+      return;
     case 'detailschange': { // forma nueva (Megaevolución)
-      view[side].species = b.split(', ')[0];
-      drawHud(side);
+      view[pos].species = b.split(', ')[0];
+      drawHud(pos);
       return;
     }
     case '-mega':
       if (animate) {
         sfx('boost'); flash('#ffffff', 450);
-        img(side).animate([{filter: 'brightness(4) saturate(0)'}, {filter: 'brightness(4) saturate(0)', offset: 0.3}, {filter: 'none'}], {duration: 1300 / speed});
+        img(pos).animate([{filter: 'brightness(4) saturate(0)'}, {filter: 'brightness(4) saturate(0)', offset: 0.3}, {filter: 'none'}], {duration: 1300 / speed});
       }
-      return say(T.megaEvolved(who(a), dex.species.get(view[side].species).name), animate, cls);
+      return say(T.megaEvolved(who(a), dex.species.get(view[pos].species).name), animate, cls);
     case '-terastallize': {
       view.tera[side][parseId(a).name] = b;
-      drawHud(side);
+      drawHud(pos);
       if (animate) {
         sfx('boost');
         flash('#ffffff', 300);
-        img(side).animate([{filter: 'none'}, {filter: 'brightness(2.2) saturate(1.6) drop-shadow(0 0 16px #9ff3ff)', offset: 0.4}, {filter: 'drop-shadow(0 0 6px #9ff3ff)'}], {duration: 1200 / speed});
+        img(pos).animate([{filter: 'none'}, {filter: 'brightness(2.2) saturate(1.6) drop-shadow(0 0 16px #9ff3ff)', offset: 0.4}, {filter: 'drop-shadow(0 0 6px #9ff3ff)'}], {duration: 1200 / speed});
       }
       return say(T.terastallized(who(a), typeName(b)), animate, cls);
     }
     case '-start':
       if (b === 'Dynamax') {
-        Object.assign(view[side], {dmax: true, gmax: c === 'Gmax'});
-        drawHud(side);
+        Object.assign(view[pos], {dmax: true, gmax: c === 'Gmax'});
+        drawHud(pos);
         if (animate) { sfx('boost'); flash('#ff2a6d', 600); }
         return say((c === 'Gmax' ? T.gigantamaxed : T.dynamaxed)(who(a)), animate, cls);
       }
       if (b.includes('Substitute')) { // el Pokémon se cambia por el muñeco del Sustituto
-        view[side].sub = true;
-        await swapSprite(side, animate);
+        view[pos].sub = true;
+        await swapSprite(pos, animate);
         return say(T.sub(who(a)), animate, cls);
       }
+      if (b === 'typechange') { // Líbero, Mutatipo, Empapar…
+        view[pos].types = c.split('/');
+        drawHud(pos);
+        if (animate) sfx('item');
+        return say(T.typeChange(who(a), view[pos].types.map(typeName).join('/')), animate, cls);
+      }
+      if (b === 'Disable') return say(T.disabled(who(a), moveName(c.replace('move: ', ''))), animate, cls);
+      if (b.includes('Heal Block')) return say(T.healBlock(who(a)), animate, cls);
+      if (b === 'Salt Cure') return say(T.saltCure(who(a)), animate, cls);
+      if (b === 'Autotomize') return say(T.lighter(who(a)), animate, cls);
       if (b.includes('confusion')) return say(T.confused(who(a)), animate, cls);
       if (b.includes('Leech Seed')) return say(T.seeded(who(a)), animate, cls);
       // Premonición / Deseo Oculto: el ataque llega dos turnos después (el aviso sale en -end, junto al daño).
@@ -678,28 +792,40 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       return;
     case '-end':
       if (b === 'Dynamax') {
-        Object.assign(view[side], {dmax: false, gmax: false});
-        drawHud(side);
+        Object.assign(view[pos], {dmax: false, gmax: false});
+        drawHud(pos);
         return say(T.dynamaxEnd(who(a)), animate, cls);
       }
+      if (b === 'confusion') return say(T.confusionEnd(who(a)), animate, cls);
+      if (b.includes('Encore')) return say(T.encoreEnd(who(a)), animate, cls);
+      if (b.includes('Taunt')) return say(T.tauntEnd(who(a)), animate, cls);
+      if (b === 'Disable') return say(T.disableEnd(who(a)), animate, cls);
+      if (b.includes('Heal Block')) return say(T.healBlockEnd(who(a)), animate, cls);
       if (/Future Sight|Doom Desire/.test(b)) { // el ataque llega: animación desde el otro lado y luego el daño (siguiente línea)
         const mv = b.replace('move: ', '');
-        if (animate) await animateMove(mv, img(side === 'p1' ? 'p2' : 'p1'), img(side));
+        if (animate) await animateMove(mv, img(opposite(pos)), img(pos));
         return say(T.foresawHit(who(a), moveName(mv)), animate, cls);
       }
       if (b.includes('Substitute')) { // el muñeco se rompe y vuelve el Pokémon
-        view[side].sub = false;
-        await swapSprite(side, animate);
+        view[pos].sub = false;
+        await swapSprite(pos, animate);
         return say(T.subEnd(who(a)), animate, cls);
       }
       return null;
     case '-activate':
       if (b.includes('confusion')) return say(T.confusedAct(who(a)), animate, cls);
       if (b.includes('Substitute')) { // el golpe se lo lleva el muñeco
-        if (animate) { const im = img(side); im.classList.remove('hit'); void im.offsetWidth; im.classList.add('hit'); sfx('hit'); }
+        if (animate) { const im = img(pos); im.classList.remove('hit'); void im.offsetWidth; im.classList.add('hit'); sfx('hit'); }
         return say(T.subHit, animate);
       }
-      if (/Protect|Detect|Shield|Bunker|Silk Trap|Bulwark|Obstruct|Max Guard/.test(b)) { if (animate) shield(side); return say(T.protect(who(a)), animate, cls); }
+      if (/Protect|Detect|Shield|Bunker|Silk Trap|Bulwark|Obstruct|Max Guard|Wide Guard|Quick Guard/.test(b)) { if (animate) shield(pos); return say(T.protect(who(a)), animate, cls); }
+      if (b === 'trapped') return say(T.trapped(who(a)), animate, cls);
+      if (b.includes('Poltergeist')) return say(T.poltergeist(who(a), itemName(c)), animate, cls);
+      if (/Heal Bell|Aromatherapy/.test(b)) { if (animate) sfx('heal'); return say(T.healBell, animate, cls); }
+      if (b.startsWith('ability: ')) { // habilidades que saltan por su cuenta: Disfraz, Cara de Hielo, Momia…
+        if (animate) { popup(cls, `<small>${parseId(a).name}</small>${abilityName(b.slice(9))}`); sfx('item'); }
+        return b.includes('Disguise') ? say(T.disguise(who(a)), animate, cls) : b.includes('Ice Face') ? say(T.iceFace(who(a)), animate, cls) : null;
+      }
       return;
     case 'turn':
       $('.turn').textContent = T.turn(a);
@@ -714,11 +840,11 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
 // el 50 % y el 20 %, y el número de PS cuenta a la vez.
 const barAnim = {};
 function animateBar(side, fromPct, toPct, dur, maxhp) {
-  const hud = $(`.hud.${side === 'p1' ? 'me' : 'foe'}`), bar = hud.querySelector('.bar i'), num = hud.querySelector('.hp');
+  const hud = $(`.hud${slotSel(side)}`), bar = hud.querySelector('.bar i'), num = hud.querySelector('.hp');
   const paint = pct => {
     bar.style.width = pct + '%';
     bar.className = pct > 50 ? '' : pct > 20 ? 'mid' : 'low';
-    num.textContent = side === 'p1' ? `${Math.round(maxhp * pct / 100)}/${maxhp}` : Math.ceil(pct) + '%';
+    num.textContent = side[1] === '1' ? `${Math.round(maxhp * pct / 100)}/${maxhp}` : Math.ceil(pct) + '%';
   };
   if (!dur) { if (barAnim[side]?.to !== toPct) { cancelAnimationFrame(barAnim[side]?.id); paint(toPct); } return; }
   cancelAnimationFrame(barAnim[side]?.id);
@@ -779,36 +905,37 @@ function drawSide(side) {
   box.innerHTML = `${screens.join('')}<div class="hz-row">${imgs.join('')}</div>${tags.length ? `<div class="sc-tags">${tags.join('')}</div>` : ''}`;
 }
 
-function drawHud(side, dur = 0, fromHp) {
-  const v = view[side], cls = side === 'p1' ? 'me' : 'foe';
-  if (!v.species) return;
-  const im = img(side);
+function drawHud(pos, dur = 0, fromHp) {
+  const v = view[pos], side = pos.slice(0, 2), mine = side === 'p1', cls = mine ? 'me' : 'foe';
+  if (!v?.species) return;
+  const im = img(pos);
   const shown = v.sub ? 'substitute' : v.gmax && dex.species.get(`${v.species}-Gmax`).exists ? `${v.species}-Gmax` : v.species;
   im.classList.toggle('dynamax', v.dmax);
   im.dataset.status = v.hp > 0 ? v.status : ''; // cada problema de estado tiñe y mueve el sprite a su manera
-  $(`.zzz.${cls}`).hidden = v.status !== 'slp' || v.hp <= 0;
+  $(`.zzz${slotSel(pos)}`).hidden = v.status !== 'slp' || v.hp <= 0;
   if (im.dataset.species !== shown) {
-    const s = v.sub ? subSprite(side === 'p1') : spriteOf(shown, side === 'p1');
+    const s = v.sub ? subSprite(mine) : spriteOf(shown, mine);
     im.src = s.url;
     im.alt = v.species;
     im.dataset.species = shown;
     im.style.setProperty('--w', s.w);
   }
-  const hud = $(`.hud.${cls}`);
+  const hud = $(`.hud${slotSel(pos)}`);
+  if (DOUBLE) hud.hidden = v.hp <= 0; // sin Pokémon en ese hueco, sin marcador
   hud.querySelector('.name').textContent = v.name;
   const g = hud.querySelector('.gender');
   g.textContent = v.gender === 'M' ? '♂' : v.gender === 'F' ? '♀' : '';
   g.className = 'gender ' + v.gender.toLowerCase();
   hud.querySelector('.lvl').textContent = T.level + v.level;
   const tera = view.tera[side][v.name];
-  hud.querySelector('.types').innerHTML = tera ? `<span class="tera-tag">${T.teraLabel}</span>${typeBadge(tera)}` : dex.species.get(v.species).types.map(typeBadge).join('');
+  hud.querySelector('.types').innerHTML = tera ? `<span class="tera-tag">${T.teraLabel}</span>${typeBadge(tera)}` : (v.types || dex.species.get(v.species).types).map(typeBadge).join('');
   const pct = Math.max(0, 100 * v.hp / v.maxhp);
-  animateBar(side, fromHp != null ? Math.max(0, 100 * fromHp / v.maxhp) : pct, pct, dur, v.maxhp);
+  animateBar(pos, fromHp != null ? Math.max(0, 100 * fromHp / v.maxhp) : pct, pct, dur, v.maxhp);
   const boosts = Object.entries(v.boosts).filter(([, n]) => n)
     .map(([s, n]) => `<span class="boost ${n > 0 ? 'up' : 'down'}">${T.statShort[s]} ${n > 0 ? '+' : ''}${n}</span>`).join('');
   hud.querySelector('.status').innerHTML = (v.status ? `<span class="st st-${v.status}">${T.statusTag[v.status]}</span>` : '') + boosts;
-  if (side === 'p1') lowHpAlarm(v.hp > 0 && pct <= 20 && !battle?.ended);
-  const out = faintedMarks(side, side === 'p1' ? team() : B.team);
+  if (mine) lowHpAlarm(POS.some(p => p[1] === '1' && view[p].hp > 0 && view[p].hp / view[p].maxhp <= 0.2) && !battle?.ended);
+  const out = faintedMarks(side, mine ? team() : B.team);
   $(`.balls.${cls}`).innerHTML = out.map(o => `<i class="${o ? 'out' : ''}"></i>`).join('');
 }
 
@@ -826,7 +953,7 @@ function drawTeamPanel() {
     return `<div class="tp${p.fainted ? ' out' : ''}${p.isActive ? ' active' : ''}">
       <div class="tp-head">${icon(p.species.name)}<b>${p.name}</b>${p.status ? `<span class="st st-${p.status}">${T.statusTag[p.status]}</span>` : ''}<span class="tp-hp">${p.hp}/${p.maxhp}</span></div>
       <div class="mini-hp"><i class="${pct > 50 ? '' : pct > 20 ? 'mid' : 'low'}" style="width:${pct}%"></i></div>
-      <div class="tp-sub">${it} · ${abilityName(p.ability)} · ${T.teraLabel} ${typeBadge(p.teraType)}${p.terastallized ? ' ✓' : ''}</div>
+      <div class="tp-sub">${it} · ${abilityName(p.ability)}${GIMMICKS.includes('tera') ? ` · ${T.teraLabel} ${typeBadge(p.teraType)}${p.terastallized ? ' ✓' : ''}` : ''}</div>
       ${statsRow({...p.storedStats, hp: p.maxhp}, p.set.nature, p.isActive ? p.boosts : {})}
       <div class="moves4">${p.moveSlots.map(m => `<span class="t-${dex.moves.get(m.id).type.toLowerCase()}">${moveName(m.id)}<small>${m.pp}/${m.maxpp}</small></span>`).join('')}</div>
     </div>`;
@@ -852,7 +979,134 @@ function drawMovesToggle() {
 }
 $('#btn-moves-info').onclick = () => { sfx('click'); ls.set('redle:moveinfo', movesFull() ? '0' : '1'); drawMovesToggle(); };
 
+// Precisión real con lo que hay en el campo, para que no sorprenda (Gravedad ×5/3; Trueno/Vendaval con lluvia o
+// sol; Ventisca con granizo o nieve). null si no cambia.
+function realAcc(move) {
+  if (move.accuracy === true || move.category === 'Status' && move.target === 'self') return null;
+  const w = battle.field.effectiveWeather(), why = [];
+  let acc = move.accuracy;
+  if (['thunder', 'hurricane'].includes(move.id) && w === 'raindance') { acc = 100; why.push('RainDance'); }
+  else if (['thunder', 'hurricane'].includes(move.id) && w === 'sunnyday') { acc = 50; why.push('SunnyDay'); }
+  if (move.id === 'blizzard' && ['hail', 'snow', 'snowscape'].includes(w)) { acc = 100; why.push('Hail'); }
+  if (battle.field.pseudoWeather.gravity && acc < 100) { acc = Math.min(100, Math.floor(acc * 5 / 3)); why.push('Gravity'); }
+  return acc !== move.accuracy ? {acc, why: why.at(-1)} : null;
+}
+// Un botón de ataque. `hintHtml`: la pista de eficacia (una en individuales; una por rival en dobles).
+function moveButton(m, hintHtml, maxMove) {
+  const move = dex.moves.get(maxMove || m.id);
+  const cat = move.category === 'Status' ? T.status : move.category === 'Physical' ? T.physical : T.special;
+  const power = move.isMax ? dex.moves.get(m.id).maxMove?.basePower : move.basePower; // potencia real del Maxiataque
+  const real = realAcc(move);
+  const accTxt = move.accuracy === true ? '' : real ? `${T.acc} <s>${move.accuracy}</s> <span class="acc-real">${real.acc}</span>` : `${T.acc} ${move.accuracy}`;
+  const info = [cat, power && move.category !== 'Status' ? `${T.power} ${power}` : '', accTxt,
+    move.priority ? `${T.priority} ${move.priority > 0 ? '+' : ''}${move.priority}` : '', move.flags?.contact ? T.contact : ''].filter(Boolean).join(' · ');
+  const accTag = real ? `<span class="acc-tag" title="${T.accNote}">${itemIcon(FIELD_ICON[real.why])}${real.acc}%</span>` : '';
+  // Descripción como en los juegos al elegir un ataque (los Maxiataques no tienen texto oficial).
+  const desc = move.isMax ? (move.id === 'maxguard' ? T.maxGuardDesc : T.maxDesc(typeName(move.type))) : moveDesc(move.id);
+  const b = el('button', `move t-${move.type.toLowerCase()}`,
+    `<b>${m.id === 'recharge' ? T.recharge : moveName(move.id)}</b><span class="line">${typeBadge(move.type)}${accTag}<span>PP ${m.pp ?? '-'}/${m.maxpp ?? '-'}</span></span><span class="info">${info}</span>${desc ? `<span class="desc">${desc}</span>` : ''}${hintHtml}`);
+  b.disabled = !!m.disabled || m.pp === 0;
+  if (desc) b.title = desc;
+  return b;
+}
+
+// Dobles: se elige para cada Pokémon y el turno sale al completar los dos.
+let turnPicks = [];
+// Huecos que tienen que decidir este turno.
+function actingSlots(req) {
+  const me = battle.p1.active;
+  if (!req.forceSwitch) return [0, 1].filter(i => !me[i].fainted && !me[i].volatiles.commanding);
+  const forced = [0, 1].filter(i => req.forceSwitch[i]);
+  if (forced.some(i => battle.p1.slotConditions[i]?.revivalblessing)) return forced;
+  return forced.slice(0, battle.p1.pokemon.filter(p => !p.fainted && !p.isActive).length); // sin banquillo para los dos, uno se queda vacío
+}
+function pickSlot(text, slots) {
+  turnPicks.push(text);
+  if (turnPicks.length < slots.length) return drawControls();
+  const choice = [0, 1].map(i => turnPicks[slots.indexOf(i)] ?? 'pass').join(', ');
+  turnPicks = [];
+  choose(choice);
+}
+function drawDoubleControls() {
+  drawMovesToggle();
+  $('.forfeit-btn')?.remove();
+  const req = battle.p1.activeRequest, moves = $('#moves'), switches = $('#switches');
+  moves.innerHTML = switches.innerHTML = '';
+  document.querySelector('.mon.acting')?.classList.remove('acting');
+  if (!req || req.wait) return;
+  const slots = actingSlots(req);
+  if (turnPicks.length >= slots.length) turnPicks = [];
+  const i = slots[turnPicks.length], me = battle.p1.active[i], ally = battle.p1.active[1 - i];
+  const foes = battle.p2.active.filter(p => p && !p.fainted), allyIn = ally && !ally.fainted;
+  const revive = !!(req.forceSwitch && battle.p1.slotConditions[i]?.revivalblessing);
+  const chosen = turnPicks.filter(t => t.startsWith('switch')).map(t => +t.split(' ')[1] - 1);
+  if (!req.forceSwitch) img(i ? 'p1b' : 'p1a').classList.add('acting');
+  $('#prompt').textContent = revive ? T.revivePick : req.forceSwitch ? T.who : `${T.what(me.name)}${slots.length > 1 ? ` (${turnPicks.length + 1}/2)` : ''}`;
+  switches.classList.toggle('revive', revive);
+  const back = () => {
+    if (!turnPicks.length) return;
+    const b = el('button', 'linklike undo-btn', T.undo);
+    b.onclick = () => { sfx('click'); turnPicks.pop(); drawControls(); };
+    moves.append(b);
+  };
+  const r = req.active?.[i];
+  if (!req.forceSwitch) {
+    r.moves.forEach((m, j) => {
+      const move = dex.moves.get(m.id), kind = m.target; // sin `target`: atado a un ataque, no se elige objetivo
+      const damaging = kind && move.category !== 'Status' && kind !== 'self';
+      const chips = damaging ? foes.map(f => { const x = typeMultiplier(me, f, m.id); return `<i class="${x > 1 ? 'good' : x < 1 ? 'bad' : ''}">${icon(f.species.name)}×${x}</i>`; }).join('') : '';
+      const hurtsAlly = kind === 'allAdjacent' && allyIn && typeMultiplier(me, ally, m.id) !== 0;
+      const b = moveButton(m, `${chips ? `<span class="vs-hints">${chips}</span>` : ''}${hurtsAlly ? `<span class="ally-warn">${T.hitsAlly}</span>` : ''}`);
+      b.onclick = () => {
+        sfx('click');
+        const text = `move ${j + 1}`, aim = t => pickSlot(`${text} ${t}`, slots), allyLoc = -(2 - i), selfLoc = -(i + 1);
+        if (kind === 'adjacentAlly') return allyIn ? aim(allyLoc) : pickSlot(text, slots);
+        if (kind === 'adjacentAllyOrSelf') return aim(allyIn ? allyLoc : selfLoc);
+        if (!['normal', 'any', 'adjacentFoe'].includes(kind)) return pickSlot(text, slots);
+        const friendly = allyIn && kind !== 'adjacentFoe' && (move.category === 'Status' || move.id === 'pollenpuff');
+        if (foes.length === 1 && !friendly) return aim(battle.p2.active.indexOf(foes[0]) + 1);
+        drawTargets(m, foes, friendly ? ally : null, aim, allyLoc, me);
+      };
+      moves.append(b);
+    });
+  }
+  back();
+  const trapped = !req.forceSwitch && r.trapped;
+  battle.p1.pokemon.forEach((p, n) => {
+    const b = el('button', 'sw' + (p.isActive ? ' active' : '') + (p.fainted ? (revive ? ' revivable' : ' out') : ''),
+      `${icon(p.species.name)}<span>${p.name}</span><i style="--hp:${Math.round(100 * p.hp / p.maxhp)}%"></i>${revive && p.fainted ? `<em>${T.reviveTag}</em>` : ''}`);
+    b.disabled = revive ? !p.fainted : p.fainted || p.isActive || trapped || chosen.includes(n);
+    b.title = `${p.name} · ${p.hp}/${p.maxhp} · ${p.moveSlots.map(m => moveName(m.id)).join(', ')}`;
+    b.onclick = () => { sfx('click'); pickSlot(`switch ${n + 1}`, slots); };
+    switches.append(b);
+  });
+  if (!REPLAY) {
+    const f = el('button', 'forfeit-btn', T.forfeit);
+    f.onclick = () => { if (confirm(T.forfeitConfirm)) { turnPicks = []; choose('forfeit'); } };
+    switches.after(f);
+  }
+}
+// ¿A quién? Un botón por objetivo, con su vida y lo eficaz que será.
+function drawTargets(m, foes, ally, aim, allyLoc, me) {
+  const moves = $('#moves'), switches = $('#switches');
+  moves.innerHTML = switches.innerHTML = '';
+  $('#prompt').innerHTML = T.pickTarget(moveName(m.id));
+  const target = (p, loc, cls) => {
+    const x = typeMultiplier(me, p, m.id), pct = Math.ceil(100 * p.hp / p.maxhp);
+    const hint = x === null ? '' : x === 0 ? T.noEffect : x > 1 ? T.superEff : x < 1 ? T.notVery : '';
+    const b = el('button', `target ${cls}`, `${icon(p.species.name)}<span><b>${p.name}</b><i style="--hp:${pct}%"></i></span><small>${pct}%</small>${hint ? `<em class="${x > 1 ? 'good' : 'bad'}">${hint}</em>` : ''}`);
+    b.onclick = () => { sfx('click'); aim(loc); };
+    moves.append(b);
+  };
+  for (const f of foes) target(f, battle.p2.active.indexOf(f) + 1, 'foe');
+  if (ally) target(ally, allyLoc, 'ally');
+  const b = el('button', 'linklike undo-btn', T.undo);
+  b.onclick = () => { sfx('click'); drawControls(); };
+  moves.append(b);
+}
+
 function drawControls() {
+  if (DOUBLE) return drawDoubleControls();
   drawMovesToggle();
   $('.forfeit-btn')?.remove();
   const req = battle.p1.activeRequest;
@@ -883,35 +1137,10 @@ function drawControls() {
   // Con Dinamax (activo o a punto de usarse) los botones muestran los Maxiataques.
   const maxMode = !req.forceSwitch && (me.volatiles.dynamax || gimmickOn === 'dynamax');
   if (!req.forceSwitch) {
-    // Precisión real con lo que hay en el campo, para que no sorprenda (Gravedad ×5/3; Trueno/Vendaval con lluvia o
-    // sol; Ventisca con granizo o nieve). null si no cambia.
-    const realAcc = move => {
-      if (move.accuracy === true || move.category === 'Status' && move.target === 'self') return null;
-      const w = battle.field.effectiveWeather(), why = [];
-      let acc = move.accuracy;
-      if (['thunder', 'hurricane'].includes(move.id) && w === 'raindance') { acc = 100; why.push('RainDance'); }
-      else if (['thunder', 'hurricane'].includes(move.id) && w === 'sunnyday') { acc = 50; why.push('SunnyDay'); }
-      if (move.id === 'blizzard' && ['hail', 'snow', 'snowscape'].includes(w)) { acc = 100; why.push('Hail'); }
-      if (battle.field.pseudoWeather.gravity && acc < 100) { acc = Math.min(100, Math.floor(acc * 5 / 3)); why.push('Gravity'); }
-      return acc !== move.accuracy ? {acc, why: why.at(-1)} : null;
-    };
     req.active[0].moves.forEach((m, i) => {
-      const move = dex.moves.get(maxMode && r.maxMoves?.maxMoves?.[i] ? r.maxMoves.maxMoves[i].move : m.id);
-      const cat = move.category === 'Status' ? T.status : move.category === 'Physical' ? T.physical : T.special;
       const mult = typeMultiplier(me, foe, m.id);
       const hint = mult === null ? '' : mult === 0 ? T.noEffect : mult > 1 ? T.superEff : mult < 1 ? T.notVery : '';
-      const power = move.isMax ? dex.moves.get(m.id).maxMove?.basePower : move.basePower; // potencia real del Maxiataque
-      const real = realAcc(move);
-      const accTxt = move.accuracy === true ? '' : real ? `${T.acc} <s>${move.accuracy}</s> <span class="acc-real">${real.acc}</span>` : `${T.acc} ${move.accuracy}`;
-      const info = [cat, power && move.category !== 'Status' ? `${T.power} ${power}` : '', accTxt,
-        move.priority ? `${T.priority} ${move.priority > 0 ? '+' : ''}${move.priority}` : '', move.flags?.contact ? T.contact : ''].filter(Boolean).join(' · ');
-      const accTag = real ? `<span class="acc-tag" title="${T.accNote}">${itemIcon(FIELD_ICON[real.why])}${real.acc}%</span>` : '';
-      // Descripción como en los juegos al elegir un ataque (los Maxiataques no tienen texto oficial).
-      const desc = move.isMax ? (move.id === 'maxguard' ? T.maxGuardDesc : T.maxDesc(typeName(move.type))) : moveDesc(move.id);
-      const b = el('button', `move t-${move.type.toLowerCase()}`,
-        `<b>${m.id === 'recharge' ? T.recharge : moveName(move.id)}</b><span class="line">${typeBadge(move.type)}${accTag}<span>PP ${m.pp ?? '-'}/${m.maxpp ?? '-'}</span></span><span class="info">${info}</span>${desc ? `<span class="desc">${desc}</span>` : ''}${hint ? `<em class="${mult > 1 ? 'good' : 'bad'}">${hint}</em>` : ''}`);
-      b.disabled = !!m.disabled || m.pp === 0;
-      if (desc) b.title = desc;
+      const b = moveButton(m, hint ? `<em class="${mult > 1 ? 'good' : 'bad'}">${hint}</em>` : '', maxMode && r.maxMoves?.maxMoves?.[i] ? r.maxMoves.maxMoves[i].move : '');
       b.onclick = () => choose(`move ${i + 1}${gimmickOn ? ' ' + gimmickOn : ''}`);
       moves.append(b);
     });
@@ -956,11 +1185,11 @@ function shield(side) {
 }
 
 // Tu marcador abre la pestaña "Tu equipo" (estadísticas, cambios de características, objeto y PP).
-$('.hud.me').onclick = () => { $('.tabs button[data-tab=team-panel]').click(); $('.tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); };
+document.querySelectorAll('.hud.me').forEach(h => { h.onclick = () => { $('.tabs button[data-tab=team-panel]').click(); $('.tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); }; });
 
 // Ficha del rival: solo lo que se ha visto en combate.
-$('#foe-hud').onclick = () => {
-  const v = view.p2;
+document.querySelectorAll('.hud.foe').forEach(h => { h.onclick = () => foeCard(view[h.classList.contains('b') ? 'p2b' : POS[POS.length / 2]]); });
+function foeCard(v) {
   if (!v.species) return;
   const sp = dex.species.get(v.species), seen = seenOf(v.species);
   $('#foe-body').innerHTML = `
@@ -972,7 +1201,7 @@ $('#foe-hud').onclick = () => {
     <p><b>${T.revealed}:</b> ${[...seen.moves].map(m => moveName(m)).join(', ') || T.none}</p>
     <div class="icons">${faintedMarks('p2', B.team).map((o, i) => icon(B.team[i].species, o ? 'out' : view.seen[B.team[i].species] ? '' : 'unseen')).join('')}</div>`;
   $('#dlg-foe').showModal();
-};
+}
 
 // ---------- final, Liga y estadísticas ----------
 const ballBtn = (txt, fn, cls = 'ballbtn') => { const b = el('button', cls, `<span class="ball" aria-hidden="true"></span><span class="txt">${txt}</span>`); b.onclick = fn; return b; };
@@ -992,7 +1221,7 @@ function closeDay(won, reached) {
   else s.streak = 0;
   if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
   save();
-  if (won) { award(MODE); if (!LIGA) awardFeats(d, attempt()); }
+  if (won) { award(MODE); if (!LIGA) awardFeats(d, attempt()); if (SEASON) award(`season:${SEASON.id}:${TODAY.slice(0, 4)}`); }
   bumpStreak();
   sendResult(myResult());
   backup();
@@ -1053,7 +1282,92 @@ function finish(animate) {
   $('#prompt').textContent = LIGA ? (day().result === 'win' ? T.leagueWon : T.leagueLost(round() + 1)) : r.result === 'win' ? T.won : T.lost;
   $('#moves').append(ballBtn(T.seeResult, showResult),
     ballBtn('▶ ' + T.replay, watchReplay, 'ballbtn alt'), ...practiceOptions().map(([txt, fn]) => ballBtn(txt, fn, 'ballbtn alt')));
-  if (animate) resultTimer = setTimeout(showResult, 2500);
+  if (animate) {
+    const hallOfFame = r.result === 'win' && day().result === 'win' && !PRACTICE;
+    resultTimer = setTimeout(hallOfFame ? () => fameScene().then(showResult) : showResult, 2500);
+  }
+}
+
+// ---------- Salón de la Fama y Pokédex ----------
+// Salen del historial guardado: el equipo de cada día se puede recalcular, así que no hace falta guardar nada más
+// (y funcionan con las victorias de antes de que existieran).
+function playedDays() {
+  const out = [];
+  for (const id of MODES) for (const [date, d] of Object.entries(readJSON(keyOf(id)).days || {})) {
+    if (!/^\d{4}-\d\d-\d\d$/.test(date) || !(d.result || d.started || d.rounds?.length)) continue;
+    out.push({id, date, d, won: d.result === 'win', team: poolOf(id, date).map(s => s.species)});
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+const fameRival = ({id, date}) => (id === 'liga' ? T.league : BOSSES[id]?.name || duoOf(date).name);
+const fameFaces = ({id, date}) => (id === 'liga' ? `<span class="liga-icon">${itemIcon('Master Ball')}</span>`
+  : (BOSSES[id] ? [id] : duoOf(date).trainers).map(t => `<img src="${trainerImg(t)}" alt="" width="40" height="40">`).join(''));
+const fameLink = ({id, date, d}) => {
+  const liga = id === 'liga', r = liga ? d.rounds?.[LEAGUE.rounds - 1] : d;
+  if (!r?.choices?.length) return '';
+  const hash = encodeReplay({m: id, d: date, r: liga ? LEAGUE.rounds - 1 : 0, ...(d.attempt > 1 ? {a: d.attempt} : {}), p: r.picks, c: r.choices});
+  return `<a class="watch" href="?vs=${id}#r=${hash}" target="_blank" rel="noopener">▶ ${T.watch}</a>`;
+};
+function drawFame() {
+  const wins = playedDays().filter(e => e.won), fmt = d => new Date(d + 'T12:00:00').toLocaleDateString(LANG, {day: 'numeric', month: 'short', year: 'numeric'});
+  $('#fame-list').innerHTML = !wins.length ? `<p class="wins-empty">${T.fameEmpty}</p>` : wins.map((e, i) => `<section class="fame-entry">
+      <div class="fame-who"><span class="duo-faces">${fameFaces(e)}</span><div><b>${T.fameEntry(i + 1)}</b><small>${fameRival(e)} · ${fmt(e.date)}${e.d.turns ? ` · ${T.topTurns(e.d.turns)}` : ''}</small></div>${fameLink(e)}</div>
+      <div class="icons">${e.team.map(s => icon(s)).join('')}</div></section>`).reverse().join('');
+}
+// Como al llegar a la cima en los juegos: tu equipo pasa uno a uno entre destellos y queda inscrito. Un toque lo salta.
+function fameScene() {
+  const box = $('#fame'), big = $('.fame-mon'), plate = $('.fame-plate'), row = $('.fame-row'), end = $('.fame-end'), sets = team();
+  const url = s => Sprites.getPokemon(s, {gen: 'ani'}).url;
+  for (const set of sets) new Image().src = url(set.species);
+  return new Promise(async done => {
+    let skip = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    box.onclick = () => { skip = true; };
+    row.innerHTML = '';
+    end.hidden = true;
+    big.hidden = plate.hidden = false;
+    box.classList.remove('flash');
+    $('.fame-title').textContent = T.fameTitle;
+    box.hidden = false;
+    for (const set of sets) {
+      if (!skip) {
+        big.src = url(set.species);
+        plate.innerHTML = `<b>${set.name || set.species}</b><small>${T.level}${set.level}</small>`;
+        for (const e of [big, plate]) { e.classList.remove('show'); void e.offsetWidth; e.classList.add('show'); }
+        box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
+        sfx('item');
+        cry(cryId(set.species));
+        await sleep(1000); // sin prisas: es el momento de gloria
+      }
+      row.append(el('img', 'fame-small', null));
+      row.lastChild.src = url(set.species);
+      row.lastChild.alt = set.species;
+    }
+    big.hidden = plate.hidden = true;
+    end.hidden = false;
+    $('.fame-end p').innerHTML = `${T.fameWelcome(esc(ls.get('redle:nick') || T.anon))}<br><small>${T.fameEntry(playedDays().filter(e => e.won).length)} · ${B.name}</small>`;
+    $('.fame-end button').textContent = T.fameContinue;
+    $('.fame-end button').onclick = e => { e.stopPropagation(); box.hidden = true; done(); };
+  });
+}
+
+let dexRegion = 1, dexPick = '';
+function drawDex() {
+  const days = playedDays(), wins = new Map(), mvps = new Map(), seen = new Set(), base = s => dex.species.get(s).baseSpecies;
+  for (const e of days) {
+    for (const s of e.team) { seen.add(base(s)); if (e.won) wins.set(base(s), (wins.get(base(s)) || 0) + 1); }
+    if (e.d.mvp) mvps.set(base(e.d.mvp), (mvps.get(base(e.d.mvp)) || 0) + 1);
+  }
+  const all = pokedexList(), inRegion = all.filter(p => p.gen === dexRegion), pick = all.find(p => p.name === dexPick);
+  $('#dex-count').textContent = T.dexCount(all.filter(p => wins.has(p.name)).length, all.filter(p => seen.has(p.name)).length, all.length);
+  $('#dex-tabs').innerHTML = T.regions.map((r, i) => `<button class="${i + 1 === dexRegion ? 'on' : ''}" data-r="${i + 1}">${r}</button>`).join('');
+  $('#dex-tabs').querySelectorAll('button').forEach(b => { b.onclick = () => { sfx('click'); dexRegion = +b.dataset.r; drawDex(); }; });
+  const known = pick && seen.has(pick.name), times = pick && wins.get(pick.name);
+  $('#dex-card').innerHTML = !pick ? `<p>${T.dexHint}</p>` : `<img class="${known ? '' : 'shadow'}" src="${Sprites.getPokemon(pick.name, {gen: 'ani'}).url}" alt="">
+    <div><small>N.º ${String(pick.num).padStart(4, '0')}</small><b>${known ? pick.name : '???'}</b>
+      <div class="types">${known ? dex.species.get(pick.name).types.map(typeBadge).join('') : ''}</div>
+      <p>${!known ? T.dexUnknown : times ? T.dexWon(times) + (mvps.get(pick.name) ? ` ${T.dexMvp(mvps.get(pick.name))}` : '') : T.dexSeen}</p></div>`;
+  $('#dex-grid').innerHTML = inRegion.map(p => `<button class="dx${wins.has(p.name) ? ' won' : seen.has(p.name) ? ' seen' : ''}${p.name === dexPick ? ' on' : ''}" data-n="${p.name}" aria-label="${seen.has(p.name) ? p.name : '???'}">${icon(p.name)}</button>`).join('');
+  $('#dex-grid').querySelectorAll('button').forEach(b => { b.onclick = () => { sfx('click'); dexPick = b.dataset.n; drawDex(); }; });
 }
 
 // Otro intento: se guarda el anterior y se vuelve a la pantalla de equipo (se puede elegir otro líder).
@@ -1118,19 +1432,18 @@ function summary() {
     let line = lines[i];
     if (line.startsWith('|split|')) { line = lines[i + 1]; i += 2; }
     const [, cmd, a = '', b = '', c = ''] = line.split('|');
-    const side = a.slice(0, 2);
-    if (cmd === 'switch' || cmd === 'drag') { active[side] = parseId(a).name; const [h, m] = c.split(' ')[0].split('/').map(Number); hp[side] = [h, m]; }
-    else if (cmd === 'move') attacker = side;
+    const pos = a.slice(0, 3), side = a.slice(0, 2); // hueco del campo: p1a, p1b… (en individuales, siempre el a)
+    if (cmd === 'switch' || cmd === 'drag') { active[pos] = parseId(a).name; const [h, m] = c.split(' ')[0].split('/').map(Number); hp[pos] = [h, m]; }
+    else if (cmd === 'move') attacker = pos;
     else if (cmd === '-damage' || cmd === '-heal') {
-      const [h, m] = b.split(' ')[0].split('/').map(Number), [prev, max] = hp[side] || [h, m];
+      const [h, m] = b.split(' ')[0].split('/').map(Number), [prev, max] = hp[pos] || [h, m];
       const lost = Math.max(0, prev - h) / (m || max) * 100;
-      hp[side] = [b.includes('fnt') ? 0 : h, m || max];
+      hp[pos] = [b.includes('fnt') ? 0 : h, m || max];
       if (cmd !== '-damage' || c.includes('[from]')) continue;
-      const mine = stats.get(active.p1);
-      if (!mine) continue;
-      if (side === 'p2' && attacker === 'p1') mine.dmg += lost;
-      if (side === 'p1') mine.taken += lost;
-    } else if (cmd === 'faint' && side === 'p2' && attacker === 'p1' && stats.get(active.p1)) stats.get(active.p1).kos++;
+      const hitter = stats.get(active[attacker]), target = stats.get(active[pos]);
+      if (side === 'p2' && attacker?.startsWith('p1') && hitter) hitter.dmg += lost;
+      if (side === 'p1' && target) target.taken += lost;
+    } else if (cmd === 'faint' && side === 'p2' && attacker?.startsWith('p1') && stats.get(active[attacker])) stats.get(active[attacker]).kos++;
   }
   return [...stats.values()];
 }
@@ -1174,7 +1487,7 @@ function showResult() {
   $('#result-title').textContent = !done ? T.stats : LIGA ? (done === 'win' ? T.leagueWon : T.leagueLost(d.reached + 1)) : done === 'win' ? T.won : T.lost;
   $('#result-body').innerHTML = !done ? '' : LIGA
     ? `<div class="lineup small-lineup">${LINEUP.map((id, i) => `<figure class="${d.rounds[i]?.result === 'win' ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : ''}"><img src="${trainerImg(id)}" alt="" width="48" height="48"><figcaption><b>${BOSSES[id].name}</b></figcaption></figure>`).join('')}</div><p>${done === 'win' ? T.leagueWonSub : T.leagueLostSub}</p>`
-    : `<img class="result-red ${done}" src="${trainerImg(OPP)}" alt="${B.name}" width="96" height="96"><p>${done === 'win' ? T.wonSub : T.lostSub}</p>`;
+    : `<div class="result-faces">${(B.trainers || [OPP]).map(t => `<img class="result-red ${done}" src="${trainerImg(t)}" alt="${B.name}" width="96" height="96">`).join('')}</div><p>${done === 'win' ? T.wonSub : T.lostSub}</p>`;
   const s = store.stats, days = playStreak().n;
   const cells = LIGA
     ? [[s.played, T.played], [s.wins, T.champions], [`${s.bestRound || 0}/5`, T.bestRound], [days, T.playStreak]]
@@ -1255,7 +1568,7 @@ async function drawWins(box, today) {
 
 // ---------- medallas, tarjeta de entrenador, apodo, código de entrenador y sugerencias ----------
 const esc = t => String(t).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-const MODES = [...Object.keys(BOSSES), 'liga'];
+const MODES = [...Object.keys(BOSSES), 'liga', DOUBLES.id];
 const STREAK_MEDALS = [[7, 'Poke Ball'], [30, 'Ultra Ball'], [100, 'Master Ball']]; // racha de días: Poké, Ultra y Master Ball
 const medals = () => readJSON('redle:medals');
 const newMedals = []; // las conseguidas en esta visita, para celebrarlas en el resultado
@@ -1283,18 +1596,22 @@ for (const id of MODES) for (const d of Object.values(readJSON(keyOf(id)).days |
 }
 for (const [n] of STREAK_MEDALS) if ((readJSON('redle:streak').best || 0) >= n) award('streak' + n, true);
 
-const medalTitle = id => BOSSES[id] ? T.medalOf(BOSSES[id].name) : id === 'liga' ? T.medalLiga : id.startsWith('streak') ? T.medalStreak(+id.slice(6)) : T.feat[id];
+const medalTitle = id => id.startsWith('season:') ? `${T.season[id.split(':')[1]]?.[0]} ${id.split(':')[2]}` : BOSSES[id] ? T.medalOf(BOSSES[id].name) : id === 'liga' ? T.medalLiga : id === DOUBLES.id ? T.medalDoubles : id.startsWith('streak') ? T.medalStreak(+id.slice(6)) : T.feat[id];
 
 // Una medalla por rival (su sprite en color si le has ganado alguna vez), la de Campeón de la Liga y las de racha.
+const medalList = () => [
+  ...Object.values(BOSSES).map(b => [b.id, T.medalOf(b.name), `<img src="${trainerImg(b.id)}" alt="" width="40" height="40">`]),
+  ['liga', T.medalLiga, itemIcon('Master Ball')],
+  [DOUBLES.id, T.medalDoubles, itemIcon('Muscle Band')],
+  ...STREAK_MEDALS.map(([n, item]) => ['streak' + n, T.medalStreak(n), `${itemIcon(item)}<small>${n}</small>`]),
+  ...FEATS.map(([id, item]) => [id, T.feat[id], itemIcon(item)]),
+  ['all', T.feat.all, itemIcon('Star Piece')],
+  // Las de temporada solo aparecen si las tienes: son un recuerdo, no algo que falte por conseguir.
+  ...Object.keys(medals()).filter(id => id.startsWith('season:')).map(id => [id, medalTitle(id), itemIcon(SEASONS.find(s => s.id === id.split(':')[1])?.medal || 'Star Piece')]),
+];
 function medalsHtml() {
   const m = medals();
-  const list = [
-    ...Object.values(BOSSES).map(b => [b.id, T.medalOf(b.name), `<img src="${trainerImg(b.id)}" alt="" width="40" height="40">`]),
-    ['liga', T.medalLiga, itemIcon('Master Ball')],
-    ...STREAK_MEDALS.map(([n, item]) => ['streak' + n, T.medalStreak(n), `${itemIcon(item)}<small>${n}</small>`]),
-    ...FEATS.map(([id, item]) => [id, T.feat[id], itemIcon(item)]),
-    ['all', T.feat.all, itemIcon('Star Piece')],
-  ];
+  const list = medalList();
   const got = list.filter(([id]) => m[id]).length;
   return `<h3>${T.medalsTitle} <small>${got}/${list.length}</small></h3><div class="medal-row">${list.map(([id, title, inner]) =>
     `<span class="medal${m[id] ? ' got' : ''}" title="${title}" aria-label="${title}">${inner}</span>`).join('')}</div>`;
@@ -1306,7 +1623,7 @@ function trainerSummary() {
   const mvps = {};
   for (const st of stores) for (const d of Object.values(st.days || {})) if (d.mvp) mvps[d.mvp] = (mvps[d.mvp] || 0) + 1;
   const fav = Object.entries(mvps).sort((a, b) => b[1] - a[1])[0]?.[0];
-  const m = medals(), total = Object.keys(BOSSES).length + 1 + STREAK_MEDALS.length;
+  const m = medals(), total = medalList().length;
   return {wins: sum('wins'), played: sum('played'), fav, medals: Object.keys(m).length, total, streak: playStreak().n, best: readJSON('redle:streak').best || 0};
 }
 function drawTrainer() {
@@ -1322,9 +1639,13 @@ function drawTrainer() {
   $('#restore-code').value = '';
   $('#restore-msg').textContent = T.backupNote;
   $('#btn-share-card').textContent = T.shareCard;
+  $('#btn-fame').textContent = T.fameTitle;
+  $('#btn-dex').textContent = T.dexTitle;
   $('#btn-copy-code').textContent = T.copy;
 }
 $('#btn-trainer').onclick = () => { drawTrainer(); $('#dlg-trainer').showModal(); };
+$('#btn-fame').onclick = () => { sfx('click'); drawFame(); $('#dlg-fame').showModal(); };
+$('#btn-dex').onclick = () => { sfx('click'); drawDex(); $('#dlg-dex').showModal(); };
 $('#btn-share-card').onclick = async () => {
   const t = trainerSummary(), text = `${T.cardShare(ls.get('redle:nick') || T.anon, t.medals, t.total, t.streak)}\n${location.origin}${location.pathname}`;
   try {
@@ -1531,6 +1852,20 @@ $('#btn-mute').onclick = () => {
 
 // ---------- arranque ----------
 $('#day-num').textContent = PRACTICE ? T.practiceBadge : REPLAY ? '▶' : '#' + DAY;
+// La frase del día, la misma para todo el mundo. Los domingos avisa de los dobles; en temporada, se turna con la suya.
+$('#splash').textContent = SUNDAY ? T.splashSunday : SEASON && DAY % 2 ? T.season[SEASON.id][1] : T.splash[DAY * 7 % T.splash.length];
+if (SEASON) {
+  const left = seasonDaysLeft(TODAY, SEASON);
+  document.body.classList.add('season-' + SEASON.id);
+  $('#season').innerHTML = `${itemIcon(SEASON.medal)}<span><b>${T.season[SEASON.id][0]}</b> · ${T.seasonLeft(left)} ${T.seasonMedal}</span>`;
+  $('#season-fx').replaceChildren(...Array.from({length: innerWidth < 600 ? 8 : 14}, (_, i) => {
+    const im = el('img');
+    im.src = `${SD}fx/${SEASON.fx[i % SEASON.fx.length]}.png`;
+    im.alt = '';
+    im.style.cssText = `left:${(Math.random() * 100).toFixed(1)}%;--d:${(Math.random() * -14).toFixed(1)}s;--t:${(10 + Math.random() * 8).toFixed(1)}s;--s:${(0.5 + Math.random() * 0.7).toFixed(2)}`;
+    return im;
+  }));
+}
 if (PRACTICE) document.body.classList.add('practice');
 document.querySelectorAll('[data-close]').forEach(b => (b.onclick = () => b.closest('dialog').close()));
 $('#btn-help').onclick = () => $('#dlg-help').showModal();
@@ -1553,5 +1888,6 @@ document.querySelectorAll('img').forEach(im => { if (im.complete) im.classList.a
 // Las descripciones llegan aparte: si ya hay botones de ataque en pantalla, se repintan con ellas.
 loadMoveDescs().then(() => { if (battle && !busy && !battle.ended && !REPLAY) drawControls(); }).catch(() => {});
 
-if (REPLAY || rec().started) startBattle(false);
+if (LOCKED) renderTeaser();
+else if (REPLAY || rec().started) startBattle(false);
 else renderDraft();

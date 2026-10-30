@@ -11,6 +11,7 @@ Red, Blue, Lance, Steven, Wallace, Cynthia, Iris and Leon. No ROM, no emulator: 
 2. Check your team and the rival's, and pick your lead.
 3. Three tries per rival per day (one in the League). Some days have a **rule of the day** (Inverse Battle, Trick Room, weather…).
 4. Share your result and, if you like, a **replay link** of your battle.
+5. **Every Sunday, a Double Battle:** two rivals team up against you, 6 vs 6 with two Pokémon on the field at once.
 
 ```
 Redle #12 ⛰️ vs Red

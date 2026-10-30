@@ -8,7 +8,7 @@
 // Desde el 30-10-2026 (3 intentos y EVs a la mitad) se exige más: como mucho 1 victoria simulada de 12 y al menos
 // 2,75 K.O. de media (que se pueda ganar). Con 508 EVs y el criterio anterior la gente ganaba el 75 % con 3 intentos.
 import {writeFileSync} from 'node:fs';
-import {newBattle, play, aiChoice, poolFor, ruleFor, today, BOSSES} from '../src/game.js';
+import {newBattle, play, aiChoice, poolFor, ruleFor, today, BOSSES, DOUBLES, doublesOpen} from '../src/game.js';
 import {BALANCE} from '../src/balance.js';
 
 const DAYS = +(process.argv[2] || 180), K = 12, EPS = 0.15, MIN_KO = 2.75, MAX_WINS = 1, TRIES = 8;
@@ -17,14 +17,16 @@ const FIRST = '2026-10-30'; // primer día con este criterio (antes del 30, la t
 // Un combate simulado: el jugador elige como la IA salvo un 15 % de las veces (al azar) y con un líder al azar.
 function sim(date, boss, team, seed) {
   let s = seed; const rnd = () => ((s = (s * 1103515245 + 12345) >>> 0) / 2 ** 32);
-  const lead = Math.floor(rnd() * 6);
-  const order = [lead, ...[0, 1, 2, 3, 4, 5].filter(i => i !== lead)].map(i => team[i]);
-  const b = newBattle(date, order, boss, ruleFor(date, boss));
+  const lead = Math.floor(rnd() * 6), second = (lead + 1 + Math.floor(rnd() * 5)) % 6, doubles = boss === DOUBLES.id;
+  const first = doubles ? [lead, second] : [lead]; // en dobles salen dos
+  const order = [...first, ...[0, 1, 2, 3, 4, 5].filter(i => !first.includes(i))].map(i => team[i]);
+  // En dobles la IA juega sin el 15 % de ruido, así que cada combate lleva su semilla: si no, los 12 serían casi iguales.
+  const b = newBattle(doubles ? `${date}~${seed}` : date, order, boss, ruleFor(date, boss));
   play(b, null);
   for (let t = 0; t < 300 && !b.ended; t++) {
     let c = aiChoice(b, 'p1') || 'default';
     const req = b.p1.activeRequest;
-    if (rnd() < EPS && req && !req.wait && !req.forceSwitch && req.active) {
+    if (rnd() < EPS && req && !req.wait && !req.forceSwitch && req.active && b.gameType !== 'doubles') {
       const moves = req.active[0].moves.map((m, i) => !m.disabled && m.pp !== 0 ? 'move ' + (i + 1) : null).filter(Boolean);
       if (moves.length) c = moves[Math.floor(rnd() * moves.length)];
     }
@@ -34,12 +36,12 @@ function sim(date, boss, team, seed) {
 }
 // {ko: K.O. medios, wins: combates ganados de K}
 const score = (date, boss, i) => {
-  const team = poolFor(boss, date, i); let ko = 0, wins = 0;
-  for (let n = 0; n < K; n++) { const k = sim(date, boss, team, 1000 + n * 7919); ko += k; wins += k === 6; }
-  return {ko: ko / K, wins};
+  const team = poolFor(boss, date, i), doubles = boss === DOUBLES.id, battles = doubles ? K * 3 : K; let ko = 0, wins = 0;
+  for (let n = 0; n < battles; n++) { const k = sim(date, boss, team, 1000 + n * 7919); ko += k; wins += k === 6; }
+  return {ko: ko / battles, wins: wins / battles * K, maxWins: doubles ? MAX_WINS * 2 / 3 : MAX_WINS}; // domingo: 2 de 36, más fino
 };
 // Si ningún sorteo cumple: el que menos victorias dé, y entre esos el más cercano al mínimo de K.O.
-const gap = ({ko, wins}) => Math.max(0, wins - MAX_WINS) + Math.max(0, MIN_KO - ko);
+const gap = ({ko, wins, maxWins}) => Math.max(0, wins - maxWins) + Math.max(0, MIN_KO - ko);
 
 const tomorrow = new Date(Date.parse(today() + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10);
 // Inicio opcional (3.º argumento) para generar por tramos; nunca antes de mañana ni del primer día con equilibrio.
@@ -49,7 +51,8 @@ let rerolled = 0, total = 0;
 const t0 = Date.now();
 for (let d = 0; d < DAYS; d++) {
   const date = new Date(Date.parse(start + 'T12:00:00Z') + d * 864e5).toISOString().slice(0, 10);
-  for (const boss of Object.keys(BOSSES)) {
+  for (const boss of [...Object.keys(BOSSES), ...(doublesOpen(date) ? [DOUBLES.id] : [])]) {
+    if (process.env.ONLY && boss !== process.env.ONLY) continue;
     total++;
     let best = 0, bestGap = Infinity;
     for (let i = 0; i < TRIES; i++) {

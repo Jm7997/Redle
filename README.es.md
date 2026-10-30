@@ -11,6 +11,7 @@ Red, Blue, Lance, Steven, Wallace, Cynthia, Iris y Leon. Sin ROM ni emulador: fu
 2. Ves tu equipo y el del rival, y eliges quién empieza.
 3. Tienes tres intentos al día por rival (uno en la Liga). Algunos días hay una **regla del día** (combate inverso, Espacio Raro, clima…).
 4. Compartes el resultado y, si quieres, un **enlace a la repetición** de tu combate.
+5. **Cada domingo, Combate Doble:** dos rivales hacen equipo contra ti, 6 contra 6 con dos Pokémon a la vez en el campo.
 
 ```
 Redle #12 ⛰️ vs Red

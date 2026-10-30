@@ -705,3 +705,175 @@ body.boss-cynthia {
 .new-medals span { padding: 6px 10px; border-radius: 10px; background: radial-gradient(circle at 30% 20%, #fff6d0, #f3cf6a); color: #5a3d00; font-weight: 800; font-size: 13px; animation: medal-pop .5s cubic-bezier(.3, 1.6, .5, 1) both; }
 .new-medals span:nth-child(2) { animation-delay: .15s; } .new-medals span:nth-child(3) { animation-delay: .3s; }
 @keyframes medal-pop { from { opacity: 0; transform: scale(.6); } }
+
+/* ---------- Domingo de dobles ---------- */
+.boss-faces { display: inline-flex; justify-content: center; }
+.boss-sprite[hidden] { display: none; }
+.boss-faces .second { margin-left: -14px; }
+.duo-faces { display: inline-flex; flex-direction: row !important; }
+.duo-faces img + img { margin-left: -22px; }
+.boss-tab.dobles { background: linear-gradient(#7b4fd6, #33197a); color: #fff; border-color: #ffd23f; }
+.boss-tab.dobles small { display: block !important; color: #ffe08a; }
+.boss-tab.dobles.live { box-shadow: 0 0 0 2px #ffd23f, 0 0 14px #ffd23f99; animation: duo-glow 1.8s ease-in-out infinite alternate; }
+@keyframes duo-glow { to { box-shadow: 0 0 0 3px #ffd23f, 0 0 22px #ffd23fcc; } }
+
+.sunday-banner { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 6px 14px; border-radius: 14px; border: 2px solid #ffd23f; color: #fff; text-decoration: none; font: 700 14px/1.25 var(--body);
+  background: linear-gradient(100deg, #6b3fc4, #33197a); box-shadow: 0 3px 0 #1d0d4d; }
+.sunday-banner[hidden] { display: none; }
+.sunday-banner b { color: #ffe08a; }
+.sunday-banner img { image-rendering: pixelated; width: 40px; height: 40px; }
+.sunday-banner.live { animation: duo-glow 1.8s ease-in-out infinite alternate; }
+
+.sunday { text-align: center; }
+.sunday[hidden] { display: none; }
+.sunday h2 { margin: 4px 0; font: 30px var(--logo); color: var(--gold); -webkit-text-stroke: 1px var(--blue); }
+.duo-vs { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.duo-vs figure { margin: 0; animation: duo-in .6s calc(var(--i) * .18s) cubic-bezier(.2, .9, .3, 1.2) both; }
+.duo-vs img { image-rendering: pixelated; filter: drop-shadow(0 4px 0 #0003); }
+.duo-vs figcaption { font: 700 18px var(--pixel); }
+@keyframes duo-in { from { opacity: 0; transform: translateY(16px) scale(.8); } }
+.duo-name { margin: 6px 0 2px; font: 700 22px var(--pixel); }
+.duo-when { margin: 10px 0; font-weight: 900; color: var(--dex); }
+.duo-rules { margin: 10px auto; max-width: 520px; padding-left: 20px; text-align: left; line-height: 1.4; }
+.duo-back { display: inline-block; text-decoration: none; }
+
+.slot .set-trainer { position: absolute; left: -4px; top: -8px; width: 34px; height: 34px; image-rendering: pixelated; filter: drop-shadow(0 1px 0 #0006); z-index: 1; }
+.result-faces { display: flex; justify-content: center; }
+
+/* Campo doble: dos sprites por lado y dos marcadores apilados */
+.hud[hidden] { display: none; }
+.arena.doubles { --foe-x: 60%; --foe-y: 50%; --me-x: 13%; --me-y: 3%; }
+.arena.doubles .b { --foe-x: 83%; --foe-y: 56%; --me-x: 40%; --me-y: 8%; }
+.arena.doubles .mon.foe { --k: .78; }
+.arena.doubles .mon.me { --k: 1.02; }
+.arena.doubles .mon.me.b, .arena.doubles .mon.foe:not(.b) { z-index: 3; }
+.arena.doubles .hud { width: min(39%, 230px); padding: 3px 8px 3px; }
+.arena.doubles .hud .name { font-size: 15px; }
+.arena.doubles .hud .lvl { font-size: 12px; }
+.arena.doubles .hud .types, .arena.doubles .hud .exp { display: none; }
+.arena.doubles .hud .meta { font-size: 11px; min-height: 12px; }
+.arena.doubles .hud.foe { top: 3%; left: 2%; }
+.arena.doubles .hud.foe.b { top: calc(3% + 60px); left: 2%; }
+.arena.doubles .hud.me { bottom: 3%; right: 2%; }
+.arena.doubles .hud.me.b { bottom: calc(3% + 60px); right: 2%; }
+.arena.doubles .side-fx.foe { left: 72%; bottom: calc(var(--foe-y) - 2%); }
+.arena.doubles .side-fx.me { left: 26%; }
+.arena.doubles .balls.foe { top: 1%; left: auto; right: 2%; }
+.arena.doubles .balls.me { bottom: auto; top: 1%; right: auto; left: 2%; display: none; }
+.mon.acting:not(.faint) { filter: drop-shadow(0 0 3px #ffd23f) drop-shadow(0 0 7px #ffd23f); animation: hop .5s ease-in-out infinite alternate; }
+
+.vs-hints { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.vs-hints i { display: inline-flex; align-items: center; gap: 1px; padding: 0 5px 0 0; border-radius: 8px; background: #000a; font: 700 11px var(--body); font-style: normal; }
+.vs-hints i.good { color: #9cffbe; } .vs-hints i.bad { color: #ffb4b4; }
+.ally-warn { display: block; margin-top: 3px; font: 800 12px var(--body); color: #ffe08a; }
+.target { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 16px; border: 3px solid var(--line); background: var(--panel); color: var(--ink, inherit); text-align: left; font: inherit; cursor: pointer; position: relative; }
+.target.foe { border-color: var(--dex); }
+.target.ally { border-style: dashed; }
+.target span { flex: 1; min-width: 0; }
+.target b { display: block; font: 700 18px var(--pixel); }
+.target span i { display: block; height: 6px; margin-top: 3px; border-radius: 3px; background: linear-gradient(90deg, #47d35a var(--hp), #0002 var(--hp)); }
+.target small { font-weight: 900; }
+.target em { position: absolute; right: 8px; top: 4px; font: 700 11px var(--pixel); font-style: normal; padding: 1px 7px; border-radius: 8px; background: #000b; }
+.target em.good { color: #9cffbe; } .target em.bad { color: #ffb4b4; }
+.undo-btn { grid-column: 1 / -1; justify-self: start; }
+
+@media (max-width: 640px) {
+  .arena.doubles { --foe-x: 62%; --me-x: 14%; }
+  .arena.doubles .b { --foe-x: 86%; --me-x: 42%; }
+  .arena.doubles .hud { width: 44%; padding: 2px 6px; }
+  .arena.doubles .hud .name { font-size: 13px; }
+  .arena.doubles .hud .lvl { font-size: 10px; }
+  .arena.doubles .hud .meta { font-size: 10px; min-height: 10px; }
+  .arena.doubles .hud.foe.b { top: calc(3% + 52px); }
+  .arena.doubles .hud.me.b { bottom: calc(3% + 52px); }
+  .slot .set-trainer { width: 28px; height: 28px; }
+  .sunday-banner { font-size: 13px; }
+  .duo-vs img { width: 96px; height: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .boss-tab.dobles.live, .sunday-banner.live, .mon.acting, .duo-vs figure { animation: none; } }
+
+/* Vuelo, Excavar, Golpe Fantasma…: el Pokémon no está en el campo hasta el segundo turno */
+.mon.under { opacity: 0; transition: opacity .25s; }
+
+.vs-hints .icon-mon { zoom: .72; }
+
+/* ---------- Frase del día ---------- */
+.logo { position: relative; }
+#splash { position: absolute; left: 50%; top: 88%; translate: -50% 0; rotate: -4deg; white-space: nowrap; pointer-events: none; z-index: 1;
+  font: 700 12px var(--pixel); font-style: normal; letter-spacing: 0; color: #ffe94d; -webkit-text-stroke: 0; text-shadow: 1px 1px 0 #3a2a00, -1px 0 0 #3a2a00, 0 -1px 0 #3a2a00;
+  background: none; border: 0; padding: 0; animation: splash 1.3s ease-in-out infinite alternate; }
+@keyframes splash { to { scale: 1.07; } }
+
+/* ---------- Temporadas ---------- */
+#season-fx { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+#season-fx img { position: absolute; top: -40px; width: calc(34px * var(--s)); opacity: .55; animation: season-fall var(--t) linear var(--d) infinite; }
+@keyframes season-fall { to { transform: translate(30px, 112vh) rotate(260deg); } }
+.season-chip { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 4px 12px; border-radius: 12px; border: 2px dashed var(--line); background: var(--panel); font: 700 13px/1.25 var(--body); }
+.season-chip[hidden] { display: none; }
+.season-chip b { color: var(--gold); }
+.season-halloween .season-chip { border-color: #e8872b; }
+.season-christmas .season-chip { border-color: #d8413a; }
+.season-valentine .season-chip { border-color: #ee6a9b; }
+.season-pokemonday .season-chip { border-color: #ffd23f; }
+.season-spring .season-chip { border-color: #79c86a; }
+.season-summer .season-chip { border-color: #39b6e6; }
+
+/* ---------- Salón de la Fama ---------- */
+.tc-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+#fame { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 18px; overflow: hidden; color: #fff; text-align: center;
+  background: radial-gradient(circle at 50% 42%, #5a3fb8 0, #241456 45%, #0b0620 100%); }
+#fame[hidden] { display: none; }
+#fame::before { content: ''; position: absolute; left: 50%; top: 42%; width: 200vmax; height: 200vmax; translate: -50% -50%; pointer-events: none; opacity: .13;
+  background: repeating-conic-gradient(#ffd23f 0 10deg, transparent 10deg 30deg); animation: fame-rays 24s linear infinite; }
+@keyframes fame-rays { to { rotate: 360deg; } }
+#fame::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#fame.flash::after { animation: fame-flash .5s ease-out; }
+@keyframes fame-flash { 0% { opacity: .9; } 100% { opacity: 0; } }
+#fame > * { position: relative; z-index: 1; }
+.fame-title { margin: 0; font: 34px var(--logo); color: var(--gold); -webkit-text-stroke: 1.5px var(--blue); text-shadow: 3px 3px 0 var(--blue); }
+.fame-mon { width: min(52vw, 240px); height: min(52vw, 240px); object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 6px 0 #0006); }
+.fame-mon[hidden], .fame-plate[hidden], .fame-end[hidden] { display: none; }
+.fame-mon.show { animation: fame-in .45s cubic-bezier(.2, .9, .3, 1.3); }
+@keyframes fame-in { from { opacity: 0; transform: scale(.4) translateY(30px); } }
+.fame-plate { display: flex; align-items: baseline; gap: 10px; padding: 6px 18px; border-radius: 12px; border: 3px solid #ffd23f; background: #0008; font: 700 22px var(--pixel); }
+.fame-plate small { font-size: 15px; color: #ffe08a; }
+.fame-plate.show { animation: fame-in .35s ease-out; }
+.fame-end p { margin: 0 0 12px; font: 700 22px/1.3 var(--pixel); }
+.fame-end small { font: 800 14px var(--body); color: #ffe08a; }
+.fame-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 4px; min-height: 80px; max-width: 560px; }
+.fame-small { width: 76px; height: 76px; object-fit: contain; image-rendering: pixelated; animation: fame-in .3s ease-out; filter: drop-shadow(0 3px 0 #0006); }
+.fame-list { display: grid; gap: 8px; max-height: 60vh; overflow-y: auto; }
+.fame-entry { padding: 8px 10px; border-radius: 12px; border: 2px solid #ffd23f88; background: var(--panel-2); }
+.fame-who { display: flex; align-items: center; gap: 8px; }
+.fame-who > div { flex: 1; min-width: 0; }
+.fame-who b { display: block; font: 700 16px var(--pixel); }
+.fame-who small { font: 700 12px var(--body); color: var(--muted); }
+.fame-who img { image-rendering: pixelated; }
+.fame-entry .icons { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+
+/* ---------- Pokédex ---------- */
+.dex-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; }
+.dex-tabs button { flex: 0 0 auto; padding: 3px 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--panel-2); color: inherit; font: 700 13px var(--pixel); cursor: pointer; }
+.dex-tabs button.on { border-color: var(--dex); background: var(--dex); color: #fff; }
+.dex-card { display: flex; align-items: center; gap: 12px; min-height: 96px; padding: 8px 12px; margin-bottom: 8px; border-radius: 14px; background: linear-gradient(135deg, #e8f6ff, #bfe3f7); color: #1d3a52; border: 3px solid #3f78a8; }
+.dex-card p { margin: 2px 0 0; font: 700 13px/1.3 var(--body); }
+.dex-card img { width: 88px; height: 88px; object-fit: contain; image-rendering: pixelated; }
+.dex-card img.shadow { filter: brightness(0) opacity(.75); }
+.dex-card small { font: 800 11px var(--body); opacity: .7; }
+.dex-card b { display: block; font: 700 20px var(--pixel); }
+.dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 3px; max-height: 44vh; overflow-y: auto; margin-bottom: 8px; }
+.dx { display: grid; place-items: center; height: 40px; padding: 0; border-radius: 8px; border: 2px solid transparent; background: var(--panel-2); cursor: pointer; }
+.dx .icon-mon { filter: brightness(0) opacity(.5); }
+.dx.seen .icon-mon { filter: grayscale(1) opacity(.8); }
+.dx.won { border-color: #ffd23f88; }
+.dx.won .icon-mon { filter: none; }
+.dx.on { border-color: var(--dex); }
+@media (max-width: 640px) {
+  #splash { font-size: 10px; }
+  .fame-title { font-size: 26px; }
+  .fame-small { width: 54px; height: 54px; }
+  .fame-plate { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) { #splash, #season-fx img, #fame::before, .fame-mon.show, .fame-plate.show, .fame-small { animation: none; } #season-fx { display: none; } }
+.fame-end { order: 5; }
+.fame-row { order: 4; }

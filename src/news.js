@@ -3,6 +3,28 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 9, date: '2026-10-30',
+    es: ['<b>Salón de la Fama:</b> cuando ganas un reto, tu equipo pasa uno a uno entre destellos y queda inscrito para siempre, como al llegar a la cima en los juegos. Tus victorias anteriores ya están dentro, con su repetición. Lo tienes en tu tarjeta de entrenador.',
+      '<b>Pokédex:</b> se va rellenando con los equipos que te tocan. En silueta los que aún no has visto y en color aquellos con los que has ganado. ¿Hasta dónde llegas?',
+      '<b>Temporadas:</b> ¡ya es Halloween en Redle! Con cada temporada cambia la decoración, y si ganas un reto mientras dura te llevas su medalla de recuerdo.',
+      'Cada día, una frase nueva bajo el logo.'],
+    en: ['<b>Hall of Fame:</b> when you win a challenge, your team parades one by one through the camera flashes and stays on record forever, just like reaching the top in the games. Your past wins are already in, with their replays. Find it on your trainer card.',
+      '<b>Pokédex:</b> it fills up with the teams you get. Silhouettes for the ones you have not seen, color for the ones you have won with. How far can you go?',
+      "<b>Seasons:</b> it's Halloween in Redle! Each season changes the decorations, and winning a challenge while it lasts earns you its souvenir badge.",
+      'A new line under the logo every day.'],
+  },
+  {
+    id: 8, date: '2026-10-30',
+    es: ['<b>¡Nuevo: Combate Doble todos los domingos!</b> Dos rivales hacen equipo contra ti: 3 Pokémon de cada uno, con sets pensados para luchar juntos. 6 contra 6 y dos en el campo a la vez, como en el campeonato mundial. El primero, este domingo: <b>Red y Blue</b>. ¡Vuelve el domingo!',
+      'Tendrás 3 intentos, medalla nueva si ganas y, si pierdes, todas las prácticas que quieras (no cuentan).',
+      'Ahora se ve mucho más de lo que pasa en el combate: el golpe del segundo turno de Rayo Solar, Vuelo y Excavar (el Pokémon desaparece de verdad), cuando se rompe Ilusión, los cambios de tipo de Líbero, Cuerpo Puro parando a Intimidación, Holgazán, Anulación…',
+      'Con su último Pokémon, los rivales tienen algo que decirte.'],
+    en: ['<b>New: Double Battles every Sunday!</b> Two rivals team up against you: 3 Pokémon each, with sets built to fight together. 6 vs 6 with two on the field at once, just like the World Championships. First up, this Sunday: <b>Red and Blue</b>. Come back on Sunday!',
+      "You'll get 3 tries, a new badge if you win and, if you lose, as much practice as you like (it doesn't count).",
+      "You can now see much more of what happens in battle: the second-turn hit of Solar Beam, Fly and Dig (the Pokémon really disappears), Illusion breaking, Libero's type changes, Clear Body stopping Intimidate, Truant, Disable…",
+      'With their last Pokémon, rivals now have something to say to you.'],
+  },
+  {
     id: 7, date: '2026-10-30',
     es: ['<b>Los rivales vuelven a apretar</b>. Con los 3 intentos y el entrenamiento completo, 3 de cada 4 ganabais… y Red no se ha pasado años en el Monte Plateado para eso. Tu equipo llega ahora medio entrenado y los equipos del día se eligen más duros. ¡Ganar vuelve a ser algo para presumir!',
       '<b>Medallas nuevas</b> en tu tarjeta de entrenador: ganar a la primera, sin un rasguño, por los pelos, en 15 turnos o menos… y la de <b>Maestro Pokémon</b>, por ganar a los 8 rivales. Las que ya te merecías por tus victorias anteriores aparecen solas.',
