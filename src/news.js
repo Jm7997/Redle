@@ -3,6 +3,11 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 11, date: '2026-11-02',
+    es: ['El primer Combate Doble lo ganó casi todo el mundo: Red y Blue no se lo esperaban. <b>Desde este domingo, las duplas juegan como en el VGC</b>: queman a tus atacantes físicos, paralizan al que les adelanta, te Mofan el Espacio Raro, bajan características, aguantan con Protección lo que le queda a tu Viento Afín y cambian a tiempo para volver a Intimidar. Y tu equipo de dobles llega sin entrenar. ¡Os esperan Wallace y Steven!'],
+    en: ['Almost everyone won the first Double Battle: Red and Blue never saw it coming. <b>From this Sunday, the duos play like VGC pros</b>: they burn your physical attackers, paralyze whoever outspeeds them, Taunt your Trick Room, drop your stats, Protect through the last turn of your Tailwind and switch out in time to Intimidate again. And your doubles team arrives untrained. Wallace and Steven are waiting!'],
+  },
+  {
     id: 10, date: '2026-10-30',
     es: ['Al acabar un reto verás qué Pokémon <b>nuevos</b> entran en tu Pokédex.', 'Botón grande de <b>¡Otra vez!</b> en el resultado: una práctica más con tu equipo, sin que cuente.'],
     en: ['When a challenge ends you\'ll see which <b>new</b> Pokémon join your Pokédex.', 'Big <b>Again!</b> button on the result screen: one more practice with your team, without it counting.'],

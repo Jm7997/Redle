@@ -38,10 +38,12 @@ function sim(date, boss, team, seed) {
 const score = (date, boss, i) => {
   const team = poolFor(boss, date, i), doubles = boss === DOUBLES.id, battles = doubles ? K * 3 : K; let ko = 0, wins = 0;
   for (let n = 0; n < battles; n++) { const k = sim(date, boss, team, 1000 + n * 7919); ko += k; wins += k === 6; }
-  return {ko: ko / battles, wins: wins / battles * K, maxWins: doubles ? MAX_WINS * 2 / 3 : MAX_WINS}; // domingo: 2 de 36, más fino
+  return {ko: ko / battles, wins: wins / battles * K, maxWins: doubles ? MAX_WINS * 2 / 3 : MAX_WINS, // domingo: 2 de 36
+    // Desde el 8-11 (IA 4 de VGC por los dos lados) en dobles basta con 2,5 K.O.: la gente le gana mucho más que la simulación.
+    minKo: doubles && date >= '2026-11-08' ? 2.5 : MIN_KO};
 };
 // Si ningún sorteo cumple: el que menos victorias dé, y entre esos el más cercano al mínimo de K.O.
-const gap = ({ko, wins, maxWins}) => Math.max(0, wins - maxWins) + Math.max(0, MIN_KO - ko);
+const gap = ({ko, wins, maxWins, minKo}) => Math.max(0, wins - maxWins) + Math.max(0, minKo - ko);
 
 const tomorrow = new Date(Date.parse(today() + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10);
 // Inicio opcional (3.º argumento) para generar por tramos; nunca antes de mañana ni del primer día con equilibrio.

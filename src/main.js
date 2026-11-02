@@ -131,8 +131,8 @@ function loadArenaBg(url) {
 for (const ev of ['load', 'error']) document.addEventListener(ev, e => { if (e.target.tagName === 'IMG') e.target.classList.add('ok'); }, true);
 function setOpponent(id) {
   // B.team: el equipo que tenía el rival ese día (Lance cambió de equipo el 15-10-2026).
-  const duo = id === DOUBLES.id ? duoOf(PRACTICE ? DATE : RULE_DATE) : null;
-  OPP = id; B = duo ? {...DOUBLES, ...duo, duo: duo.id} : {...BOSSES[id], team: teamOf(id, PRACTICE ? DATE : RULE_DATE)};
+  const day = PRACTICE ? DATE : RULE_DATE, duo = id === DOUBLES.id ? duoOf(day) : null;
+  OPP = id; B = {...(duo ? {...DOUBLES, ...duo, duo: duo.id} : BOSSES[id]), team: teamOf(id, day)};
   STAGE = duo ? duoStage(duo) : STAGES[id]; RULE = ruleFor(RULE_DATE, id); GIMMICKS = battleGimmicks(LIGA ? 'liga' : '', id);
   setBoss(id, B.name, B.team.map(s => s.species).join(', '), LIGA ? LEAGUE.gens : B.gens, maxTries(), B.duo);
   const body = document.body;

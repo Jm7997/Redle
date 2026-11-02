@@ -93,7 +93,10 @@ const NOT_ALLOWED = new Set(['Restricted Legendary', 'Sub-Legendary', 'Mythical'
 // Los 6 Pokémon del día contra `boss`: sets de Random Battle Gen 9 de Showdown, sin legendarios,
 // solo de las generaciones del rival (Red: Gen 1-2; Cynthia: Gen 1-4), a nivel 100.
 // Equipo número `i` de ese día y rival (0 = el sorteo normal; los demás, sorteos alternativos).
-export const poolFor = (boss, date, i = 0) => pool(i ? `${boss}:${date}~${i}` : `${boss}:${date}`, {...configOf(boss), team: teamOf(boss, date)});
+// Dobles desde el 8-11-2026: tu equipo sin EVs (el primer domingo se ganó el 79 %: la IA de dobles se deja explotar más).
+const DOUBLES_HARD_FROM = '2026-11-08';
+export const poolFor = (boss, date, i = 0) => pool(i ? `${boss}:${date}~${i}` : `${boss}:${date}`,
+  {...configOf(boss), ...(boss === DOUBLES.id && date >= DOUBLES_HARD_FROM ? {maxEVs: 0} : {}), team: teamOf(boss, date)});
 // Equipo del día: el sorteo normal salvo que la tabla de equilibrio (balance.js) diga que era casi imposible o
 // demasiado fácil; entonces, el sorteo alternativo que sí cae en el rango. Ver scripts/build-balance.mjs.
 export const dailyPool = (date, boss = 'red') => poolFor(boss, date, BALANCE[`${boss}:${date}`] || 0);
@@ -423,9 +426,13 @@ const configOf = boss => (boss === DOUBLES.id ? DOUBLES : BOSSES[boss]);
 
 // Equipo del rival para un combate o día (`key` lleva la fecha): el antiguo si el rival lo cambió después.
 const dateOf = key => String(key).match(/\d{4}-\d\d-\d\d/)?.[0];
+// Dobles desde el 8-11-2026: algo más de VGC en tres sets (Electrotela, Alarido y Deslumbrar en vez de Cola Férrea,
+// Bola Sombra y Puño Fuego). Antes, los sets de siempre para que el primer domingo se reproduzca igual.
+const DS_VGC = {Pikachu: ['Iron Tail', 'Electroweb'], Spiritomb: ['Shadow Ball', 'Snarl'], Druddigon: ['Fire Punch', 'Glare']};
 export function teamOf(boss, key) {
-  if (boss === DOUBLES.id) return duoOf(key).team;
   const b = BOSSES[boss], d = dateOf(key);
+  if (boss === DOUBLES.id) return duoOf(key).team.map(s => (d >= DOUBLES_HARD_FROM && DS_VGC[s.species]
+    ? {...s, moves: s.moves.map(m => (m === DS_VGC[s.species][0] ? DS_VGC[s.species][1] : m))} : s));
   return b.oldTeam && d && d < b.oldTeam.until ? b.oldTeam.team : b.team;
 }
 
@@ -473,7 +480,7 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   // Versión de la IA según el día, para que cada combate se reproduzca con la IA que tuvo:
   // 1 = hasta el 14-10 (aiLegacy), 2 = desde el 15-10 (habilidades, clima, frenar mejoras), 3 = desde el 24-10 (Sustituto y Drenadoras).
   const day = String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9';
-  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : 3;
+  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-08' ? 3 : 4; // 4: dobles más listos
   battle.aiLegacy = battle.aiV === 1; // IA anterior (ver abilityBlocks)
   battle.setPlayer('p2', {name: config.doubles ? duoOf(key).name : config.name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
@@ -583,7 +590,17 @@ export function typeMultiplier(user, target, moveId) {
 }
 
 // Bajo Espacio Raro el más lento mueve primero: para la IA, "más rápido" es al revés.
-const speed = p => p.getStat('spe', false, true) * (p.battle.field.pseudoWeather.trickroom ? -1 : 1);
+// IA 4 en dobles: con la Velocidad de verdad (Viento Afín, parálisis, Pañuelo Elegido, Nado Rápido y compañía).
+const speed = p => (p.battle.aiV >= 4 && p.battle.gameType === 'doubles' ? realSpeed(p) : p.getStat('spe', false, true)) * (p.battle.field.pseudoWeather.trickroom ? -1 : 1);
+const WEATHER_SPEED = {swiftswim: ['raindance'], chlorophyll: ['sunnyday'], sandrush: ['sandstorm'], slushrush: ['hail', 'snow', 'snowscape']};
+function realSpeed(p) {
+  let s = p.getStat('spe', false, true);
+  if (p.side.sideConditions.tailwind) s *= 2;
+  if (p.status === 'par' && p.ability !== 'quickfeet') s /= 2;
+  if (p.item === 'choicescarf') s *= 1.5;
+  if (WEATHER_SPEED[p.ability]?.includes(p.battle.field.effectiveWeather())) s *= 2;
+  return s;
+}
 // Lo máximo que `user` puede quitarle a `target` (fracción de su vida máxima).
 const bestDamage = (user, target) => Math.max(0, ...user.moveSlots.map(m => estimate(user, target, m.id)));
 
@@ -727,7 +744,62 @@ function aimedScore(user, target, slot, threat, planned) {
   const left = target.hp / target.maxhp - (planned.get(target) || 0);
   const dmg = estimate(user, target, slot.id), score = scoreMove(user, target, slot, threat);
   if (planned.has(target) && left <= 0) return score * 0.2; // ya cae con el golpe del compañero
-  return dmg >= left && dmg < target.hp / target.maxhp ? Math.max(score, 1.5) : score; // entre los dos, K.O.
+  if (dmg >= left && dmg < target.hp / target.maxhp) return Math.max(score, 1.5); // entre los dos, K.O.
+  // IA 4: si no hay K.O., al rival que más daño les hace (como haría un jugador de VGC), no al que más fácil se lo pone,
+  // y mejor al que se acaba de proteger (repetir Protección suele fallar).
+  if (user.battle.aiV >= 4 && score < 2 && dmg > 0) return score + 0.25 * Math.min(1, threatOf(target, user.side)) + (target.volatiles.stall ? 0.15 : 0);
+  return score;
+}
+
+// ---------- IA 4 en dobles: como un jugador de VGC (desde el 8-11-2026) ----------
+// Quema a los atacantes físicos, paraliza al que la adelanta (nunca con Espacio Raro), Mofa a quien prepara la jugada,
+// valora bajar características (Viento Hielo, Electrotela, Alarido…) sin regalarle nada a Competitivo o Despechado,
+// aguanta con Protección el último turno del Viento Afín o el Espacio Raro del rival, usa Vastaguardia solo contra
+// ataques en área y cambia como un jugador: si le han bajado lo que usa para pegar, si va a dormirse, con Canto Mortal
+// o si está perdida y alguien del banquillo aguanta mejor. Al sacar a alguien cuenta la Intimidación.
+const threatOf = (f, side) => Math.max(0, ...alive(side.active).map(p => bestDamage(f, p)));
+const hitsPhysical = p => p.getStat('atk', true, true) >= p.getStat('spa', true, true) && p.moveSlots.some(m => dex.moves.get(m.id).category === 'Physical');
+const isSupport = m => ['trickroom', 'tailwind', 'followme', 'ragepowder', 'spore', 'sleeppowder'].includes(m.id) || setsUp(m);
+const STATUS_IMMUNE = {slp: ['insomnia', 'vitalspirit', 'sweetveil'], par: ['limber'], brn: ['waterveil', 'waterbubble', 'thermalexchange', 'flashfire', 'wellbakedbody'],
+  tox: ['immunity', 'pastelveil'], psn: ['immunity', 'pastelveil']};
+// Movimientos de estado contra `f` (null = como siempre). `base` es lo que da scoreMove: 0 si no le afecta.
+function vgcStatus(me, f, move, base) {
+  const status = move.status;
+  if (status) {
+    if (!base || STATUS_IMMUNE[status]?.includes(f.ability) || ['comatose', 'purifyingsalt'].includes(f.ability) || f.side.sideConditions.safeguard
+      || status === 'brn' && f.hasType('Fire') || move.flags?.powder && f.item === 'safetygoggles') return 0;
+    if (status === 'brn') return hitsPhysical(f) && !['guts', 'flareboost', 'magicguard'].includes(f.ability) ? 1.3 + 0.3 * Math.min(1, threatOf(f, me.side)) : 0.15;
+    if (status === 'par') return f.battle.field.pseudoWeather.trickroom ? 0.05 : alive(me.side.active).some(p => speed(f) > speed(p) && speed(f) / 2 < speed(p)) ? 1.3 : 0.3;
+    return null;
+  }
+  if (move.id === 'taunt' && !f.volatiles.taunt && f.ability !== 'oblivious') {
+    const support = f.moveSlots.filter(m => dex.moves.get(m.id).category === 'Status' && !dex.moves.get(m.id).stallingMove);
+    if (support.some(m => m.id === 'trickroom') && !f.battle.field.pseudoWeather.trickroom) return 1.5;
+    if (support.length) return Math.max(base, 0.9);
+  }
+  return null;
+}
+// Lo que vale bajarle características con un ataque que siempre lo hace.
+function dropValue(me, f, move) {
+  const drops = move.secondary?.chance === 100 && move.secondary.boosts;
+  if (!drops || ['clearbody', 'whitesmoke', 'fullmetalbody', 'shielddust'].includes(f.ability) || ['clearamulet', 'covertcloak'].includes(f.item)) return 0;
+  if (['defiant', 'competitive', 'mirrorarmor'].includes(f.ability)) return -0.6;
+  let v = 0;
+  if (drops.spe) v += f.battle.field.pseudoWeather.trickroom ? -0.3 : alive(me.side.active).some(p => speed(f) > speed(p) && speed(f) * 2 / 3 < speed(p)) ? 0.45 : 0.1;
+  if (drops.atk && hitsPhysical(f) || drops.spa && !hitsPhysical(f)) v += 0.3;
+  return v;
+}
+const NO_INTIMIDATE = ['clearbody', 'hypercutter', 'innerfocus', 'oblivious', 'owntempo', 'scrappy', 'whitesmoke', 'fullmetalbody', 'guarddog', 'mirrorarmor'];
+const intimidates = (p, foes) => p.ability === 'intimidate' && !foes.some(f => ['defiant', 'competitive'].includes(f.ability))
+  && foes.some(f => hitsPhysical(f) && !NO_INTIMIDATE.includes(f.ability) && f.item !== 'clearamulet');
+// ¿Mejor salir? Devuelve cuánto mejor tiene que estar el del banquillo (null = se queda).
+function wantsOut(me, best, foes) {
+  if (best.score >= 2) return null; // deja K.O. a alguien: se queda
+  if (me.volatiles.yawn && !me.status || me.volatiles.perishsong?.duration === 1) return -Infinity;
+  const stat = hitsPhysical(me) ? 'atk' : me.moveSlots.some(m => dex.moves.get(m.id).category === 'Special') ? 'spa' : null;
+  if (stat && (me.boosts[stat] <= -2 || me.boosts[stat] === -1 && best.score < 0.6)) return 0.3;
+  const hp = me.hp / me.maxhp, pressure = foes.reduce((a, f) => a + bestDamage(f, me), 0);
+  return hp > 0.35 && best.score < 1 && pressure >= hp && foes.every(f => speed(f) > speed(me)) ? 0.5 : null;
 }
 function doublesScore(me, ally, foes, slot, threat, plan) {
   const move = dex.moves.get(slot.id), battle = me.battle, side = me.side, field = battle.field;
@@ -735,7 +807,19 @@ function doublesScore(me, ally, foes, slot, threat, plan) {
   if (move.stallingMove) {
     if (me.volatiles.stall) return 0;
     const pressure = foes.reduce((a, f) => a + bestDamage(f, me), 0);
-    return pressure >= hp ? (allyIn ? 1.05 : 0.5) : 0.1;
+    // IA 4: también se protege si uno solo la deja K.O. siendo más rápido, mientras el compañero ataca.
+    const outsped = battle.aiV >= 4 && foes.some(f => bestDamage(f, me) >= hp && speed(f) > speed(me));
+    // IA 4: el último turno del Viento Afín o el Espacio Raro que les deja mover antes, se aguanta con Protección.
+    const ending = battle.aiV >= 4 && foes.some(f => speed(f) > speed(me))
+      && (side.foe.sideConditions.tailwind?.duration === 1 || field.pseudoWeather.trickroom?.duration === 1);
+    if (ending && pressure >= hp * 0.5) return 1.1;
+    return pressure >= hp || outsped ? (allyIn ? 1.05 : 0.5) : 0.1;
+  }
+  if (battle.aiV >= 4 && move.id === 'wideguard') {
+    if (side.sideConditions.wideguard) return 0;
+    const spread = foes.reduce((a, f) => a + Math.max(0, ...f.moveSlots.map(s => dex.moves.get(s.id)).filter(x => ['allAdjacentFoes', 'allAdjacent'].includes(x.target))
+      .map(x => alive(side.active).reduce((b, p) => b + estimate(f, p, x.id) * 0.75, 0))), 0);
+    return spread >= 0.6 ? 1.1 : 0.05;
   }
   if (move.id === 'fakeout') return me.activeMoveActions ? 0 : null;
   if (['followme', 'ragepowder'].includes(move.id)) {
@@ -755,7 +839,7 @@ function doublesScore(me, ally, foes, slot, threat, plan) {
 // La mejor jugada del Pokémon del hueco `i`: {score, text, target}.
 function slotPlan(side, i, plan) {
   const me = side.active[i], ally = side.active[1 - i], foes = alive(side.foe.active), r = side.activeRequest.active[i];
-  const threat = Math.max(0, ...foes.map(f => bestDamage(f, me)));
+  const threat = Math.max(0, ...foes.map(f => bestDamage(f, me))), v4 = side.battle.aiV >= 4;
   let best = {score: -1, text: 'default'};
   const take = (score, text, target) => { if (score > best.score) best = {score, text, target}; };
   r.moves.forEach((m, j) => {
@@ -770,12 +854,20 @@ function slotPlan(side, i, plan) {
     if (aimsFoe) {
       for (const f of foes) {
         let score = aimedScore(me, f, m, threat, plan.aimed);
-        if (move.id === 'fakeout') score = f.hasType('Ghost') || f.ability === 'innerfocus' || plan.flinched === f ? 0 : 1.8 + estimate(me, f, m.id);
+        // IA 4: Sorpresa al que más daño hace o al que prepara la jugada (Espacio Raro, Viento Afín, Danza Dragón…).
+        if (move.id === 'fakeout') score = (v4 ? !estimate(me, f, m.id) || f.item === 'covertcloak' : f.hasType('Ghost')) || f.ability === 'innerfocus' || plan.flinched === f ? 0
+          : 1.8 + (v4 ? 0.4 * Math.min(1, threatOf(f, side)) + (f.moveSlots.some(isSupport) ? 0.3 : 0) : estimate(me, f, m.id));
+        else if (v4 && move.category === 'Status') score = vgcStatus(me, f, move, score) ?? score;
+        else if (v4 && score < 2 && estimate(me, f, m.id) > 0) score += dropValue(me, f, move);
         if (move.status === 'slp' && score > 0) score = plan.slept === f ? 0.1 : 1.3;
+        if (v4 && move.status && plan.slept === f) score = 0.1; // su compañero ya le pone un estado
         take(score, `${base} ${side.foe.active.indexOf(f) + 1}`, f);
       }
     } else if (kind === 'allAdjacentFoes' || kind === 'allAdjacent') {
-      let score = foes.reduce((a, f) => a + Math.min(1.5, estimate(me, f, m.id) * 0.75 >= f.hp / f.maxhp ? 1.5 : estimate(me, f, m.id) * 0.75), 0);
+      let score = foes.reduce((a, f) => {
+        const e = estimate(me, f, m.id) * 0.75, left = f.hp / f.maxhp;
+        return a + Math.min(1.5, e >= left ? 1.5 : e) + (v4 && e > 0 && e < left ? dropValue(me, f, move) : 0);
+      }, 0);
       if (kind === 'allAdjacent' && ally && !ally.fainted) {
         const hurt = estimate(me, ally, m.id) * 0.75;
         score -= hurt >= ally.hp / ally.maxhp ? 2 : hurt * 1.5;
@@ -787,11 +879,23 @@ function slotPlan(side, i, plan) {
   return best;
 }
 // A quién sacar: el del banquillo que mejor aguante a los rivales que hay en el campo y más les haga.
+// IA 4: según la vida que le queda, si cae antes de mover y con la Intimidación de bonus.
+function switchValue(p, foes) {
+  if (p.battle.aiV < 4) return foes.reduce((a, f) => a + bestDamage(p, f) - bestDamage(f, p), 0);
+  const hp = p.hp / p.maxhp;
+  return foes.reduce((a, f) => {
+    const off = Math.min(1, bestDamage(p, f) / (f.hp / f.maxhp)), def = Math.min(1, bestDamage(f, p) / hp);
+    return a + off - def - (def >= 1 && speed(f) > speed(p) ? 0.5 : 0);
+  }, intimidates(p, foes) ? 0.4 : 0);
+}
 function doublesSwitch(side, used) {
   const foes = alive(side.foe.active);
-  const value = p => foes.reduce((a, f) => a + bestDamage(p, f) - bestDamage(f, p), 0);
   let best = 0, bestValue = -Infinity;
-  side.pokemon.forEach((p, i) => { if (!p.fainted && !p.isActive && !used.has(i) && value(p) > bestValue) [best, bestValue] = [i + 1, value(p)]; });
+  side.pokemon.forEach((p, i) => {
+    if (p.fainted || p.isActive || used.has(i)) return;
+    const v = switchValue(p, foes);
+    if (v > bestValue) [best, bestValue] = [i + 1, v];
+  });
   return best;
 }
 function doublesChoice(battle, side) {
@@ -813,16 +917,18 @@ function doublesChoice(battle, side) {
   return side.active.map((me, i) => {
     if (me.fainted || me.volatiles.commanding) return 'pass';
     const best = slotPlan(side, i, plan), r = req.active[i];
-    // Sin nada útil y con alguien mejor en el banquillo: cambia.
-    if (best.score < 0.15 && !r.trapped) {
-      const n = doublesSwitch(side, used);
-      if (n) { used.add(n - 1); return `switch ${n}`; }
+    // Sin nada útil y con alguien mejor en el banquillo: cambia. IA 4: también si le conviene salir (ver wantsOut).
+    const margin = best.score < 0.15 ? -Infinity : battle.aiV >= 4 ? wantsOut(me, best, alive(side.foe.active)) : null;
+    if (margin !== null && !r.trapped) {
+      const n = doublesSwitch(side, used), foes = alive(side.foe.active);
+      if (n && (margin === -Infinity || switchValue(side.pokemon[n - 1], foes) > switchValue(me, foes) + margin)) { used.add(n - 1); return `switch ${n}`; }
     }
     const moveId = /^move (\d)/.test(best.text) ? r.moves[+best.text[5] - 1].id : '';
     if (best.target) plan.aimed.set(best.target, (plan.aimed.get(best.target) || 0) + estimate(me, best.target, moveId));
     if (moveId === 'trickroom') plan.room = true;
     if (moveId === 'fakeout') plan.flinched = best.target;
-    if (best.target && dex.moves.get(moveId).status === 'slp') plan.slept = best.target;
+    const status = dex.moves.get(moveId).status; // IA 4: cualquier estado, no solo dormir, para no repetirlo
+    if (best.target && (status === 'slp' || battle.aiV >= 4 && status)) plan.slept = best.target;
     return best.text;
   }).join(', ');
 }

@@ -207,15 +207,16 @@ test('dobles: 3 Pokémon de cada entrenador, sin repetir especie y con sets lega
     return false;
   };
   assert.equal(learns('Pikachu', 'Spore'), false); // la comprobación no da todo por bueno
-  for (const duo of DUOS) {
+  DUOS.forEach((duo, w) => {
     assert.equal(duo.team.length, 6);
     assert.equal(new Set(duo.team.map(s => s.species)).size, 6, duo.id);
     for (const t of duo.trainers) assert.equal(duo.team.filter(s => s.trainer === t).length, 3, duo.id);
-    for (const set of duo.team) {
+    const later = teamOf(DOUBLES.id, new Date(Date.parse('2027-01-24T12:00:00Z') + w * 7 * 864e5).toISOString().slice(0, 10)); // sets desde el 8-11
+    for (const set of [...duo.team, ...later]) {
       assert.ok(Object.values(dex.species.get(set.species).abilities).includes(set.ability), `${set.species} ${set.ability}`);
       for (const m of set.moves) assert.ok(learns(set.species, m), `${set.species} no aprende ${m}`);
     }
-  }
+  });
 });
 
 test('dobles: combates completos con la IA por los dos lados se reproducen igual', () => {
@@ -237,6 +238,12 @@ test('dobles: combates completos con la IA por los dos lados se reproducen igual
     assert.equal(again.winner, b.winner);
     assert.deepEqual(noTime(again.log), noTime(b.log));
   });
+});
+
+test('dobles: desde el 8-11 tu equipo va sin EVs; el primer domingo no cambia', () => {
+  const evs = date => dailyPool(date, DOUBLES.id).reduce((a, s) => a + Object.values(s.evs).reduce((x, y) => x + y, 0), 0);
+  assert.ok(evs('2026-11-01') > 0);
+  assert.equal(evs('2026-11-08'), 0);
 });
 
 test('dobles: el sorteo de equipo funciona cualquier domingo y en sus alternativas', () => {
