@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf, poolFor, poolOf, pokedexList, DOUBLES, DUOS, duoOf, doublesOpen, nextSunday, RETO, retoOpen, retoBoss, retoPool} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, typeMultiplier, LEAGUE, bossPlan, teamOf, poolFor, poolOf, pokedexList, DOUBLES, DUOS, duoOf, doublesOpen, nextSunday, RETO, retoOpen, retoBoss, retoPool} from '../src/game.js';
 import {SEASONS, seasonOf, seasonDaysLeft} from '../src/seasons.js';
 import {BALANCE} from '../src/balance.js';
 
@@ -327,4 +327,12 @@ test('reto del día: un combate con 6 de los 8 se reproduce igual', () => {
   const again = replay(`reto-${date}`, team, choices, boss, ruleFor(date, boss));
   assert.equal(again.winner, b.winner);
   assert.equal(again.log.filter(l => !l.startsWith('|t:|')).join('\n'), b.log.filter(l => !l.startsWith('|t:|')).join('\n'));
+});
+
+test('las pistas de eficacia cuentan Levitación (Terremoto contra Claydol = ×0)', () => {
+  const b = newBattle('liga2:2026-11-04', leaguePool('2026-11-04'), 'steven', 'none');
+  play(b, null);
+  const claydol = b.p2.pokemon.find(p => p.species.name === 'Claydol'), kroo = b.p1.pokemon.find(p => p.species.name === 'Krookodile');
+  assert.equal(typeMultiplier(kroo, claydol, 'earthquake'), 0);
+  assert.equal(typeMultiplier(kroo, claydol, 'crunch'), 2);
 });

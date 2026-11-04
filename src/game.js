@@ -599,10 +599,15 @@ function typeEff(type, target) {
   return types.reduce((m, t) => m * (dex.getImmunity(type, [t]) ? 2 ** -dex.getEffectiveness(type, t) : 2), 1);
 }
 
-// Multiplicador de tipo para las pistas de la interfaz (null = movimiento de estado).
+// Multiplicador de tipo para las pistas de la interfaz (null = movimiento de estado). Cuenta las habilidades que anulan
+// el ataque (Levitación, Absorbe Agua…; en Redle se ven antes del combate), Rompemoldes y la Gravedad, que deja a
+// todos en el suelo: si no, la pista decía "eficaz" con Terremoto contra un Pokémon con Levitación.
 export function typeMultiplier(user, target, moveId) {
   const move = dex.moves.get(moveId);
   if (move.category === 'Status' || !target) return null;
+  const grounded = move.type === 'Ground' && !!target.battle.field.pseudoWeather.gravity;
+  if (grounded && !inverse(target)) return 2 ** dex.getEffectiveness(move.type, target.getTypes());
+  if (!grounded && abilityBlocks(user, target, move)) return 0;
   return typeEff(move.type, target);
 }
 

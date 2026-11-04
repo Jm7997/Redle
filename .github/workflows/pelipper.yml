@@ -1,0 +1,27 @@
+# Pelipper: el aviso diario del reto en Discord (ver scripts/pelipper.mjs). Se lanza a las 22:00 y a las 23:00 UTC para
+# acertar con las 00:00 de España en invierno y en verano; el script solo publica en el que toca. También a mano
+# (Actions → Pelipper → Run workflow) para probarlo: entonces publica aunque no sea medianoche.
+name: Pelipper
+
+on:
+  schedule:
+    - cron: '1 22 * * *'
+    - cron: '1 23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/pelipper.mjs ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
