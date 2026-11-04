@@ -3,6 +3,28 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 13, date: '2026-11-05',
+    es: ['<b>⭐ Llega el Reto del día.</b> Cada día, un campeón protagonista, el mismo para todo el mundo: <b>te tocan 8 Pokémon y eliges 6</b>, en orden, como los de alquiler de la Torre Batalla. Es lo primero del día: cuando lo termines, <b>más campeones te esperan</b>.',
+      'Al acabar verás <b>quién te espera mañana</b>, tu racha de días y cómo va tu Pokédex.',
+      'Nuevo <b>informe de suerte</b> en el resumen del combate: críticos, fallos y turnos perdidos de cada lado. Si la suerte te dejó tirado, ahora se ve (y se comparte).',
+      'La música <b>se acelera cuando a alguien le queda su último Pokémon</b>, y hay fanfarrias nuevas al ganar y al perder. Además, un botón <b>⏩</b> en el propio combate para cambiar la velocidad.'],
+    en: ['<b>⭐ The Daily challenge is here.</b> Every day, one featured champion, the same for everyone: <b>you get 8 Pokémon and pick 6</b>, in order, like the Battle Tower rentals. It comes first each day: once you finish it, <b>more champions await</b>.',
+      'When you finish, you\'ll see <b>who awaits you tomorrow</b>, your day streak and how your Pokédex is going.',
+      'New <b>luck report</b> in the battle summary: crits, misses and lost turns for each side. If luck let you down, now you can see it (and share it).',
+      'The music <b>speeds up when someone is down to their last Pokémon</b>, with new fanfares for winning and losing. Plus a <b>⏩</b> button right in the battle to change the speed.'],
+  },
+  {
+    id: 12, date: '2026-11-04',
+    es: ['<b>Cada rival tiene ahora su mundo</b> de fondo: la cueva helada de la cima del Monte Plateado con Red, la Liga Sinnoh con Cynthia, el Pilar Celeste con Lance… y los Pokémon del día flotando alrededor.',
+      '<b>Toca una habilidad o un objeto</b> (o pasa el ratón por encima) y te cuento qué hace, con el texto de los juegos. Se acabó salir a buscarlo a mitad de combate.',
+      'En <b>Tu equipo</b>, durante el combate, ya se ven los tipos de cada Pokémon (y su teratipo en la Liga).',
+      '¿Un fallo o una idea? <b>Pelipper reparte el correo</b>: escríbeme desde la pantalla principal o al acabar el combate. Lo de las habilidades, los objetos y los tipos salió de la carta de un jugador. ¡Gracias!'],
+    en: ['<b>Every rival now has their own world</b> in the background: the icy cave at the top of Mt. Silver with Red, the Sinnoh League with Cynthia, the Sky Pillar with Lance… with today\'s Pokémon floating around.',
+      '<b>Tap an Ability or item</b> (or hover over it) and I\'ll tell you what it does, with the text from the games. No more looking it up mid-battle.',
+      'In <b>Your team</b>, during battle, you can now see each Pokémon\'s types (and its Tera Type in the League).',
+      'A bug or an idea? <b>Pelipper delivers the mail</b>: write to me from the main screen or after a battle. The Ability, item and type info came from a player\'s letter. Thank you!'],
+  },
+  {
     id: 11, date: '2026-11-02',
     es: ['El primer Combate Doble lo ganó casi todo el mundo: Red y Blue no se lo esperaban. <b>Desde este domingo, las duplas juegan como en el VGC</b>: queman a tus atacantes físicos, paralizan al que les adelanta, te Mofan el Espacio Raro, bajan características, aguantan con Protección lo que le queda a tu Viento Afín y cambian a tiempo para volver a Intimidar. Y tu equipo de dobles llega sin entrenar. ¡Os esperan Wallace y Steven!'],
     en: ['Almost everyone won the first Double Battle: Red and Blue never saw it coming. <b>From this Sunday, the duos play like VGC pros</b>: they burn your physical attackers, paralyze whoever outspeeds them, Taunt your Trick Room, drop your stats, Protect through the last turn of your Tailwind and switch out in time to Intimidate again. And your doubles team arrives untrained. Wallace and Steven are waiting!'],

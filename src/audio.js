@@ -57,6 +57,7 @@ export function playMusic(tracks, start = 0) {
   const key = tracks?.length ? tracks.join() + '@' + start : '';
   if (key === playing) return;
   playing = key;
+  tension = false;
   if (bgm) { const old = bgm; old.onended = null; fade(old, 0, 600).then(() => old.pause()); bgm = null; }
   if (!key) return;
   list = tracks; idx = start % tracks.length;
@@ -68,7 +69,18 @@ function startTrack() {
   bgm.muted = !audio.music;
   bgm.loop = list.length === 1;
   bgm.onended = () => { idx = (idx + 1) % list.length; startTrack(); };
+  pinch(bgm);
   tryPlay();
+}
+// Último Pokémon de cualquiera de los dos: el tema se acelera y sube un poco, para que se note que se decide todo.
+// Devuelve true si ha cambiado (para el aviso).
+let tension = false;
+const pinch = el => { el.preservesPitch = false; el.playbackRate = tension ? 1.08 : 1; };
+export function setTension(on) {
+  if (tension === on) return false;
+  tension = on;
+  if (bgm) pinch(bgm);
+  return true;
 }
 // Solo suena con la música activada y la pestaña visible; si el navegador lo bloquea, el próximo toque lo reintenta.
 function tryPlay() { if (bgm && bgm.paused && audio.music && !document.hidden) bgm.play().catch(() => {}); }
@@ -84,20 +96,28 @@ function fade(el, to, ms) {
   });
 }
 
-// Fanfarria corta de fin de combate (sintetizada).
+// Fanfarrias de fin de combate (sintetizadas, melodías propias al estilo chiptune de las consolas portátiles):
+// melodía, segunda voz, bajo y caja. `drums`: golpes de ruido en esas corcheas.
 const seq = s => s.trim().split(/\s+/).map(x => { const [n, d = 1] = x.split(':'); return [n === '-' ? null : midi(n), +d]; });
 const JINGLES = {
-  win: {bpm: 150, notes: seq('C5 E5 G5 C6:2 G5 C6:2 D6 E6:6'), bass: seq('C3:4 G2:4 C3:7')},
-  lose: {bpm: 90, notes: seq('E5:2 D#5:2 D5:2 C#5:6'), bass: seq('A2:2 G#2:2 G2:2 F#2:6')},
+  win: {bpm: 168,
+    notes: seq('G4 C5 E5 G5:2 E5 G5:2 - A5 G5 F5 E5:2 D5:2 E5 F5 G5:2 C6:2 B5 C6 D6:2 E6:8'),
+    harmony: seq('E4 G4 C5 E5:2 C5 E5:2 - F5 E5 D5 C5:2 B4:2 C5 D5 E5:2 G5:2 G5 A5 B5:2 C6:8'),
+    bass: seq('C3:4 C3:4 F2:4 G2:4 A2:2 F2:2 G2:4 C3:8'), drums: [0, 4, 8, 12, 16, 20, 22, 24, 26, 28]},
+  lose: {bpm: 84,
+    notes: seq('E5:2 D5:2 C5:2 B4:2 A4:3 G#4:1 A4:6'),
+    harmony: seq('C5:2 B4:2 A4:2 G#4:2 E4:3 E4:1 E4:6'),
+    bass: seq('A2:4 F2:4 E2:4 A1:6')},
 };
 export function jingle(name) {
   playMusic(null);
   if (!ctx) return;
-  const j = JINGLES[name], step = 60 / j.bpm / 2;
-  for (const [part, wave, vol] of [[j.notes, 'square', 0.2], [j.bass, 'triangle', 0.45]]) {
-    let t = ctx.currentTime + 0.7;
-    for (const [n, d] of part) { if (n) tone(musicGain, wave, hz(n), t, step * d * 0.95, vol); t += step * d; }
+  const j = JINGLES[name], step = 60 / j.bpm / 2, t0 = ctx.currentTime + 0.7;
+  for (const [part, wave, vol] of [[j.notes, 'square', 0.18], [j.harmony, 'square', 0.08], [j.bass, 'triangle', 0.45]]) {
+    let t = t0;
+    for (const [n, d] of part) { if (n) tone(musicGain, wave, hz(n), t, step * d * 0.92, vol); t += step * d; }
   }
+  for (const k of j.drums || []) noise(musicGain, t0 + k * step, 0.08, k % 4 ? 0.12 : 0.22, 4000);
 }
 
 // Grito del Pokémon (al salir; más grave y lento al debilitarse, como en los juegos).
@@ -158,6 +178,8 @@ export function sfx(kind, type) {
     case 'drop': [0, 1, 2, 3].forEach(i => tone(sfxGain, 'square', 1200 - i * 220, t + i * 0.07, 0.09, 0.14)); break;
     case 'item': tone(sfxGain, 'triangle', 1318, t, 0.08, 0.25); tone(sfxGain, 'triangle', 1760, t + 0.08, 0.15, 0.25); break;
     case 'miss': tone(sfxGain, 'sine', 900, t, 0.2, 0.2, 1800); break;
+    case 'danger': // aviso de último Pokémon: dos subidas rápidas
+      [0, 0.16].forEach(d => [659, 880, 1175].forEach((f, i) => tone(sfxGain, 'square', f, t + d + i * 0.045, 0.06, 0.13))); break;
     case 'encounter': // destellos de inicio de combate
       for (let i = 0; i < 6; i++) tone(sfxGain, 'square', i % 2 ? 1400 : 700, t + i * 0.09, 0.07, 0.12);
       noise(sfxGain, t + 0.55, 0.6, 0.35, 2000); break;

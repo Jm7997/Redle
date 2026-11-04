@@ -101,8 +101,25 @@ export const poolFor = (boss, date, i = 0) => pool(i ? `${boss}:${date}~${i}` : 
 // demasiado fácil; entonces, el sorteo alternativo que sí cae en el rango. Ver scripts/build-balance.mjs.
 export const dailyPool = (date, boss = 'red') => poolFor(boss, date, BALANCE[`${boss}:${date}`] || 0);
 
+// ---------- Reto del día (desde el 5-11-2026) ----------
+// Cada día un rival protagonista, el mismo para todo el mundo, que se juega antes que los demás. Te tocan 8 Pokémon y
+// eliges 6 (y quién empieza): los 6 del día de ese rival (ya equilibrados) y 2 más de un sorteo aparte.
+export const RETO = {id: 'reto', from: '2026-11-05', size: 8, pick: 6};
+const RETO_ORDER = ['red', 'cynthia', 'lance', 'wallace', 'leon', 'blue', 'steven', 'iris'];
+export const retoOpen = date => date >= RETO.from;
+export const retoBoss = date => RETO_ORDER[((dayNumber(date) - dayNumber(RETO.from)) % RETO_ORDER.length + RETO_ORDER.length) % RETO_ORDER.length];
+// `date` puede ser una clave de práctica (equipo al azar): entonces el rival se pasa aparte.
+export function retoPool(date, boss = retoBoss(date)) {
+  const six = dailyPool(date, boss), have = new Set(six.map(s => dex.species.get(s.species).baseSpecies));
+  const extra = [9, 10, 11].flatMap(i => poolFor(boss, date, i)).filter(s => {
+    const base = dex.species.get(s.species).baseSpecies;
+    return !have.has(base) && have.add(base);
+  });
+  return [...six, ...extra.slice(0, RETO.size - six.length)];
+}
+
 // Equipo de cualquier modo en un día (para el Salón de la Fama y la Pokédex, que salen del historial).
-export const poolOf = (mode, date) => (mode === 'liga' ? leaguePool(date) : dailyPool(date, mode));
+export const poolOf = (mode, date) => (mode === 'liga' ? leaguePool(date) : mode === RETO.id ? retoPool(date) : dailyPool(date, mode));
 // Todos los Pokémon que te pueden tocar en cualquier modo, sin repetir formas, en orden de Pokédex.
 let dexCache;
 export function pokedexList() {

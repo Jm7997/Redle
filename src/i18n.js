@@ -168,10 +168,15 @@ const STRINGS = {
 
 export const T = STRINGS[LANG];
 
-// Descripciones de los ataques (texto oficial de los juegos, vía PokéAPI). Solo se descarga el idioma en uso.
-const descs = {};
-export const loadMoveDescs = () => (es ? import('./move-desc-es.json') : import('./move-desc-en.json')).then(m => Object.assign(descs, m.default));
+// Descripciones de ataques, habilidades y objetos (texto de los juegos, vía PokéAPI). Solo se descarga el idioma en uso.
+const descs = {}, info = {a: {}, i: {}};
+export const loadDescs = () => Promise.all([
+  (es ? import('./move-desc-es.json') : import('./move-desc-en.json')).then(m => Object.assign(descs, m.default)),
+  (es ? import('./info-desc-es.json') : import('./info-desc-en.json')).then(m => Object.assign(info, m.default)),
+]);
 export const moveDesc = id => descs[toID(id)] || '';
+export const abilityDesc = id => info.a[toID(id)] || '';
+export const itemDesc = id => info.i[toID(id)] || '';
 
 // Textos que dependen del rival. `team` es la lista de especies separada por comas.
 // Textos que dependen del rival: lugar, frases y la regla de su escenario (stage).
@@ -347,9 +352,12 @@ Object.assign(T, es ? {
   bestRound: 'Mejor ronda', champions: 'Veces campeón',
   shareReplay: 'Compartir repetición', replayCopied: '¡Enlace copiado!',
   replayBanner: (name, date) => `▶ Repetición de un combate contra <b>${name}</b> del ${date}.`, playToday: 'Jugar el reto de hoy',
-  feedbackLink: 'Enviar sugerencia o fallo', feedbackTitle: 'Sugerencias y fallos', feedbackIntro: 'Cuéntame qué mejorarías o qué ha fallado. Lo leo todo.',
-  fbBug: 'Fallo', fbIdea: 'Idea', fbOther: 'Otro', fbMessage: 'Tu mensaje', fbContact: 'Contacto opcional (Reddit, Discord…) si quieres respuesta',
-  fbSend: 'Enviar', fbThanks: '¡Gracias! Mensaje enviado.', fbError: 'No se pudo enviar (sin conexión o demasiados mensajes hoy).', fbShort: 'Escribe un poco más.',
+  feedbackLink: 'Enviar sugerencia o fallo', feedbackTitle: 'Buzón Pelipper',
+  feedbackIntro: '¿Has visto algo raro o se te ocurre una idea? Escríbela aquí y Pelipper me la trae volando. Leo todas las cartas.',
+  fbBug: '🐛 Fallo', fbIdea: '💡 Idea', fbOther: '✉️ Otro', fbMessage: 'Tu carta', fbContact: 'Contacto opcional (Reddit, Discord…) si quieres respuesta',
+  fbSend: 'Enviar con Pelipper', fbThanks: '¡Pelipper ya va volando con tu carta! Gracias de corazón.',
+  mailAsk: '¿Un fallo o una idea?', mailSub: 'Pelipper me trae tus cartas. Las leo todas.', mailBtn: 'Escribir',
+  tipAbility: 'Habilidad', tipItem: 'Objeto', fbError: 'No se pudo enviar (sin conexión o demasiados mensajes hoy).', fbShort: 'Escribe un poco más.',
   trainerBtn: 'Tarjeta de entrenador', trainerTitle: 'Tarjeta de entrenador', medalsTitle: 'Medallas', medalOf: n => `Ganar a ${n}`,
   splash: ["¡Cuidado con la hierba alta!","Magikarp usa Salpicadura.","Pero no pasó nada.","Red sigue sin decir nada.","Blue siempre va un paso por delante.","Snorlax bloquea el camino.","Zubat, Zubat, Zubat…","Un Geodude salvaje te mira.","Aquí no puedes usar eso.","Confía en tu Pikachu.","Ditto imita esta frase.","Psyduck tiene dolor de cabeza.","Slowpoke llegará mañana.","La Caja de Bill está llena.","Mi Rattata es de los mejores.","Sigue sin ser muy eficaz...","¡Es muy eficaz!","Protección cada dos turnos.","Ese 95 % no era tan seguro.","Wallace recomienda Milotic.","Steven busca piedras raras.","Leon se ha vuelto a perder.","Lance y su Hiperrayo.","Un Wobbuffet te mira fijamente.","Metrónomo podría ganar esto.","Hoy es buen día para un Eevee.","Vuelve al Centro Pokémon.","¡El equipo Rocket despega!","Nada de Pociones en la cima.","Tu Pokémon quiere aprender algo.","Agárrate a tu Cinta Focus.","Cuenta otra vez los K.O.","Cynthia aún no ha sudado.","Iris tiene hambre de dragones.","Esta vez sí aciertas Hipnosis.","Nadie olvida su primer Pokémon."], splashSunday: '¡Hoy toca Combate Doble!',
   season: {halloween: ['Halloween en Redle', 'Gengar anda suelto esta noche.'], christmas: ['Navidad en Redle', 'Delibird reparte regalos… más o menos.'], valentine: ['San Valentín en Redle', 'Luvdisc busca pareja de dobles.'], pokemonday: ['Día de Pokémon', '¡Feliz Día de Pokémon!'], spring: ['Primavera en Redle', 'Deerling estrena pelaje.'], summer: ['Verano en Redle', 'Lapras te lleva a la playa.']},
@@ -379,7 +387,19 @@ ${name}
 🏅 Medallas: ${m}/${total}
 🔥 Racha: ${streak} ${streak === 1 ? 'día' : 'días'}`,
   rPrev: '◀ Turno anterior', rNext: 'Turno siguiente ▶', rPause: 'Pausa', rPlay: 'Seguir', rEnd: 'Ir al final', rStart: 'Inicio', rTurn: 'Ir al turno', rTurnN: t => `Turno ${t}`,
-  welcome: 'Cada día, el mismo reto para todo el mundo: <b>tu equipo de 6 contra un entrenador legendario</b> con su equipo de los juegos. <b>Toca quién empieza</b>, pulsa ¡Listo! y comparte tu resultado. Después puedes practicar.',
+  welcome: 'Cada día, el mismo reto para todo el mundo: <b>un entrenador legendario</b> con su equipo de los juegos. <b>Elige 6 de tus 8 Pokémon</b> (el primero que elijas empieza), pulsa ¡Listo! y comparte tu resultado. Después, más campeones te esperan.',
+  retoTab: 'Reto del día', retoFirst: '⭐ Primero, el <b>reto del día</b>. Cuando lo termines, el resto de campeones te esperan.',
+  retoHow: '⭐ Cada día hay un <b>reto del día</b> contra un campeón distinto: te tocan <b>8 Pokémon y eliges 6</b>. Hasta terminarlo (ganar o gastar los intentos), el resto de rivales esperan.',
+  retoLead: name => `<b>⭐ Reto del día:</b> ${name} te espera con su equipo de los juegos. Te tocan 8 Pokémon, los mismos para todo el mundo: <b>elige 6</b> tocándolos en orden. <b>El primero que elijas empieza.</b>`,
+  retoFull: 'Ya tienes 6. Toca uno de los elegidos para quitarlo.', retoPickMore: n => `Elige ${n} más`,
+  moreChamps: 'Más campeones te esperan', moreChampsNote: name => `Siguiente: ${name}`, nextChamp: name => `Siguiente campeón: ${name}`,
+  medalReto: 'Ganar un reto del día',
+  tomorrowLabel: 'Mañana, en el reto del día', tomorrowReto: name => `${name} te espera`, tomorrowDoubles: '…y es domingo: ¡Combate Doble!',
+  tomorrowStreak: n => (n === 1 ? 'día seguido' : 'días seguidos'), tomorrowDex: 'en tu Pokédex',
+  luckTitle: 'Informe de suerte', luckVerdict: {good: '🍀 La suerte estuvo de tu lado.', even: '⚖️ Suerte bastante repartida.', bad: '🌧️ La suerte no te acompañó.'},
+  luckRow: {crit: 'Golpes críticos', miss: 'Ataques fallados', cant: 'Turnos perdidos', extra: 'Efectos de regalo'},
+  luckNote: 'Turnos perdidos: parálisis, congelación, retroceso, enamoramiento o confusión. Efectos de regalo: quemaduras, parálisis o congelaciones que provoca un ataque de daño.',
+  luckShare: {good: '🍀 Suerte: a mi favor', even: '⚖️ Suerte: repartida', bad: '🌧️ Suerte: en mi contra'},
   rulesTitle: 'Reglas de este combate', showDetails: 'Ver estadísticas y ataques ▾', hideDetails: 'Ocultar estadísticas y ataques ▴',
   leagueProgress: (round, left) => `Ronda ${round}/5 · ${left ? `${left === 1 ? 'queda 1 rival' : `quedan ${left} rivales`} después` : '¡último rival!'}`,
   shareLeft: n => `le dejé a ${n} Pokémon`, shareStreak: n => `🔥 ${n} ${n === 1 ? 'día' : 'días'} seguidos`,
@@ -399,9 +419,12 @@ ${name}
   bestRound: 'Best round', champions: 'Times champion',
   shareReplay: 'Share replay', replayCopied: 'Link copied!',
   replayBanner: (name, date) => `▶ Replay of a battle against <b>${name}</b> on ${date}.`, playToday: "Play today's challenge",
-  feedbackLink: 'Send feedback or report a bug', feedbackTitle: 'Feedback & bugs', feedbackIntro: 'Tell me what you would improve or what went wrong. I read everything.',
-  fbBug: 'Bug', fbIdea: 'Idea', fbOther: 'Other', fbMessage: 'Your message', fbContact: 'Optional contact (Reddit, Discord…) if you want a reply',
-  fbSend: 'Send', fbThanks: 'Thanks! Message sent.', fbError: "Couldn't send it (offline or too many messages today).", fbShort: 'Write a bit more.',
+  feedbackLink: 'Send feedback or report a bug', feedbackTitle: 'Pelipper Mail',
+  feedbackIntro: 'Spotted something odd or got an idea? Write it here and Pelipper will fly it straight to me. I read every letter.',
+  fbBug: '🐛 Bug', fbIdea: '💡 Idea', fbOther: '✉️ Other', fbMessage: 'Your letter', fbContact: 'Optional contact (Reddit, Discord…) if you want a reply',
+  fbSend: 'Send with Pelipper', fbThanks: 'Pelipper is on its way with your letter! Thank you so much.',
+  mailAsk: 'A bug or an idea?', mailSub: 'Pelipper brings me your letters. I read them all.', mailBtn: 'Write',
+  tipAbility: 'Ability', tipItem: 'Item', fbError: "Couldn't send it (offline or too many messages today).", fbShort: 'Write a bit more.',
   trainerBtn: 'Trainer card', trainerTitle: 'Trainer card', medalsTitle: 'Badges', medalOf: n => `Beat ${n}`,
   splash: ["Watch out for tall grass!","Magikarp used Splash.","But nothing happened.","Red still has nothing to say.","Blue is always one step ahead.","Snorlax is blocking the way.","Zubat, Zubat, Zubat…","A wild Geodude stares at you.","You can't use that here.","Trust your Pikachu.","Ditto is copying this line.","Psyduck has a headache.","Slowpoke will be here tomorrow.","Bill's PC is full.","My Rattata is top percentage.","It's not very effective...","It's super effective!","Protect every other turn.","That 95% was not so safe.","Wallace recommends Milotic.","Steven is looking for rare stones.","Leon got lost again.","Lance and his Hyper Beam.","A Wobbuffet stares at you.","Metronome could win this.","A good day for an Eevee.","Back to the Pokémon Center.","Team Rocket blasts off again!","No Potions at the summit.","Your Pokémon wants to learn a move.","Hold on to that Focus Sash.","Count your KOs again.","Cynthia has not broken a sweat.","Iris is hungry for dragons.","This time Hypnosis will land.","Nobody forgets their first Pokémon."], splashSunday: "It's Double Battle day!",
   season: {halloween: ['Halloween in Redle', 'Gengar is on the loose tonight.'], christmas: ['Christmas in Redle', 'Delibird is delivering presents… sort of.'], valentine: ["Valentine's in Redle", 'Luvdisc is looking for a doubles partner.'], pokemonday: ['Pokémon Day', 'Happy Pokémon Day!'], spring: ['Spring in Redle', 'Deerling has a new coat.'], summer: ['Summer in Redle', 'Lapras is taking you to the beach.']},
@@ -431,7 +454,19 @@ ${name}
 🏅 Badges: ${m}/${total}
 🔥 Streak: ${streak} ${streak === 1 ? 'day' : 'days'}`,
   rPrev: '◀ Previous turn', rNext: 'Next turn ▶', rPause: 'Pause', rPlay: 'Resume', rEnd: 'Skip to end', rStart: 'Start', rTurn: 'Go to turn', rTurnN: t => `Turn ${t}`,
-  welcome: 'Every day, the same challenge for everyone: <b>your team of 6 against a legendary trainer</b> with their real in-game team. <b>Tap your lead</b>, press Ready! and share your result. You can practice afterwards.',
+  welcome: 'Every day, the same challenge for everyone: <b>a legendary trainer</b> with their real in-game team. <b>Pick 6 of your 8 Pokémon</b> (the first one you pick leads), press Ready! and share your result. Then more champions await.',
+  retoTab: 'Daily challenge', retoFirst: '⭐ First, the <b>daily challenge</b>. Once you finish it, the other champions are waiting.',
+  retoHow: '⭐ Every day there is a <b>daily challenge</b> against a different champion: you get <b>8 Pokémon and pick 6</b>. Until you finish it (win or use up your tries), the other rivals wait.',
+  retoLead: name => `<b>⭐ Daily challenge:</b> ${name} awaits with their real in-game team. You get 8 Pokémon, the same for everyone: <b>pick 6</b> by tapping them in order. <b>The first one you pick leads.</b>`,
+  retoFull: 'You already have 6. Tap one of your picks to remove it.', retoPickMore: n => `Pick ${n} more`,
+  moreChamps: 'More champions await', moreChampsNote: name => `Next: ${name}`, nextChamp: name => `Next champion: ${name}`,
+  medalReto: 'Win a daily challenge',
+  tomorrowLabel: "Tomorrow's daily challenge", tomorrowReto: name => `${name} awaits`, tomorrowDoubles: "…and it's Sunday: Double Battle!",
+  tomorrowStreak: n => (n === 1 ? 'day in a row' : 'days in a row'), tomorrowDex: 'in your Pokédex',
+  luckTitle: 'Luck report', luckVerdict: {good: '🍀 Luck was on your side.', even: '⚖️ Luck was pretty even.', bad: '🌧️ Luck was not with you.'},
+  luckRow: {crit: 'Critical hits', miss: 'Missed attacks', cant: 'Lost turns', extra: 'Bonus effects'},
+  luckNote: 'Lost turns: paralysis, freezing, flinching, infatuation or confusion. Bonus effects: burns, paralysis or freezes caused by a damaging move.',
+  luckShare: {good: '🍀 Luck: on my side', even: '⚖️ Luck: even', bad: '🌧️ Luck: against me'},
   rulesTitle: 'Rules for this battle', showDetails: 'Show stats and moves ▾', hideDetails: 'Hide stats and moves ▴',
   leagueProgress: (round, left) => `Round ${round}/5 · ${left ? `${left} more ${left === 1 ? 'rival' : 'rivals'} after this` : 'final rival!'}`,
   shareLeft: n => `left them with ${n} Pokémon`, shareStreak: n => `🔥 ${n}-day streak`,

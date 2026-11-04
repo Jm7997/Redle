@@ -27,6 +27,7 @@
 </head>
 <body>
   <div id="loading" aria-hidden="true"><div class="sk-head"></div><div class="sk-wrap"><div class="sk-tabs"><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i></div><div class="sk sk-vs"></div><div class="sk sk-text"></div><div class="sk-cols"><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div></div>
+  <div id="world" aria-hidden="true"></div>
   <div id="bg-mons" aria-hidden="true"></div>
   <div id="season-fx" aria-hidden="true"></div>
 
@@ -66,6 +67,7 @@
         <div class="party red"><h3 data-i18n="bossTeam"></h3><p class="train-tag max" id="train-boss"></p><div id="red-team" class="slots"></div></div>
       </div>
       <button id="btn-go" class="ballbtn"><span class="ball" aria-hidden="true"></span><span class="txt"></span></button>
+      <button class="mail-card" data-mail><span class="mail-mon" aria-hidden="true"></span><span class="mail-txt"><b data-i18n="mailAsk"></b><small data-i18n="mailSub"></small></span><span class="mail-btn" data-i18n="mailBtn"></span></button>
     </section>
 
     <!-- Combate -->
@@ -111,6 +113,7 @@
           </div>
           <div class="balls foe"></div><div class="balls me"></div>
           <div class="turn"></div>
+          <button class="speed-btn" id="btn-speed" type="button"></button>
           <button class="weather-badge" hidden></button>
         </div>
         <div class="textbox"><p id="msg" role="status" aria-live="polite"></p></div>
@@ -156,6 +159,7 @@
     <div id="result-body"></div>
     <div id="result-again"></div>
     <div id="dex-new" class="dex-new" hidden></div>
+    <div id="tomorrow" class="tomorrow" hidden></div>
     <div class="stats" id="stats"></div>
     <div id="medals" class="medals"></div>
     <button class="secondary" id="btn-trainer" data-i18n="trainerBtn"></button>
@@ -172,6 +176,7 @@
     </div>
     <div id="result-actions" class="actions"></div>
     <p class="small" id="next"></p>
+    <button class="mail-card" data-mail><span class="mail-mon" aria-hidden="true"></span><span class="mail-txt"><b data-i18n="mailAsk"></b><small data-i18n="mailSub"></small></span><span class="mail-btn" data-i18n="mailBtn"></span></button>
     <button data-close data-i18n="close"></button>
   </dialog>
 
@@ -240,11 +245,11 @@
     <button data-close data-i18n="close"></button>
   </dialog>
 
-  <dialog id="dlg-feedback">
-    <h2 data-i18n="feedbackTitle"></h2>
+  <dialog id="dlg-feedback" class="mail">
+    <div class="mail-head"><img class="pelipper" src="https://play.pokemonshowdown.com/sprites/ani/pelipper.gif" alt=""><h2 data-i18n="feedbackTitle"></h2></div>
     <p data-i18n="feedbackIntro"></p>
     <div class="seg" id="fb-kind"><button data-v="bug" data-i18n="fbBug"></button><button data-v="idea" class="on" data-i18n="fbIdea"></button><button data-v="other" data-i18n="fbOther"></button></div>
-    <div class="field">
+    <div class="field letter">
       <label for="fb-msg" data-i18n="fbMessage"></label>
       <textarea id="fb-msg" rows="5" maxlength="1000"></textarea>
       <label for="fb-contact" data-i18n="fbContact"></label>

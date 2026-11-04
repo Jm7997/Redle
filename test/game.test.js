@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf, poolFor, poolOf, pokedexList, DOUBLES, DUOS, duoOf, doublesOpen, nextSunday} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, LEAGUE, bossPlan, teamOf, poolFor, poolOf, pokedexList, DOUBLES, DUOS, duoOf, doublesOpen, nextSunday, RETO, retoOpen, retoBoss, retoPool} from '../src/game.js';
 import {SEASONS, seasonOf, seasonDaysLeft} from '../src/seasons.js';
 import {BALANCE} from '../src/balance.js';
 
@@ -295,4 +295,36 @@ test('temporadas: por fecha, cruzando el año nuevo, y con los días que quedan'
     for (const m of s.mons) assert.ok(dex.species.get(m).exists, m);
     assert.ok(dex.items.get(s.medal).exists, s.medal);
   }
+});
+
+test('reto del día: desde el 5-11, un rival distinto cada día y 8 Pokémon con los 6 equilibrados del rival', () => {
+  const day = n => new Date(Date.parse('2026-11-05T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+  assert.equal(retoOpen('2026-11-04'), false);
+  assert.equal(retoOpen('2026-11-05'), true);
+  assert.equal(retoBoss('2026-11-05'), 'red');
+  assert.equal(new Set(Array.from({length: 8}, (_, i) => retoBoss(day(i)))).size, 8);
+  const dex = Dex.forGen(9);
+  for (let i = 0; i < 40; i++) {
+    const date = day(i), boss = retoBoss(date), pool = retoPool(date);
+    assert.equal(pool.length, RETO.size, date);
+    assert.equal(new Set(pool.map(s => dex.species.get(s.species).baseSpecies)).size, RETO.size, date);
+    assert.deepEqual(pool.slice(0, 6).map(s => s.species), dailyPool(date, boss).map(s => s.species), date);
+    assert.deepEqual(retoPool(date).map(s => s.species), pool.map(s => s.species), 'determinista');
+    assert.deepEqual(poolOf(RETO.id, date).map(s => s.species), pool.map(s => s.species));
+  }
+});
+
+test('reto del día: un combate con 6 de los 8 se reproduce igual', () => {
+  const date = '2026-11-06', boss = retoBoss(date), pool = retoPool(date), team = [7, 2, 5, 0, 3, 6].map(i => pool[i]);
+  const b = newBattle(`reto-${date}`, team, boss, ruleFor(date, boss)), choices = [];
+  play(b, null);
+  while (!b.ended && choices.length < 300) {
+    const c = aiChoice(b, 'p1') || 'default';
+    assert.ok(play(b, c), c);
+    choices.push(c);
+  }
+  assert.ok(b.ended);
+  const again = replay(`reto-${date}`, team, choices, boss, ruleFor(date, boss));
+  assert.equal(again.winner, b.winner);
+  assert.equal(again.log.filter(l => !l.startsWith('|t:|')).join('\n'), b.log.filter(l => !l.startsWith('|t:|')).join('\n'));
 });
