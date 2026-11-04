@@ -3,6 +3,13 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 14, date: '2026-11-04',
+    es: ['<b>¡Redle ya tiene servidor de Discord!</b> Cada noche Pelipper abre el hilo del reto del día para comentarlo, compartimos resultados, preparamos los dobles del domingo y en la hierba alta salen Pokémon salvajes: adivina su nombre para atraparlos. <a href="https://discord.gg/QF42NCg83v" target="_blank" rel="noopener">Únete aquí</a>.',
+      'Las pistas de eficacia de los ataques ya tienen en cuenta habilidades como <b>Levitación</b> o Absorbe Agua (gracias por avisar desde el buzón).'],
+    en: ['<b>Redle now has a Discord server!</b> Every night Pelipper opens the daily challenge thread, we share results, get ready for Sunday doubles, and wild Pokémon appear in the tall grass: guess their name to catch them. <a href="https://discord.gg/QF42NCg83v" target="_blank" rel="noopener">Join here</a>.',
+      'Move effectiveness hints now account for Abilities like <b>Levitate</b> or Water Absorb (thanks for the heads-up through the mailbox).'],
+  },
+  {
     id: 13, date: '2026-11-04',
     es: ['<b>⭐ Desde el jueves 5 de noviembre, el Reto del día.</b> Cada día, un campeón protagonista, el mismo para todo el mundo: <b>te tocan 8 Pokémon y eliges 6</b>, en orden, como los de alquiler de la Torre Batalla. Es lo primero del día: cuando lo termines, <b>más campeones te esperan</b>.',
       'Al acabar verás <b>quién te espera mañana</b>, tu racha de días y cómo va tu Pokédex.',

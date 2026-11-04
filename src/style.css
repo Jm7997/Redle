@@ -1028,3 +1028,8 @@ body:has(#world.ready) footer { margin-bottom: 12px; border-radius: 14px; color:
 /* La víspera del reto del día: aviso dorado (mismo formato que el del domingo). */
 .reto-soon { width: 100%; text-align: left; cursor: pointer; background: linear-gradient(100deg, #c98a00, #8a5d00); box-shadow: 0 3px 0 #5a3c00; }
 .reto-soon, .reto-soon b { color: #fff; text-shadow: 0 1px 0 #0005; }
+
+/* Discord: la misma tarjeta que el buzón, con su color */
+.discord-card { margin-top: 10px; text-decoration: none; }
+.discord-mon { background: linear-gradient(#7984f5, #5865f2); color: #fff; }
+.discord-btn { background: #5865f2; }

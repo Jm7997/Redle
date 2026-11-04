@@ -4,6 +4,8 @@
 import {today, dayNumber, retoOpen, retoBoss, ruleFor, BOSSES, doublesOpen, duoOf} from '../src/game.js';
 
 const SD = 'https://play.pokemonshowdown.com/';
+// Retrato de Pelipper de Mundo Misterioso (PMD SpriteCollab, CC BY-NC 4.0: uso sin ánimo de lucro y con crédito).
+const AVATAR = 'https://raw.githubusercontent.com/PMDCollab/SpriteCollab/master/portrait/0279/Happy.png';
 const ROLE_RETO = '1567593447614062702', ROLE_DOBLES = '1567593641860399124'; // 🔔 Reto del día, 🔔 Dobles del domingo
 const RULES = {inverse: 'Combate inverso', trickroom: 'Espacio Raro', gravity: 'Gravedad', sun: 'Sol', rain: 'Lluvia', sand: 'Tormenta de arena', snow: 'Nieve'};
 const RULES_EN = {inverse: 'Inverse Battle', trickroom: 'Trick Room', gravity: 'Gravity', sun: 'Sun', rain: 'Rain', sand: 'Sandstorm', snow: 'Snow'};
@@ -27,7 +29,7 @@ const res = await fetch(`${hook}?wait=true`, {
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({
     username: 'Pelipper',
-    avatar_url: `${SD}sprites/dex/pelipper.png`,
+    avatar_url: AVATAR,
     thread_name: `⭐ #${n} · ${boss.name}`,
     content: `<@&${ROLE_RETO}>${sunday ? ` <@&${ROLE_DOBLES}>` : ''} ¡Correo urgente! ✉️`,
     allowed_mentions: {roles: [ROLE_RETO, ...(sunday ? [ROLE_DOBLES] : [])]},
@@ -38,7 +40,7 @@ const res = await fetch(`${hook}?wait=true`, {
       color: 0xffcb05,
       thumbnail: {url: `${SD}sprites/trainers/${boss.id}.png`},
       fields,
-      footer: {text: 'Pelipper reparte el correo de Redle · redle.pages.dev'},
+      footer: {text: 'Pelipper reparte el correo de Redle · Retrato: PMD SpriteCollab (CC BY-NC 4.0)'},
     }],
   }),
 });

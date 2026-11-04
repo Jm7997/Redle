@@ -27,3 +27,8 @@ Redle no está afiliado, patrocinado ni aprobado por ellos.
 Sprites, iconos, fondos de combate, efectos de ataques, gritos y música se cargan en el navegador
 desde el CDN de Pokémon Showdown (`play.pokemonshowdown.com`), igual que hace su propio cliente.
 No se redistribuyen en este repositorio.
+
+El avatar de Pelipper en los avisos diarios de Discord (`scripts/pelipper.mjs`) es su retrato "Happy" de
+[PMD SpriteCollab](https://github.com/PMDCollab/SpriteCollab), con licencia
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) (uso sin ánimo de lucro y con crédito, que va en
+el pie de cada aviso). Se enlaza desde su repositorio; no se copia aquí.
