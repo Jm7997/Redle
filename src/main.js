@@ -205,6 +205,8 @@ function showBanner() { return !DOUBLE && !REPLAY && !PRACTICE; }
   banner.innerHTML = `<span class="duo-faces">${duoTab.sprites.map(u => `<img src="${u}" alt="" width="40" height="40">`).join('')}</span><span>${SUNDAY ? T.sundayToday(name) : T.sundayNext(name)}</span>`;
   banner.classList.toggle('live', SUNDAY);
   banner.classList.toggle('locked', TABS_LOCKED);
+  $('#reto-soon').innerHTML = `<span class="duo-faces"><img src="${SD}sprites/trainers/${STAGES[retoBoss(RETO.from)].sprite}.png" alt="" width="40" height="40"></span><span>${T.retoSoon}</span>`;
+  $('#reto-soon').onclick = () => { sfx('click'); openNews(); };
 }
 { // centrar la pestaña activa sin mover la página
   const nav = $('#bosses'), on = $('.boss-tab.on');
@@ -386,6 +388,8 @@ function renderTeaser() {
 function renderDraft() {
   const r = rec();
   $('#sunday-banner').hidden = !showBanner();
+  // Solo la víspera del estreno (el 4-11): aviso de que mañana llega el reto del día. Se puede borrar después.
+  $('#reto-soon').hidden = TODAY >= RETO.from || !!REPLAY || !!PRACTICE;
   $('#season').hidden = !SEASON || !!REPLAY;
   $('#draft').hidden = false;
   $('#battle').hidden = true;
@@ -479,7 +483,7 @@ function resetView() {
 
 async function startBattle(isNew) {
   const r = rec();
-  $('#sunday-banner').hidden = $('#season').hidden = true;
+  $('#sunday-banner').hidden = $('#season').hidden = $('#reto-soon').hidden = true;
   $('#draft').hidden = true;
   $('#battle').hidden = false;
   setupFx($('.arena'));

@@ -3,12 +3,12 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
-    id: 13, date: '2026-11-05',
-    es: ['<b>⭐ Llega el Reto del día.</b> Cada día, un campeón protagonista, el mismo para todo el mundo: <b>te tocan 8 Pokémon y eliges 6</b>, en orden, como los de alquiler de la Torre Batalla. Es lo primero del día: cuando lo termines, <b>más campeones te esperan</b>.',
+    id: 13, date: '2026-11-04',
+    es: ['<b>⭐ Desde el jueves 5 de noviembre, el Reto del día.</b> Cada día, un campeón protagonista, el mismo para todo el mundo: <b>te tocan 8 Pokémon y eliges 6</b>, en orden, como los de alquiler de la Torre Batalla. Es lo primero del día: cuando lo termines, <b>más campeones te esperan</b>.',
       'Al acabar verás <b>quién te espera mañana</b>, tu racha de días y cómo va tu Pokédex.',
       'Nuevo <b>informe de suerte</b> en el resumen del combate: críticos, fallos y turnos perdidos de cada lado. Si la suerte te dejó tirado, ahora se ve (y se comparte).',
       'La música <b>se acelera cuando a alguien le queda su último Pokémon</b>, y hay fanfarrias nuevas al ganar y al perder. Además, un botón <b>⏩</b> en el propio combate para cambiar la velocidad.'],
-    en: ['<b>⭐ The Daily challenge is here.</b> Every day, one featured champion, the same for everyone: <b>you get 8 Pokémon and pick 6</b>, in order, like the Battle Tower rentals. It comes first each day: once you finish it, <b>more champions await</b>.',
+    en: ['<b>⭐ From Thursday 5 November, the Daily challenge.</b> Every day, one featured champion, the same for everyone: <b>you get 8 Pokémon and pick 6</b>, in order, like the Battle Tower rentals. It comes first each day: once you finish it, <b>more champions await</b>.',
       'When you finish, you\'ll see <b>who awaits you tomorrow</b>, your day streak and how your Pokédex is going.',
       'New <b>luck report</b> in the battle summary: crits, misses and lost turns for each side. If luck let you down, now you can see it (and share it).',
       'The music <b>speeds up when someone is down to their last Pokémon</b>, with new fanfares for winning and losing. Plus a <b>⏩</b> button right in the battle to change the speed.'],

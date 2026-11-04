@@ -1025,3 +1025,6 @@ body:has(#world.ready) footer { margin-bottom: 12px; border-radius: 14px; color:
 .luck td:first-child { white-space: normal; }
 .luck th { white-space: nowrap; }
 .luck .small { margin: 6px 0 0; }
+/* La víspera del reto del día: aviso dorado (mismo formato que el del domingo). */
+.reto-soon { width: 100%; text-align: left; cursor: pointer; background: linear-gradient(100deg, #c98a00, #8a5d00); box-shadow: 0 3px 0 #5a3c00; }
+.reto-soon, .reto-soon b { color: #fff; text-shadow: 0 1px 0 #0005; }
