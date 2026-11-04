@@ -334,7 +334,7 @@ function renderDraft() {
 
 // ---------- combate ----------
 let battle, logIdx = 0, busy = false;
-const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}, dmax: false, gmax: false});
+const fresh = () => ({name: '', species: '', gender: '', level: 100, hp: 0, maxhp: 1, status: '', boosts: {}, dmax: false, gmax: false, types: null, sub: false});
 // Posiciones en el campo: en individuales, una por lado (p1, p2); en dobles, dos (p1a, p1b, p2a, p2b).
 // `off` recoge lo que le pasa a un Pokémon que no está en el campo (en dobles el log no le da hueco).
 const POS = DOUBLE ? ['p1a', 'p1b', 'p2a', 'p2b'] : ['p1', 'p2'];
@@ -530,7 +530,10 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     case 'switch': case 'drag': {
       const {name} = parseId(a);
       const [species, ...details] = b.split(', ');
-      Object.assign(view[pos], fresh(), {name, species, gender: details.find(d => d === 'M' || d === 'F') || '', level: +(details.find(d => /^L\d+$/.test(d)) || 'L100').slice(1)});
+      // El que entra empieza de cero (tipos de Líbero o Mutatipo, Sustituto…), salvo el Sustituto que le pasan con
+      // Relevo o Shed Tail (el log no lo vuelve a anunciar).
+      const passed = ['Baton Pass', 'Shed Tail'].includes(view.lastMove?.move) && view.lastMove.pos === pos && view[pos].sub;
+      Object.assign(view[pos], fresh(), {name, species, sub: passed, gender: details.find(d => d === 'M' || d === 'F') || '', level: +(details.find(d => /^L\d+$/.test(d)) || 'L100').slice(1)});
       if (side === 'p2') seenOf(species);
       const im = img(pos);
       im.classList.remove('faint', 'enter', 'under');
