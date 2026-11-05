@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Dex} from '@pkmn/sim';
-import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, typeMultiplier, LEAGUE, bossPlan, teamOf, poolFor, poolOf, pokedexList, DOUBLES, DUOS, duoOf, doublesOpen, nextSunday, RETO, retoOpen, retoBoss, retoPool} from '../src/game.js';
+import {dailyPool, replay, newBattle, play, aiChoice, dayNumber, today, msToNext, POOL_SIZE, BOSSES, leagueLineup, leaguePool, ruleFor, typeMultiplier, LEAGUE, bossPlan, teamOf, poolFor, poolOf, pokedexList, DOUBLES, DUOS, duoOf, doublesOpen, nextSunday, RETO, retoOpen, retoBoss, retoPool, estimate, bossPool, PICK} from '../src/game.js';
 import {SEASONS, seasonOf, seasonDaysLeft} from '../src/seasons.js';
 import {BALANCE} from '../src/balance.js';
 
@@ -297,7 +297,7 @@ test('temporadas: por fecha, cruzando el año nuevo, y con los días que quedan'
   }
 });
 
-test('reto del día: desde el 5-11, un rival distinto cada día y 8 Pokémon con los 6 equilibrados del rival', () => {
+test('reto del día: desde el 5-11, un rival distinto cada día; el estreno, 8 para elegir y después los 6 equilibrados del rival', () => {
   const day = n => new Date(Date.parse('2026-11-05T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
   assert.equal(retoOpen('2026-11-04'), false);
   assert.equal(retoOpen('2026-11-05'), true);
@@ -306,17 +306,18 @@ test('reto del día: desde el 5-11, un rival distinto cada día y 8 Pokémon con
   const dex = Dex.forGen(9);
   for (let i = 0; i < 40; i++) {
     const date = day(i), boss = retoBoss(date), pool = retoPool(date);
-    assert.equal(pool.length, RETO.size, date);
-    assert.equal(new Set(pool.map(s => dex.species.get(s.species).baseSpecies)).size, RETO.size, date);
+    const size = i ? PICK.pick : PICK.size; // el 5-11 (estreno), 8; desde el 6-11, los 6 fijos
+    assert.equal(pool.length, size, date);
+    assert.equal(new Set(pool.map(s => dex.species.get(s.species).baseSpecies)).size, size, date);
     assert.deepEqual(pool.slice(0, 6).map(s => s.species), dailyPool(date, boss).map(s => s.species), date);
     assert.deepEqual(retoPool(date).map(s => s.species), pool.map(s => s.species), 'determinista');
     assert.deepEqual(poolOf(RETO.id, date).map(s => s.species), pool.map(s => s.species));
   }
 });
 
-test('reto del día: un combate con 6 de los 8 se reproduce igual', () => {
-  const date = '2026-11-06', boss = retoBoss(date), pool = retoPool(date), team = [7, 2, 5, 0, 3, 6].map(i => pool[i]);
-  const b = newBattle(`reto-${date}`, team, boss, ruleFor(date, boss)), choices = [];
+test('un combate con 6 de los 8 (contra un campeón desde el 6-11) se reproduce igual', () => {
+  const date = '2026-11-06', boss = 'lance', pool = bossPool(date, boss), team = [7, 2, 5, 0, 3, 6].map(i => pool[i]);
+  const b = newBattle(date, team, boss, ruleFor(date, boss)), choices = [];
   play(b, null);
   while (!b.ended && choices.length < 300) {
     const c = aiChoice(b, 'p1') || 'default';
@@ -324,7 +325,7 @@ test('reto del día: un combate con 6 de los 8 se reproduce igual', () => {
     choices.push(c);
   }
   assert.ok(b.ended);
-  const again = replay(`reto-${date}`, team, choices, boss, ruleFor(date, boss));
+  const again = replay(date, team, choices, boss, ruleFor(date, boss));
   assert.equal(again.winner, b.winner);
   assert.equal(again.log.filter(l => !l.startsWith('|t:|')).join('\n'), b.log.filter(l => !l.startsWith('|t:|')).join('\n'));
 });
@@ -335,4 +336,43 @@ test('las pistas de eficacia cuentan Levitación (Terremoto contra Claydol = ×0
   const claydol = b.p2.pokemon.find(p => p.species.name === 'Claydol'), kroo = b.p1.pokemon.find(p => p.species.name === 'Krookodile');
   assert.equal(typeMultiplier(kroo, claydol, 'earthquake'), 0);
   assert.equal(typeMultiplier(kroo, claydol, 'crunch'), 2);
+});
+
+test('reto del día: desde el 6-11, sin EVs; el 5-11 no cambia', () => {
+  const evs = p => p.reduce((a, s) => a + Object.values(s.evs).reduce((x, y) => x + y, 0), 0);
+  const first = retoPool('2026-11-05');
+  assert.deepEqual(first.map(s => s.species), ['Tentacruel', 'Bellossom', 'Tyranitar', 'Golduck', 'Electrode', 'Scizor', 'Flareon', 'Donphan']);
+  assert.ok(evs(first) > 0);
+  for (let i = 1; i < 20; i++) {
+    const date = new Date(Date.parse('2026-11-05T12:00:00Z') + i * 864e5).toISOString().slice(0, 10), pool = retoPool(date);
+    assert.equal(evs(pool), 0, date);
+    assert.deepEqual(pool.slice(0, 6).map(s => s.species), dailyPool(date, retoBoss(date)).map(s => s.species), date);
+  }
+});
+
+test('IA 5 (desde el 6-11): Azote pega más con poca vida y Esfuerzo deja al rival con la vida del usuario', () => {
+  const b = newBattle('2026-11-10', dailyPool('2026-11-10', 'lance'), 'lance', 'none');
+  play(b, null);
+  assert.equal(b.aiV, 5);
+  const gyara = b.p2.pokemon.find(p => p.species.name === 'Gyarados'), foe = b.p1.active[0];
+  const full = estimate(gyara, foe, 'flail');
+  gyara.hp = 1;
+  assert.ok(estimate(gyara, foe, 'flail') > full * 4);
+  if (!foe.hasType('Ghost')) assert.equal(estimate(gyara, foe, 'endeavor'), (foe.hp - 1) / foe.maxhp);
+  const old = newBattle('2026-11-05', dailyPool('2026-11-05', 'lance'), 'lance', 'none');
+  assert.equal(old.aiV, 3);
+});
+
+test('desde el 6-11: contra cada campeón, 8 sin EVs para elegir (con los 6 equilibrados); en la Liga, entrenado al máximo', () => {
+  const dex = Dex.forGen(9), evs = s => Object.values(s.evs).reduce((a, b) => a + b, 0);
+  assert.equal(poolOf('blue', '2026-11-05').length, 6);
+  for (const boss of Object.keys(BOSSES)) for (const date of ['2026-11-06', '2026-11-20']) {
+    const pool = bossPool(date, boss);
+    assert.equal(pool.length, PICK.size, boss + date);
+    assert.equal(new Set(pool.map(s => dex.species.get(s.species).baseSpecies)).size, PICK.size, boss + date);
+    assert.ok(pool.every(s => evs(s) === 0), boss + date);
+    assert.deepEqual(pool.slice(0, 6).map(s => s.species), dailyPool(date, boss).map(s => s.species), boss + date);
+  }
+  assert.ok(leaguePool('2026-11-05').every(s => evs(s) < 508));
+  assert.ok(leaguePool('2026-11-06').every(s => evs(s) === 508 && s.evs.spe === 252));
 });

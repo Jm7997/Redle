@@ -35,7 +35,7 @@ export const abilityName = id => (es && ES.abilities[toID(id)]) || dex.abilities
 const STRINGS = {
   es: {
     title: 'Redle',
-    yourTeam: 'Tu equipo', fieldTitle: 'En el campo de batalla', movesInfoOn: 'Detalles de los ataques ▾', movesInfoOff: 'Menos detalles ▴', priority: 'Prioridad', contact: 'Contacto', todayRule: 'Regla del día', fieldHint: 'Toca para ver qué hace', accNote: 'Precisión con lo que hay en el campo', newsLink: 'Novedades', newsTitle: 'Novedades', newsNew: 'Nuevo', revivePick:'¿A quién quieres revivir?', reviveTag: 'Revivir', revived: w => `¡${w} ha revivido!`, trainYou: 'Entrenamiento al azar', trainYouTip: 'IVs, EVs y naturaleza al azar cada día.', trainYouTipIV: 'IVs perfectos; EVs y naturaleza al azar cada día.', trainYouTipFull: 'Entrenado del todo, pero a su aire: IVs perfectos y EVs y naturaleza al azar.', trainYouTipHalf: 'IVs perfectos y unos cuantos EVs repartidos a su aire.', trainBoss: 'Entrenado al máximo', trainBossTip: 'IVs perfectos, EVs a medida y objeto.', leadTag: '★ Empieza', you2: 'Tú', history: 'Historial',
+    yourTeam: 'Tu equipo', fieldTitle: 'En el campo de batalla', movesInfoOn: 'Detalles de los ataques ▾', movesInfoOff: 'Menos detalles ▴', priority: 'Prioridad', contact: 'Contacto', todayRule: 'Regla del día', fieldHint: 'Toca para ver qué hace', accNote: 'Precisión con lo que hay en el campo', newsLink: 'Novedades', newsTitle: 'Novedades', newsNew: 'Nuevo', revivePick:'¿A quién quieres revivir?', reviveTag: 'Revivir', revived: w => `¡${w} ha revivido!`, trainYou: 'Entrenamiento al azar', trainYouTip: 'IVs, EVs y naturaleza al azar cada día.', trainYouTipIV: 'IVs perfectos; EVs y naturaleza al azar cada día.', trainYouTipFull: 'Entrenado del todo, pero a su aire: IVs perfectos y EVs y naturaleza al azar.', trainYouTipHalf: 'IVs perfectos y unos cuantos EVs repartidos a su aire.', trainYouTipNone: 'IVs perfectos, pero sin EVs: llegan sin entrenar.', trainYouTipMax: 'Has llegado a la Liga tras toda la aventura: IVs perfectos y EVs a medida.', trainBoss: 'Entrenado al máximo', trainBossTip: 'IVs perfectos, EVs a medida y objeto.', leadTag: '★ Empieza', you2: 'Tú', history: 'Historial',
     go: '¡Listo, a pelear!',
     footer: 'Proyecto fan no oficial y sin ánimo de lucro. Pokémon © Nintendo, Creatures y GAME FREAK. No afiliado.',
     legalTitle: 'Aviso legal y privacidad',
@@ -101,7 +101,7 @@ const STRINGS = {
   },
   en: {
     title: 'Redle',
-    yourTeam: 'Your team', fieldTitle: 'On the battlefield', movesInfoOn: 'Move details ▾', movesInfoOff: 'Fewer details ▴', priority: 'Priority', contact: 'Contact', todayRule: "Today's rule", fieldHint: 'Tap to see what it does', accNote: 'Accuracy with the current field effects', newsLink: "What's new", newsTitle: "What's new", newsNew: 'New', revivePick:'Which Pokémon will you revive?', reviveTag: 'Revive', revived: w => `${w} was revived and is ready to fight again!`, trainYou: 'Random training', trainYouTip: 'Random IVs, EVs and nature every day.', trainYouTipIV: 'Perfect IVs; random EVs and nature every day.', trainYouTipFull: 'Fully trained, but its own way: perfect IVs, random EVs and nature.', trainYouTipHalf: 'Perfect IVs and a few EVs spread its own way.', trainBoss: 'Fully trained', trainBossTip: 'Perfect IVs, tailored EVs and an item.', leadTag: '★ Lead', you2: 'You', history: 'History',
+    yourTeam: 'Your team', fieldTitle: 'On the battlefield', movesInfoOn: 'Move details ▾', movesInfoOff: 'Fewer details ▴', priority: 'Priority', contact: 'Contact', todayRule: "Today's rule", fieldHint: 'Tap to see what it does', accNote: 'Accuracy with the current field effects', newsLink: "What's new", newsTitle: "What's new", newsNew: 'New', revivePick:'Which Pokémon will you revive?', reviveTag: 'Revive', revived: w => `${w} was revived and is ready to fight again!`, trainYou: 'Random training', trainYouTip: 'Random IVs, EVs and nature every day.', trainYouTipIV: 'Perfect IVs; random EVs and nature every day.', trainYouTipFull: 'Fully trained, but its own way: perfect IVs, random EVs and nature.', trainYouTipHalf: 'Perfect IVs and a few EVs spread its own way.', trainYouTipNone: 'Perfect IVs, but no EVs: they arrive untrained.', trainYouTipMax: 'You reached the League after a whole adventure: perfect IVs and tailored EVs.', trainBoss: 'Fully trained', trainBossTip: 'Perfect IVs, tailored EVs and an item.', leadTag: '★ Lead', you2: 'You', history: 'History',
     go: 'Ready, battle!',
     footer: 'Unofficial non-profit fan project. Pokémon © Nintendo, Creatures and GAME FREAK. Not affiliated.',
     legalTitle: 'Legal notice & privacy',
@@ -293,6 +293,7 @@ export function setBoss(id, name, team, gens, tries = 1, duo) {
   const rule = gensText(gens);
   Object.assign(T, es ? {
     lead: `${name} te espera en ${b.place}. Este es tu equipo de hoy, el mismo para todo el mundo. <b>Toca el Pokémon que quieres que empiece</b> y pulsa ¡Listo!`,
+    lead8: `${name} te espera en ${b.place}. Te tocan 8 Pokémon, los mismos para todo el mundo: <b>elige 6</b> tocándolos en orden. <b>El primero que elijas empieza.</b>`,
     stageRules: [b.stage, itemsText].filter(Boolean).join('<br>'),
     bossTeam: `El equipo de ${name}`, challenge: b.challenge, where: b.where, wonSub: b.wonSub, bossTitle: b.title,
     how: ['Cada día recibes un <b>equipo de 6 Pokémon</b> nuevo, el mismo para todo el mundo.', `Mira tu equipo y el de ${name}, y <b>elige quién empieza</b>.`,
@@ -305,6 +306,7 @@ export function setBoss(id, name, team, gens, tries = 1, duo) {
     redSends: n => `¡${name} envía a ${n}!`, win: `¡Has derrotado a ${name}!`, lose: `${name} te ha derrotado...`,
   } : {
     lead: `${name} awaits you at ${b.place}. This is today's team, the same for everyone. <b>Tap the Pokémon you want to lead</b> and press Ready!`,
+    lead8: `${name} awaits you at ${b.place}. You get 8 Pokémon, the same for everyone: <b>pick 6</b> by tapping them in order. <b>The first one you pick leads.</b>`,
     stageRules: [b.stage, itemsText].filter(Boolean).join('<br>'),
     bossTeam: `${name}'s team`, challenge: b.challenge, where: b.where, wonSub: b.wonSub, bossTitle: b.title,
     how: ['Every day you get a new <b>team of 6 Pokémon</b>, the same for everyone.', `Check your team and ${name}'s, and <b>choose your lead</b>.`,
@@ -388,11 +390,12 @@ ${name}
 🏅 Medallas: ${m}/${total}
 🔥 Racha: ${streak} ${streak === 1 ? 'día' : 'días'}`,
   rPrev: '◀ Turno anterior', rNext: 'Turno siguiente ▶', rPause: 'Pausa', rPlay: 'Seguir', rEnd: 'Ir al final', rStart: 'Inicio', rTurn: 'Ir al turno', rTurnN: t => `Turno ${t}`,
-  welcome: 'Cada día, el mismo reto para todo el mundo: <b>un entrenador legendario</b> con su equipo de los juegos. <b>Elige 6 de tus 8 Pokémon</b> (el primero que elijas empieza), pulsa ¡Listo! y comparte tu resultado. Después, más campeones te esperan.',
+  welcome: 'Cada día, el mismo reto para todo el mundo: <b>un entrenador legendario</b> con su equipo de los juegos. <b>Toca quién empieza</b>, pulsa ¡Listo! y comparte tu resultado. Después, más campeones te esperan, y contra ellos eliges 6 de 8.',
   retoSoon: '<b>⭐ Mañana llega el Reto del día:</b> cada día un campeón, 8 Pokémon y tú eliges 6. Toca para saber más →',
   retoTab: 'Reto del día', retoFirst: '⭐ Primero, el <b>reto del día</b>. Cuando lo termines, el resto de campeones te esperan.',
-  retoHow: '⭐ Cada día hay un <b>reto del día</b> contra un campeón distinto: te tocan <b>8 Pokémon y eliges 6</b>. Hasta terminarlo (ganar o gastar los intentos), el resto de rivales esperan.',
-  retoLead: name => `<b>⭐ Reto del día:</b> ${name} te espera con su equipo de los juegos. Te tocan 8 Pokémon, los mismos para todo el mundo: <b>elige 6</b> tocándolos en orden. <b>El primero que elijas empieza.</b>`,
+  retoHow: '⭐ Cada día hay un <b>reto del día</b> contra un campeón distinto, con el mismo equipo de 6 para todo el mundo. Hasta terminarlo (ganar o gastar los intentos), el resto de campeones esperan; contra ellos te tocan <b>8 Pokémon y eliges 6</b>. Tus Pokémon llegan sin EVs; a la Liga, entrenados al máximo.',
+  retoLead: name => `<b>⭐ Reto del día:</b> ${name} te espera con su equipo de los juegos. Este es tu equipo, el mismo para todo el mundo: el mismo combate para todos. <b>Toca quién empieza</b> y pulsa ¡Listo!`,
+  retoLead8: name => `<b>⭐ Reto del día:</b> ${name} te espera con su equipo de los juegos. Te tocan 8 Pokémon, los mismos para todo el mundo: <b>elige 6</b> tocándolos en orden. <b>El primero que elijas empieza.</b>`,
   retoFull: 'Ya tienes 6. Toca uno de los elegidos para quitarlo.', retoPickMore: n => `Elige ${n} más`,
   moreChamps: 'Más campeones te esperan', moreChampsNote: name => `Siguiente: ${name}`, nextChamp: name => `Siguiente campeón: ${name}`,
   medalReto: 'Ganar un reto del día',
@@ -457,11 +460,12 @@ ${name}
 🏅 Badges: ${m}/${total}
 🔥 Streak: ${streak} ${streak === 1 ? 'day' : 'days'}`,
   rPrev: '◀ Previous turn', rNext: 'Next turn ▶', rPause: 'Pause', rPlay: 'Resume', rEnd: 'Skip to end', rStart: 'Start', rTurn: 'Go to turn', rTurnN: t => `Turn ${t}`,
-  welcome: 'Every day, the same challenge for everyone: <b>a legendary trainer</b> with their real in-game team. <b>Pick 6 of your 8 Pokémon</b> (the first one you pick leads), press Ready! and share your result. Then more champions await.',
+  welcome: 'Every day, the same challenge for everyone: <b>a legendary trainer</b> with their real in-game team. <b>Tap your lead</b>, press Ready! and share your result. Then more champions await, and against them you pick 6 of 8.',
   retoSoon: '<b>⭐ The Daily challenge starts tomorrow:</b> one champion a day, 8 Pokémon and you pick 6. Tap to learn more →',
   retoTab: 'Daily challenge', retoFirst: '⭐ First, the <b>daily challenge</b>. Once you finish it, the other champions are waiting.',
-  retoHow: '⭐ Every day there is a <b>daily challenge</b> against a different champion: you get <b>8 Pokémon and pick 6</b>. Until you finish it (win or use up your tries), the other rivals wait.',
-  retoLead: name => `<b>⭐ Daily challenge:</b> ${name} awaits with their real in-game team. You get 8 Pokémon, the same for everyone: <b>pick 6</b> by tapping them in order. <b>The first one you pick leads.</b>`,
+  retoHow: '⭐ Every day there is a <b>daily challenge</b> against a different champion, with the same team of 6 for everyone. Until you finish it (win or use up your tries), the other champions wait; against them you get <b>8 Pokémon and pick 6</b>. Your Pokémon arrive without EVs; at the League, fully trained.',
+  retoLead: name => `<b>⭐ Daily challenge:</b> ${name} awaits with their real in-game team. This is your team, the same for everyone: the same battle for all. <b>Tap your lead</b> and press Ready!`,
+  retoLead8: name => `<b>⭐ Daily challenge:</b> ${name} awaits with their real in-game team. You get 8 Pokémon, the same for everyone: <b>pick 6</b> by tapping them in order. <b>The first one you pick leads.</b>`,
   retoFull: 'You already have 6. Tap one of your picks to remove it.', retoPickMore: n => `Pick ${n} more`,
   moreChamps: 'More champions await', moreChampsNote: name => `Next: ${name}`, nextChamp: name => `Next champion: ${name}`,
   medalReto: 'Win a daily challenge',

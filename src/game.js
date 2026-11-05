@@ -53,7 +53,8 @@ export function leagueLineup(date) {
   for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
   return ids.slice(0, LEAGUE.rounds);
 }
-export const leaguePool = date => pool(`liga:${date}`, LEAGUE);
+// Desde el 6-11, a la Liga llegas entrenado al máximo, como sus rivales: es el final de la aventura.
+export const leaguePool = date => pool(`liga:${date}`, {...LEAGUE, trained: date >= PICK_FROM});
 
 // Reglas del día: el mismo giro para todos los combates de ese día (o ninguno). Si el rival trae su
 // propio clima (granizo de Red), las reglas de clima no se aplican contra él.
@@ -95,31 +96,43 @@ const NOT_ALLOWED = new Set(['Restricted Legendary', 'Sub-Legendary', 'Mythical'
 // Equipo número `i` de ese día y rival (0 = el sorteo normal; los demás, sorteos alternativos).
 // Dobles desde el 8-11-2026: tu equipo sin EVs (el primer domingo se ganó el 79 %: la IA de dobles se deja explotar más).
 const DOUBLES_HARD_FROM = '2026-11-08';
-export const poolFor = (boss, date, i = 0) => pool(i ? `${boss}:${date}~${i}` : `${boss}:${date}`,
-  {...configOf(boss), ...(boss === DOUBLES.id && date >= DOUBLES_HARD_FROM ? {maxEVs: 0} : {}), team: teamOf(boss, date)});
+// `more`: cambios sobre los datos del rival (p. ej., sin EVs en el reto del día). No cambia qué Pokémon salen.
+export const poolFor = (boss, date, i = 0, more = {}) => pool(i ? `${boss}:${date}~${i}` : `${boss}:${date}`,
+  {...configOf(boss), ...(boss === DOUBLES.id && date >= DOUBLES_HARD_FROM ? {maxEVs: 0} : {}), ...more, team: teamOf(boss, date)});
 // Equipo del día: el sorteo normal salvo que la tabla de equilibrio (balance.js) diga que era casi imposible o
 // demasiado fácil; entonces, el sorteo alternativo que sí cae en el rango. Ver scripts/build-balance.mjs.
 export const dailyPool = (date, boss = 'red') => poolFor(boss, date, BALANCE[`${boss}:${date}`] || 0);
 
 // ---------- Reto del día (desde el 5-11-2026) ----------
-// Cada día un rival protagonista, el mismo para todo el mundo, que se juega antes que los demás. Te tocan 8 Pokémon y
-// eliges 6 (y quién empieza): los 6 del día de ese rival (ya equilibrados) y 2 más de un sorteo aparte.
-export const RETO = {id: 'reto', from: '2026-11-05', size: 8, pick: 6};
+// Cada día un rival protagonista, el mismo para todo el mundo, que se juega antes que los demás. El 5-11 (estreno) te
+// tocaban 8 Pokémon y elegías 6; desde el 6-11 el reto son los 6 del día de ese rival, los mismos para todos (el primer
+// día se ganó el 92 %: con 8 para elegir siempre había un equipazo). Elegir 6 de 8 pasa al resto de campeones.
+export const RETO = {id: 'reto', from: '2026-11-05'};
 const RETO_ORDER = ['red', 'cynthia', 'lance', 'wallace', 'leon', 'blue', 'steven', 'iris'];
 export const retoOpen = date => date >= RETO.from;
 export const retoBoss = date => RETO_ORDER[((dayNumber(date) - dayNumber(RETO.from)) % RETO_ORDER.length + RETO_ORDER.length) % RETO_ORDER.length];
-// `date` puede ser una clave de práctica (equipo al azar): entonces el rival se pasa aparte.
-export function retoPool(date, boss = retoBoss(date)) {
-  const six = dailyPool(date, boss), have = new Set(six.map(s => dex.species.get(s.species).baseSpecies));
-  const extra = [9, 10, 11].flatMap(i => poolFor(boss, date, i)).filter(s => {
+// Desde el 6-11, contra cualquier campeón tus Pokémon llegan sin EVs (IVs perfectos) y, salvo en el reto, te tocan 8
+// para elegir 6. En la Liga, en cambio, llegas entrenado al máximo, como sus rivales (ver leaguePool).
+export const PICK_FROM = '2026-11-06';
+export const PICK = {size: 8, pick: TEAM_SIZE};
+// 8 para elegir: los 6 del día (los de la tabla de equilibrio) y 2 más de los sorteos 9-11, sin repetir Pokémon.
+const balanced = (boss, date, more) => poolFor(boss, date, BALANCE[`${boss}:${date}`] || 0, more);
+function eight(boss, date, more) {
+  const six = balanced(boss, date, more), have = new Set(six.map(s => dex.species.get(s.species).baseSpecies));
+  const extra = [9, 10, 11].flatMap(i => poolFor(boss, date, i, more)).filter(s => {
     const base = dex.species.get(s.species).baseSpecies;
     return !have.has(base) && have.add(base);
   });
-  return [...six, ...extra.slice(0, RETO.size - six.length)];
+  return [...six, ...extra.slice(0, PICK.size - six.length)];
 }
+// `date` puede ser una clave de práctica (equipo al azar): entonces el rival se pasa aparte.
+export const retoPool = (date, boss = retoBoss(date)) => (date >= PICK_FROM ? balanced(boss, date, {maxEVs: 0}) : eight(boss, date, {}));
+// Tu equipo contra un campeón fuera del reto: desde el 6-11, 8 sin EVs para elegir 6.
+export const bossPool = (date, boss) => (date >= PICK_FROM ? eight(boss, date, {maxEVs: 0}) : dailyPool(date, boss));
 
 // Equipo de cualquier modo en un día (para el Salón de la Fama y la Pokédex, que salen del historial).
-export const poolOf = (mode, date) => (mode === 'liga' ? leaguePool(date) : mode === RETO.id ? retoPool(date) : dailyPool(date, mode));
+export const poolOf = (mode, date) => (mode === 'liga' ? leaguePool(date) : mode === RETO.id ? retoPool(date)
+  : mode === DOUBLES.id ? dailyPool(date, mode) : bossPool(date, mode));
 // Todos los Pokémon que te pueden tocar en cualquier modo, sin repetir formas, en orden de Pokédex.
 let dexCache;
 export function pokedexList() {
@@ -137,7 +150,7 @@ export function pokedexList() {
   return (dexCache = [...list.values()].sort((a, b) => a.num - b.num));
 }
 
-function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmicks = [], doubles = false}) {
+function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmicks = [], doubles = false, trained = false}) {
   const gen = TeamGenerators.getTeamGenerator(`gen${format}random${doubles ? 'doubles' : ''}battle`, seedFor(`pool:${key}`));
   const dex = Dex.forGen(format);
   const sets = doubles ? gen.randomDoublesSets : gen.randomSets; // cada formato tiene su propia lista de Pokémon
@@ -152,7 +165,7 @@ function pool(key, {gens: [lo, hi], team, maxEVs, maxIVs = 31, format = 9, gimmi
     seen.add(sp.baseSpecies);
     const set = gen.randomSet(sp.name, {}, out.length === 0, doubles);
     if (!gimmicks.includes('tera')) noTeraBlast(set, sets[sp.id], key);
-    out.push({...set, level: 100, gigantamax: false, ...wildTraining(set, key, maxEVs, maxIVs)});
+    out.push({...set, level: 100, gigantamax: false, ...wildTraining(set, key, maxEVs, maxIVs), ...(trained ? tailored(set) : {})});
   }
   luckyGimmick(out, key, gimmicks, dex);
   return out;
@@ -184,6 +197,13 @@ function luckyGimmick(team, key, gimmicks, dex) {
     ...(gimmicks.includes('dynamax') ? team.filter(gmaxOf).map(set => () => { set.gigantamax = true; }) : []),
   ];
   if (options.length) options[Math.floor(r() * options.length)]();
+}
+
+// Entrenado al máximo (la Liga, desde el 6-11): 252 EVs en su estadística de ataque y en Velocidad, 4 en PS, y naturaleza
+// a juego, como los equipos de los rivales.
+function tailored(set) {
+  const count = cat => set.moves.filter(m => dex.moves.get(m).category === cat).length, phys = count('Physical') >= count('Special');
+  return {evs: {hp: 4, atk: phys ? 252 : 0, def: 0, spa: phys ? 0 : 252, spd: 0, spe: 252}, nature: phys ? 'Adamant' : 'Modest'};
 }
 
 // Generador pseudoaleatorio pequeño y determinista (mulberry32) a partir de un texto.
@@ -497,7 +517,8 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   // Versión de la IA según el día, para que cada combate se reproduzca con la IA que tuvo:
   // 1 = hasta el 14-10 (aiLegacy), 2 = desde el 15-10 (habilidades, clima, frenar mejoras), 3 = desde el 24-10 (Sustituto y Drenadoras).
   const day = String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9';
-  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-08' ? 3 : 4; // 4: dobles más listos
+  // 4 = dobles de VGC (iba a estrenarse el 8-11) y 5 = individuales más listos desde el 6-11; la 5 incluye la 4.
+  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-06' ? 3 : 5;
   battle.aiLegacy = battle.aiV === 1; // IA anterior (ver abilityBlocks)
   battle.setPlayer('p2', {name: config.doubles ? duoOf(key).name : config.name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
@@ -544,6 +565,10 @@ export function estimate(user, target, moveId) {
   if (!grav && (!inverse(target) && !dex.getImmunity(type, target.getTypes()) || abilityBlocks(user, target, move))) return 0;
   const eff = typeEff(type, target);
   if (target.ability === 'wonderguard' && eff <= 1) return 0;
+  const v5 = target.battle.aiV >= 5;
+  // IA 5: Esfuerzo deja al rival con la vida del usuario; Contraataque y Manto Espejo dependen del golpe recibido (ver scoreMove).
+  if (v5 && move.id === 'endeavor') return Math.max(0, target.hp - user.hp) / target.maxhp;
+  if (v5 && ['counter', 'mirrorcoat', 'metalburst'].includes(move.id)) return 0;
   const physical = move.category === 'Physical';
   // Stats con mejoras de combate (sin disparar eventos) y los modificadores más comunes a mano.
   let atk = user.getStat(physical ? 'atk' : 'spa', false, true);
@@ -555,6 +580,10 @@ export function estimate(user, target, moveId) {
   if (target.item === 'eviolite' || !physical && target.item === 'assaultvest') def *= 1.5;
   if (physical && target.ability === 'furcoat') def *= 2;
   let bp = move.basePower || 60;
+  if (v5 && ['flail', 'reversal'].includes(move.id)) { // IA 5: Azote e Inversión, más fuertes cuanta menos vida le queda
+    const r = Math.max(Math.floor(user.hp * 48 / user.maxhp), 1);
+    bp = r < 2 ? 200 : r < 5 ? 150 : r < 10 ? 100 : r < 17 ? 80 : r < 33 ? 40 : 20;
+  }
   if (user.ability === 'technician' && bp <= 60) bp *= 1.5;
   let mod = user.hasType(type) ? (user.ability === 'adaptability' ? 2 : 1.5) : 1;
   if (user.item === 'lifeorb') mod *= 1.3;
@@ -612,8 +641,8 @@ export function typeMultiplier(user, target, moveId) {
 }
 
 // Bajo Espacio Raro el más lento mueve primero: para la IA, "más rápido" es al revés.
-// IA 4 en dobles: con la Velocidad de verdad (Viento Afín, parálisis, Pañuelo Elegido, Nado Rápido y compañía).
-const speed = p => (p.battle.aiV >= 4 && p.battle.gameType === 'doubles' ? realSpeed(p) : p.getStat('spe', false, true)) * (p.battle.field.pseudoWeather.trickroom ? -1 : 1);
+// IA 4 en dobles y 5 en todo: con la Velocidad de verdad (Viento Afín, parálisis, Pañuelo Elegido, Nado Rápido y compañía).
+const speed = p => (p.battle.aiV >= 5 || p.battle.aiV >= 4 && p.battle.gameType === 'doubles' ? realSpeed(p) : p.getStat('spe', false, true)) * (p.battle.field.pseudoWeather.trickroom ? -1 : 1);
 const WEATHER_SPEED = {swiftswim: ['raindance'], chlorophyll: ['sunnyday'], sandrush: ['sandstorm'], slushrush: ['hail', 'snow', 'snowscape']};
 function realSpeed(p) {
   let s = p.getStat('spe', false, true);
@@ -666,9 +695,28 @@ function scoreMove(user, target, slot, threat) {
     const counter = counterSetup(target, move, dmg);
     if (counter !== null) return counter;
   }
+  const v5 = user.battle.aiV >= 5;
+  // IA 5: Contraataque y Manto Espejo devuelven el doble del golpe recibido: solo si el rival pega de ese tipo, va antes
+  // y no la deja K.O. Nunca cuentan como K.O. seguro (el rival podría no atacar así).
+  if (v5 && ['counter', 'mirrorcoat'].includes(move.id)) {
+    if ((move.id === 'counter') !== hitsPhysical(target) || speed(target) <= speed(user) || threat >= hp) return 0.05;
+    const back = 2 * threat * user.maxhp / target.maxhp;
+    return back >= foeHp ? 1.5 : back;
+  }
+  // IA 5: Protección y Escudo Real en individuales. Escudo Real contra quien pega por contacto (le baja el Ataque);
+  // si no, solo para que el veneno, la quemadura o las Drenadoras del rival hagan su trabajo.
+  if (v5 && move.stallingMove) {
+    if (user.volatiles.stall) return 0;
+    if (move.id === 'kingsshield' && hitsPhysical(target)) return 0.8;
+    return ['psn', 'tox', 'brn'].includes(target.status) || target.volatiles.leechseed ? 0.6 : 0.05;
+  }
   if (move.category !== 'Status') {
     // Los que obligan a recargar (Anillo Ígneo, Gigaimpacto…) solo compensan si rematan.
     if (dmg < foeHp) return move.self?.volatileStatus === 'mustrecharge' ? dmg * 0.6 : dmg;
+    // IA 5: con la vida llena, Banda Focus y Robustez aguantan un golpe que les dejaría K.O. (no los de varios golpes).
+    if (v5 && target.hp === target.maxhp && !move.multihit && (target.item === 'focussash' || target.ability === 'sturdy' && !MOLD_BREAKER.includes(user.ability))) {
+      return move.self?.volatileStatus === 'mustrecharge' ? 0.5 : 0.95;
+    }
     // Puede dejarle K.O.: prioridad si el rival es más rápido y también nos deja K.O.
     const outsped = speed(target) >= speed(user) && threat >= hp;
     return 2 + (move.priority > 0 && outsped ? 2 : 0) + dmg * 0.01;
@@ -683,6 +731,15 @@ function scoreMove(user, target, slot, threat) {
     if (move.status === 'par' && (target.hasType('Electric') || target.hasType('Ground') && move.id === 'thunderwave')) return 0;
     if ((move.status === 'tox' || move.status === 'psn') && (target.hasType('Poison') || target.hasType('Steel'))) return 0;
     if (move.flags?.powder && target.hasType('Grass')) return 0;
+    // IA 5: inmunidades por habilidad u objeto, quemar al que pega físico, paralizar al que te adelanta (nunca con Espacio
+    // Raro) y Tóxico al que aguanta mucho (contra el que pega fuerte, mejor atacar).
+    if (v5) {
+      if (STATUS_IMMUNE[move.status]?.includes(target.ability) || ['comatose', 'purifyingsalt'].includes(target.ability) || target.side.sideConditions.safeguard
+        || move.status === 'brn' && target.hasType('Fire') || move.flags?.powder && target.item === 'safetygoggles') return 0;
+      if (move.status === 'brn') return hitsPhysical(target) && !['guts', 'flareboost', 'magicguard'].includes(target.ability) ? 0.6 + 0.4 * Math.min(1, threat) : 0.15;
+      if (move.status === 'par') return user.battle.field.pseudoWeather.trickroom ? 0.05 : speed(target) > speed(user) && speed(target) / 2 < speed(user) ? 0.75 : 0.25;
+      if (move.status === 'tox' || move.status === 'psn') return bestDamage(user, target) < 0.3 ? 0.7 : 0.35;
+    }
     return move.status === 'slp' ? 0.75 : move.status === 'par' && speed(target) > speed(user) ? 0.5 : 0.3;
   }
   if (move.id === 'rest') return hp < 0.4 && user.status !== 'slp' ? 0.85 : 0;
@@ -737,15 +794,23 @@ export function aiChoice(battle, sideId = 'p2') {
   });
   // Cambiar si: está bloqueado (objeto Elección) en algo inútil, o apenas hace daño y el rival le pega fuerte,
   // o va a caer antes de actuar sin poder dejar K.O. — siempre que haya alguien que aguante mejor.
-  const hp = me.hp / me.maxhp, foeFaster = speed(foe) >= speed(me);
+  const hp = me.hp / me.maxhp, foeFaster = speed(foe) >= speed(me), v5 = battle.aiV >= 5;
   const lockedUseless = moves.filter(m => !m.disabled).length === 1 && bestScore < 0.15;
-  const doomed = threat >= hp && foeFaster && bestScore < 2;
+  // IA 5: con la vida llena, Banda Focus o Robustez aguantan el golpe: no está perdida.
+  const holds = v5 && me.hp === me.maxhp && (me.item === 'focussash' || me.ability === 'sturdy');
+  const doomed = threat >= hp && foeFaster && bestScore < 2 && !holds;
   // IA 3: con Drenadoras encima, cambiar se las quita (si no va a dejar K.O. este turno y aún tiene vida que salvar).
   // (No si acaba de entrar: si no, el rival le vuelve a sembrar y se pasa el combate cambiando.)
   const seeded = battle.aiV >= 3 && me.volatiles.leechseed && me.activeTurns >= 2 && hp > 0.25 && hp < 0.7 && bestScore < 2;
-  if (!req.active[0].trapped && (lockedUseless || bestScore < 0.3 && threat >= 0.5 || doomed && hp > 0.3 || seeded)) {
+  // IA 5: también sale si va a dormirse (Bostezo), con Canto Mortal a punto, con lo que usa para pegar bajado dos niveles
+  // (Intimidación…) o con el Tóxico ya avanzado; entonces basta con que el que entra no caiga de un golpe.
+  const stat = hitsPhysical(me) ? 'atk' : 'spa';
+  const wants = v5 && bestScore < 2 && (me.volatiles.yawn && !me.status || me.volatiles.perishsong?.duration === 1
+    || me.boosts[stat] <= -2 || me.status === 'tox' && (me.statusState.stage || 0) >= 3 && hp > 0.3);
+  if (!req.active[0].trapped && (lockedUseless || bestScore < 0.3 && threat >= 0.5 || doomed && hp > 0.3 || seeded || wants)) {
     const i = bestSwitch(side, foe) - 1, p = side.pokemon[i];
-    if (p && !p.isActive && !p.fainted && bestDamage(foe, p) <= Math.min(threat * 0.6, 0.5 * p.hp / p.maxhp) && bestDamage(p, foe) >= 0.25) return 'switch ' + (i + 1);
+    const safe = p && bestDamage(foe, p) <= (wants ? 0.5 * p.hp / p.maxhp : Math.min(threat * 0.6, 0.5 * p.hp / p.maxhp));
+    if (p && !p.isActive && !p.fainted && safe && bestDamage(p, foe) >= 0.25) return 'switch ' + (i + 1);
   }
   if (best < 0) return 'default';
   const r = req.active[0];

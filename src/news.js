@@ -3,6 +3,19 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 15, date: '2026-11-05',
+    es: ['El primer Reto del día lo ganó el 92 %: elegís de maravilla. Así que, <b>desde mañana, cambio de planes</b>:',
+      '⭐ <b>El Reto del día es el mismo equipo de 6 para todo el mundo</b>: el mismo combate para todos, para comparar de verdad quién lo hizo mejor. Solo eliges quién empieza.',
+      '🎒 <b>Contra el resto de campeones te tocan 8 Pokémon y eliges 6.</b>',
+      '💪 <b>Tus Pokémon llegan sin EVs</b> (con IVs perfectos), salvo en la <b>Liga</b>: allí llegas tras toda la aventura, <b>entrenado al máximo</b> como tus rivales.',
+      '🧠 Y los campeones afinan: saben quién es más rápido de verdad (parálisis, Pañuelo Elegido…), no se fían de un K.O. contra Banda Focus o Robustez y usan Tóxico, Fuego Fatuo o Escudo Real con más cabeza. ¡Suerte contra Cynthia!'],
+    en: ['92% of you won the first Daily challenge: you pick wonderfully. So, <b>from tomorrow, change of plans</b>:',
+      '⭐ <b>The Daily challenge is the same team of 6 for everyone</b>: the same battle for all, so we can truly compare who did best. You only choose your lead.',
+      '🎒 <b>Against the other champions you get 8 Pokémon and pick 6.</b>',
+      '💪 <b>Your Pokémon arrive without EVs</b> (with perfect IVs), except in the <b>League</b>: there you arrive after a whole adventure, <b>fully trained</b> like your rivals.',
+      '🧠 And the champions sharpen up: they know who is really faster (paralysis, Choice Scarf…), don\'t count on a KO against Focus Sash or Sturdy, and use Toxic, Will-O-Wisp or King\'s Shield more wisely. Good luck against Cynthia!'],
+  },
+  {
     id: 14, date: '2026-11-04',
     es: ['<b>¡Redle ya tiene servidor de Discord!</b> Cada noche Pelipper abre el hilo del reto del día para comentarlo, compartimos resultados, preparamos los dobles del domingo y en la hierba alta salen Pokémon salvajes: adivina su nombre para atraparlos. <a href="https://discord.gg/QF42NCg83v" target="_blank" rel="noopener">Únete aquí</a>.',
       'Las pistas de eficacia de los ataques ya tienen en cuenta habilidades como <b>Levitación</b> o Absorbe Agua (gracias por avisar desde el buzón).'],

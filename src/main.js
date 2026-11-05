@@ -2,7 +2,7 @@
 // resultado, repeticiones compartibles y ajustes.
 import {Dex} from '@pkmn/sim';
 import {Sprites, Icons} from '@pkmn/img';
-import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, DOUBLES, duoOf, nextSunday, doublesOpen, poolOf, pokedexList, play, replay, typeMultiplier, RETO, retoOpen, retoBoss, retoPool} from './game.js';
+import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, DOUBLES, duoOf, nextSunday, doublesOpen, poolOf, pokedexList, play, replay, typeMultiplier, RETO, retoOpen, retoBoss, retoPool, bossPool, PICK} from './game.js';
 import {SEASONS, seasonOf, seasonDaysLeft} from './seasons.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, abilityDesc, itemDesc, loadDescs, itemIcon, FIELD_ICON, FIELD_INFO, RULE_TEXT, RULE_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm, setTension} from './audio.js';
@@ -61,8 +61,9 @@ function parseReplay(hash) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > TODAY) return null; // nunca combates de días futuros
     if (round < 0 || round >= LEAGUE.rounds || (mode !== 'liga' && round)) return null;
     if (!Array.isArray(picks)) return null;
-    // Reto del día: 6 de los 8, sin repetir; en el resto, el orden de los 6.
-    const okPicks = mode === RETO.id ? picks.length === RETO.pick && new Set(picks).size === RETO.pick && picks.every(p => Number.isInteger(p) && p >= 0 && p < RETO.size)
+    // Si ese día tocaban 8 para elegir: 6 de ellos, sin repetir; si no, el orden de los 6.
+    const size = poolOf(mode, date).length;
+    const okPicks = size > PICK.pick ? picks.length === PICK.pick && new Set(picks).size === PICK.pick && picks.every(p => Number.isInteger(p) && p >= 0 && p < size)
       : [...picks].sort().join() === '0,1,2,3,4,5';
     if (!okPicks) return null;
     if (tokens.length > 1000 || !tokens.every(t => /^(m[1-4][tmx]?|m[1-4]-?[12]|s[1-6]|p|d|f)(\+(m[1-4]-?[12]?|s[1-6]|p))?$/.test(t))) return null;
@@ -105,7 +106,9 @@ const RULE_DATE = REPLAY ? REPLAY.date : TODAY; // la práctica conserva la regl
 const DATE = REPLAY ? REPLAY.date : PRACTICE ? `practica-${PRACTICE}${DOUBLE ? '-' + TODAY : ''}` : TODAY;
 // En el reto, el rival sale de la fecha del reto (no de la clave de práctica) y el equipo son 8 para elegir 6.
 const LINEUP = LIGA ? leagueLineup(REPLAY ? REPLAY.date : TODAY) : IS_RETO ? [retoBoss(RULE_DATE)] : [MODE];
-const POOL = LIGA ? leaguePool(POOL_DATE) : IS_RETO ? retoPool(POOL_DATE, LINEUP[0]) : dailyPool(POOL_DATE, MODE);
+const POOL = LIGA ? leaguePool(POOL_DATE) : IS_RETO ? retoPool(POOL_DATE, LINEUP[0]) : DOUBLE ? dailyPool(POOL_DATE, MODE) : bossPool(POOL_DATE, MODE);
+// Te tocan 8 y eliges 6 (contra cada campeón desde el 6-11; el reto, solo el día del estreno): se eligen a mano y en orden.
+const PICKING = POOL.length > PICK.pick;
 const rand = () => Math.random().toString(36).slice(2, 8);
 const goPractice = team => { location.search = `?vs=${MODE}&practica=${rand()}&equipo=${team}`; };
 const goToday = () => { location.href = `${location.pathname}?vs=${MODE}`; };
@@ -115,7 +118,7 @@ setSpeed(speed);
 
 if (PRACTICE || REPLAY) delete store.days[DATE];
 const save = () => { if (!PRACTICE && !REPLAY) ls.set(KEY, JSON.stringify(store)); };
-const defaultPicks = () => (IS_RETO ? [] : POOL.map((_, i) => i)); // en el reto se eligen a mano
+const defaultPicks = () => (PICKING ? [] : POOL.map((_, i) => i));
 // El día guarda una partida (rival) o varias rondas (Liga); `rec()` es siempre el combate en curso.
 const day = () => store.days[DATE] ||= LIGA ? {round: 0, rounds: []} : {picks: defaultPicks(), choices: []};
 const round = () => LIGA ? day().round : 0;
@@ -394,19 +397,19 @@ function renderDraft() {
   $('#draft').hidden = false;
   $('#battle').hidden = true;
   drawLineup();
-  $('.intro-text').innerHTML = LIGA ? T.leagueLead(round() + 1, B.name) : IS_RETO ? T.retoLead(B.name) : T.lead;
-  $('.party.mine h3').innerHTML = IS_RETO ? `${T.yourTeam} <small class="pick-count${r.picks.length === RETO.pick ? ' full' : ''}">${r.picks.length}/${RETO.pick}</small>` : T.yourTeam;
+  $('.intro-text').innerHTML = LIGA ? T.leagueLead(round() + 1, B.name) : IS_RETO ? (PICKING ? T.retoLead8(B.name) : T.retoLead(B.name)) : PICKING ? T.lead8 : T.lead;
+  $('.party.mine h3').innerHTML = PICKING ? `${T.yourTeam} <small class="pick-count${r.picks.length === PICK.pick ? ' full' : ''}">${r.picks.length}/${PICK.pick}</small>` : T.yourTeam;
   $('#pool').replaceChildren(...POOL.map((set, i) => {
     const s = slot(set, 'button');
-    // Reto del día: se eligen 6 de 8 en orden, como los de alquiler de la Torre Batalla; el primero empieza.
-    if (IS_RETO) {
+    // 8 para elegir: se eligen 6 en orden, como los de alquiler de la Torre Batalla; el primero empieza.
+    if (PICKING) {
       const n = r.picks.indexOf(i);
       if (n >= 0) s.append(el('span', 'pick-num', String(n + 1)));
       s.classList.toggle('picked', n >= 0);
-      s.classList.toggle('benched', n < 0 && r.picks.length >= RETO.pick);
+      s.classList.toggle('benched', n < 0 && r.picks.length >= PICK.pick);
       if (n === 0) { s.classList.add('lead'); s.append(el('span', 'ribbon', T.leadTag)); }
       s.onclick = () => {
-        if (n < 0 && r.picks.length >= RETO.pick) return toast(T.retoFull);
+        if (n < 0 && r.picks.length >= PICK.pick) return toast(T.retoFull);
         sfx('click');
         r.picks = n >= 0 ? r.picks.filter(j => j !== i) : [...r.picks, i];
         save();
@@ -429,8 +432,10 @@ function renderDraft() {
   $('#red-team').replaceChildren(...B.team.map(set => slot(set, 'div')));
   $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
   $('#rules').hidden = !$('#stage-rules').innerHTML;
-  // Aviso de entrenamiento: tu equipo al azar (Brazal Recio) frente al rival entrenado al máximo (Brazal Firme).
-  $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${T.trainYou}</b><small>${POOL_DATE >= '2026-10-30' ? T.trainYouTipHalf : POOL_DATE >= '2026-10-24' ? T.trainYouTipFull : POOL_DATE >= '2026-10-18' ? T.trainYouTipIV : T.trainYouTip}</small></span>`;
+  // Aviso de entrenamiento: tu equipo al azar (Brazal Recio) frente al rival entrenado al máximo (Brazal Firme). En la Liga,
+  // desde el 6-11, tú también llegas entrenado al máximo.
+  const trained = POOL.every(s => Object.values(s.evs).reduce((a, b) => a + b, 0) >= 508);
+  $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${trained ? T.trainBoss : T.trainYou}</b><small>${trained ? T.trainYouTipMax : POOL_DATE >= '2026-10-30' && POOL.every(s => !Object.values(s.evs).some(Boolean)) ? T.trainYouTipNone : POOL_DATE >= '2026-10-30' ? T.trainYouTipHalf : POOL_DATE >= '2026-10-24' ? T.trainYouTipFull : POOL_DATE >= '2026-10-18' ? T.trainYouTipIV : T.trainYouTip}</small></span>`;
   $('#train-boss').innerHTML = `${itemIcon('Macho Brace')}<span><b>${T.trainBoss}</b><small>${T.trainBossTip}</small></span>`;
   // Fichas compactas por defecto (sprite, tipos y objeto); estadísticas, habilidad y ataques se despliegan con un toque.
   const details = ls.get('redle:details') === '1';
@@ -439,7 +444,7 @@ function renderDraft() {
   $('#btn-details').onclick = () => { ls.set('redle:details', details ? '0' : '1'); renderDraft(); };
   $('#welcome').hidden = !!ls.get('redle:welcome') || !!PRACTICE;
   $('#btn-welcome').onclick = () => { ls.set('redle:welcome', '1'); $('#welcome').hidden = true; };
-  const go = $('#btn-go'), missing = IS_RETO ? RETO.pick - r.picks.length : 0;
+  const go = $('#btn-go'), missing = PICKING ? PICK.pick - r.picks.length : 0;
   go.querySelector('.txt').textContent = missing ? T.retoPickMore(missing) : T.go;
   go.disabled = missing > 0;
   go.onclick = () => { if (missing) return; r.started = true; save(); startBattle(true); };
@@ -1439,7 +1444,7 @@ function playedDays() {
   for (const id of MODES) for (const [date, d] of Object.entries(readJSON(keyOf(id)).days || {})) {
     if (!/^\d{4}-\d\d-\d\d$/.test(date) || !(d.result || d.started || d.rounds?.length)) continue;
     const pool = poolOf(id, date); // en el reto, los 6 que elegiste de los 8
-    out.push({id, date, d, won: d.result === 'win', team: (id === RETO.id && d.picks?.length === RETO.pick ? d.picks.map(i => pool[i]) : pool).map(s => s.species)});
+    out.push({id, date, d, won: d.result === 'win', team: (pool.length > PICK.pick && d.picks?.length === PICK.pick ? d.picks.map(i => pool[i]) : pool).map(s => s.species)});
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -1499,7 +1504,7 @@ function dexNewToday(won) {
   const base = s => dex.species.get(s).baseSpecies;
   const before = playedDays().filter(e => !(e.id === MODE && e.date === TODAY) && (e.won || !won));
   const known = new Set(before.flatMap(e => e.team.map(base)));
-  return [...new Set((IS_RETO && won ? team() : POOL).map(s => base(s.species)))].filter(s => !known.has(s));
+  return [...new Set((PICKING && won ? team() : POOL).map(s => base(s.species)))].filter(s => !known.has(s));
 }
 function drawDexNew(d) {
   const box = $('#dex-new'), list = d?.closed || d?.result ? d.dexNew || [] : [];

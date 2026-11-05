@@ -37,7 +37,7 @@ const res = await fetch(`${hook}?wait=true`, {
     embeds: [{
       title: `⭐ Reto del día #${n}: ${boss.name} te espera`,
       url: 'https://redle.pages.dev/?vs=reto',
-      description: `**${boss.name}** te espera con su equipo de los juegos. Elige 6 de tus 8 Pokémon y a por ${him}: tienes 3 intentos. Comenta aquí cómo te ha ido (las estrategias ganadoras, entre ||spoilers||).\n\n🇬🇧 **${boss.name}** awaits with ${them === 'her' ? 'her' : 'his'} real in-game team. Pick 6 of your 8 Pokémon and take ${them} on!`,
+      description: `**${boss.name}** te espera con su equipo de los juegos. Mismo equipo y mismo combate para todo el mundo: elige quién empieza y a por ${him}, tienes 3 intentos. Comenta aquí cómo te ha ido (las estrategias ganadoras, entre ||spoilers||).\n\n🇬🇧 **${boss.name}** awaits with ${them === 'her' ? 'her' : 'his'} real in-game team. Same team, same battle for everyone: choose your lead and take ${them} on!`,
       color: 0xffcb05,
       thumbnail: {url: `${SD}sprites/trainers/${boss.id}.png`},
       fields,
