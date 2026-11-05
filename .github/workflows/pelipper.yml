@@ -1,12 +1,11 @@
-# Pelipper: el aviso diario del reto en Discord (ver scripts/pelipper.mjs). Se lanza a las 22:00 y a las 23:00 UTC para
-# acertar con las 00:00 de España en invierno y en verano; el script solo publica en el que toca. También a mano
-# (Actions → Pelipper → Run workflow) para probarlo: entonces publica aunque no sea medianoche.
+# Pelipper: el aviso diario del reto en Discord (ver scripts/pelipper.mjs). Una vez al día, a las 23:07 UTC (00:07 en
+# España en invierno, 01:07 en verano); GitHub a veces lo lanza con horas de retraso, y el script publica igual. No en
+# punto: a esa hora GitHub va saturado. También a mano (Actions → Pelipper → Run workflow): publica el reto de hoy.
 name: Pelipper
 
 on:
   schedule:
-    - cron: '1 22 * * *'
-    - cron: '1 23 * * *'
+    - cron: '7 23 * * *'
   workflow_dispatch:
 
 permissions:

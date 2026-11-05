@@ -1,6 +1,6 @@
-// Pelipper: cada día a las 00:00 (hora de España) abre en el foro ⭐-reto-del-día de Discord un hilo con el reto del
-// día. Lo lanza .github/workflows/pelipper.yml; la URL del webhook va en el secreto DISCORD_WEBHOOK (nunca en el código).
-//   DISCORD_WEBHOOK=... node scripts/pelipper.mjs [--force]   (--force: publica aunque no sean las 00:xx)
+// Pelipper: cada día, nada más cambiar el reto (00:00 en España), abre en el foro ⭐-reto-del-día de Discord un hilo con
+// el reto del día. Lo lanza .github/workflows/pelipper.yml; la URL del webhook va en el secreto DISCORD_WEBHOOK.
+//   DISCORD_WEBHOOK=... node scripts/pelipper.mjs [--force]   (--force: publica aunque sea por la noche)
 import {today, dayNumber, retoOpen, retoBoss, ruleFor, BOSSES, doublesOpen, duoOf} from '../src/game.js';
 
 const SD = 'https://play.pokemonshowdown.com/';
@@ -12,9 +12,10 @@ const RULES_EN = {inverse: 'Inverse Battle', trickroom: 'Trick Room', gravity: '
 
 const hook = process.env.DISCORD_WEBHOOK;
 if (!hook) throw new Error('Falta el secreto DISCORD_WEBHOOK');
-// GitHub lanza el trabajo a las 22:00 y a las 23:00 UTC (por el cambio de hora): solo publica el que cae a las 00:xx en Madrid.
+// Una sola ejecución al día, justo después de medianoche, pero GitHub puede retrasarla horas (el 5-11 llegó 3 h tarde):
+// publica el reto del día que sea, salvo que de algún modo se lance aún la víspera por la noche.
 const hour = +new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Madrid', hour: '2-digit', hourCycle: 'h23'}).format(new Date());
-if (hour !== 0 && !process.argv.includes('--force')) { console.log(`Son las ${hour}:xx en Madrid: nada que publicar.`); process.exit(); }
+if (hour >= 20 && !process.argv.includes('--force')) { console.log(`Son las ${hour}:xx en Madrid: es la víspera, nada que publicar.`); process.exit(); }
 
 const date = today();
 if (!retoOpen(date)) { console.log(`${date}: el reto del día aún no ha empezado.`); process.exit(); }
