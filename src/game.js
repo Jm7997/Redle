@@ -517,8 +517,9 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   // Versión de la IA según el día, para que cada combate se reproduzca con la IA que tuvo:
   // 1 = hasta el 14-10 (aiLegacy), 2 = desde el 15-10 (habilidades, clima, frenar mejoras), 3 = desde el 24-10 (Sustituto y Drenadoras).
   const day = String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9';
-  // 4 = dobles de VGC (iba a estrenarse el 8-11) y 5 = individuales más listos desde el 6-11; la 5 incluye la 4.
-  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-06' ? 3 : 5;
+  // 4 = dobles de VGC (iba a estrenarse el 8-11), 5 = individuales más listos desde el 6-11 (incluye la 4) y 6 = sin regalar
+  // turnos con Hiperrayo y compañía, desde el 7-11. Cada versión incluye las anteriores.
+  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-06' ? 3 : day < '2026-11-07' ? 5 : 6;
   battle.aiLegacy = battle.aiV === 1; // IA anterior (ver abilityBlocks)
   battle.setPlayer('p2', {name: config.doubles ? duoOf(key).name : config.name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
@@ -719,6 +720,12 @@ function scoreMove(user, target, slot, threat) {
     }
     // Puede dejarle K.O.: prioridad si el rival es más rápido y también nos deja K.O.
     const outsped = speed(target) >= speed(user) && threat >= hp;
+    // IA 6: rematar con Hiperrayo, Gigaimpacto o Anillo Ígneo regala un turno al siguiente Pokémon del rival para mejorarse.
+    // Si otro ataque también remata, ese; si no, solo merece la pena con su último Pokémon o si de todos modos va a caer, y
+    // casi nunca si en su banquillo hay alguien que se aprovecharía (Danza Espada, Paz Mental…).
+    if (user.battle.aiV >= 6 && move.self?.volatileStatus === 'mustrecharge' && target.side.pokemon.some(p => !p.fainted && p !== target) && !outsped) {
+      return target.side.pokemon.some(p => !p.fainted && !p.isActive && p.moveSlots.some(setsUp)) ? 0.5 : 1.2;
+    }
     return 2 + (move.priority > 0 && outsped ? 2 : 0) + dmg * 0.01;
   }
   // Movimientos de estado.

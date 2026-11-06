@@ -353,7 +353,7 @@ test('reto del día: desde el 6-11, sin EVs; el 5-11 no cambia', () => {
 test('IA 5 (desde el 6-11): Azote pega más con poca vida y Esfuerzo deja al rival con la vida del usuario', () => {
   const b = newBattle('2026-11-10', dailyPool('2026-11-10', 'lance'), 'lance', 'none');
   play(b, null);
-  assert.equal(b.aiV, 5);
+  assert.ok(b.aiV >= 5);
   const gyara = b.p2.pokemon.find(p => p.species.name === 'Gyarados'), foe = b.p1.active[0];
   const full = estimate(gyara, foe, 'flail');
   gyara.hp = 1;
@@ -375,4 +375,9 @@ test('desde el 6-11: contra cada campeón, 8 sin EVs para elegir (con los 6 equi
   }
   assert.ok(leaguePool('2026-11-05').every(s => evs(s) < 508));
   assert.ok(leaguePool('2026-11-06').every(s => evs(s) === 508 && s.evs.spe === 252));
+});
+
+test('IA por fecha: 3 hasta el 5-11, 5 el 6-11 y 6 (sin regalar turnos con Hiperrayo) desde el 7-11', () => {
+  const v = date => newBattle(date, dailyPool(date, 'red'), 'red', 'none').aiV;
+  assert.deepEqual(['2026-11-05', '2026-11-06', '2026-11-07', '2026-12-01'].map(v), [3, 5, 6, 6]);
 });

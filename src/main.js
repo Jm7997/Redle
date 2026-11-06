@@ -437,8 +437,9 @@ function renderDraft() {
   const trained = POOL.every(s => Object.values(s.evs).reduce((a, b) => a + b, 0) >= 508);
   $('#train-you').innerHTML = `${itemIcon('Power Bracer')}<span><b>${trained ? T.trainBoss : T.trainYou}</b><small>${trained ? T.trainYouTipMax : POOL_DATE >= '2026-10-30' && POOL.every(s => !Object.values(s.evs).some(Boolean)) ? T.trainYouTipNone : POOL_DATE >= '2026-10-30' ? T.trainYouTipHalf : POOL_DATE >= '2026-10-24' ? T.trainYouTipFull : POOL_DATE >= '2026-10-18' ? T.trainYouTipIV : T.trainYouTip}</small></span>`;
   $('#train-boss').innerHTML = `${itemIcon('Macho Brace')}<span><b>${T.trainBoss}</b><small>${T.trainBossTip}</small></span>`;
-  // Fichas compactas por defecto (sprite, tipos y objeto); estadísticas, habilidad y ataques se despliegan con un toque.
-  const details = ls.get('redle:details') === '1';
+  // Fichas desplegadas por defecto (estadísticas, habilidad y ataques): plegadas, mucha gente no veía los ataques hasta
+  // perder el primer intento. Quien las pliegue, las sigue viendo compactas (sprite, tipos y objeto).
+  const details = ls.get('redle:details') !== '0';
   $('#parties').classList.toggle('compact', !details);
   $('#btn-details').textContent = details ? T.hideDetails : T.showDetails;
   $('#btn-details').onclick = () => { ls.set('redle:details', details ? '0' : '1'); renderDraft(); };

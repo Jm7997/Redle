@@ -3,6 +3,13 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 16, date: '2026-11-06',
+    es: ['Ahora <b>las fichas de tu equipo y del rival salen desplegadas</b>: estadísticas, habilidad y ataques a la vista desde el principio. Mucha gente no los veía hasta perder el primer intento. Si las prefieres compactas, pliégalas y se recordará.',
+      'Desde mañana, <b>los campeones ya no regalan turnos</b>: si pueden rematar con otro ataque, no usan Hiperrayo ni Gigaimpacto, y apenas los usan si en tu banquillo hay alguien listo para mejorarse. Gracias a un jugador de VGC por el aviso.'],
+    en: ['<b>Team cards now start expanded</b>: stats, Ability and moves in view from the start. Many players didn\'t see them until losing their first try. If you prefer them compact, fold them and it\'ll be remembered.',
+      'From tomorrow, <b>champions no longer give away free turns</b>: if another move can finish you off, they won\'t use Hyper Beam or Giga Impact, and they barely use them if your bench has someone ready to set up. Thanks to a VGC player for pointing it out.'],
+  },
+  {
     id: 15, date: '2026-11-05',
     es: ['El primer Reto del día lo ganó el 92 %: elegís de maravilla. Así que, <b>desde mañana, cambio de planes</b>:',
       '⭐ <b>El Reto del día es el mismo equipo de 6 para todo el mundo</b>: el mismo combate para todos, para comparar de verdad quién lo hizo mejor. Solo eliges quién empieza.',
