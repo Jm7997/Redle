@@ -1033,3 +1033,7 @@ body:has(#world.ready) footer { margin-bottom: 12px; border-radius: 14px; color:
 .discord-card { margin-top: 10px; text-decoration: none; }
 .discord-mon { background: linear-gradient(#7984f5, #5865f2); color: #fff; }
 .discord-btn { background: #5865f2; }
+
+/* Pestaña "Equipo rival": las fichas de antes del combate, los debilitados apagados */
+.foe-panel { display: grid; gap: 8px; }
+.foe-panel .slot.out { filter: grayscale(1); opacity: .5; }

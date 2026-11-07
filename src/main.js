@@ -1092,9 +1092,20 @@ function drawTeamPanel() {
 document.querySelectorAll('.tabs button').forEach(b => (b.onclick = () => {
   sfx('click');
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-  $('#controls').hidden = b.dataset.tab !== 'controls';
-  $('#team-panel').hidden = b.dataset.tab !== 'team-panel';
+  for (const id of ['controls', 'team-panel', 'foe-panel']) $('#' + id).hidden = b.dataset.tab !== id;
+  if (b.dataset.tab === 'foe-panel') drawFoePanel();
 }));
+// Pestaña "Equipo rival": las mismas fichas que antes del combate (es información que ya se ve al elegir), con los
+// debilitados apagados y el que está en el campo destacado.
+function drawFoePanel() {
+  const out = faintedMarks('p2', B.team), active = new Set(POS.filter(p => p[1] === '2').map(p => view[p].species));
+  $('#foe-panel').replaceChildren(...B.team.map((set, i) => {
+    const s = slot(set, 'div');
+    s.classList.toggle('out', out[i]);
+    s.classList.toggle('lead', !out[i] && active.has(set.species));
+    return s;
+  }));
+}
 
 // Mecanismo elegido para el próximo ataque: '' | 'terastallize' | 'mega' | 'dynamax'.
 let gimmickOn = '';
@@ -1908,6 +1919,38 @@ $('#btn-restore').onclick = async () => {
   } catch {}
   location.reload();
 };
+// Varios dispositivos con el mismo código de entrenador: al abrir, se mezcla la copia del servidor con la de este navegador.
+// Antes solo se copiaba al restaurar: al cambiar de dispositivo la racha se reiniciaba y la copia nueva pisaba la buena.
+// Gana la racha más reciente (la mejor nunca baja), se añaden los días que falten (o con más progreso), se suman medallas.
+async function syncProgress() {
+  if (PRACTICE || REPLAY) return;
+  const {ok, data} = await loadProgress(playerId());
+  if (!ok || !data?.stores) return;
+  const newer = (a = {}, b = {}) => ((a.last || '') >= (b.last || '') ? a : b);
+  let today = false;
+  for (const [id, remote] of Object.entries(data.stores)) {
+    if (!MODES.includes(id)) continue;
+    const local = id === MODE ? store : readJSON(keyOf(id)), mine = local.stats || {}, theirs = remote.stats || {};
+    const fresh = newer(mine, theirs);
+    local.stats = {...mine, played: Math.max(mine.played || 0, theirs.played || 0), wins: Math.max(mine.wins || 0, theirs.wins || 0),
+      best: Math.max(mine.best || 0, theirs.best || 0), bestRound: Math.max(mine.bestRound || 0, theirs.bestRound || 0), streak: fresh.streak || 0, last: fresh.last || null};
+    local.days ||= {};
+    for (const [date, d] of Object.entries(remote.days || {})) {
+      const have = local.days[date];
+      if (!have || !have.closed && (d.closed || (d.attempt || 1) > (have.attempt || 1))) { local.days[date] = d; if (date === TODAY) today = true; }
+    }
+    if (id === MODE) save(); else ls.set(keyOf(id), JSON.stringify(local));
+  }
+  const s = readJSON('redle:streak'), r = data.streak || {};
+  ls.set('redle:streak', JSON.stringify({...newer(s, r), best: Math.max(s.best || 0, r.best || 0)}));
+  const m = medals();
+  for (const [id, date] of Object.entries(data.medals || {})) if (!m[id] || date < m[id]) m[id] = date;
+  ls.set('redle:medals', JSON.stringify(m));
+  if (!ls.get('redle:nick') && data.nick) ls.set('redle:nick', data.nick);
+  // Si hoy ya jugaste en otro dispositivo, se recarga para enseñarlo (nunca a mitad de un combate, y solo una vez).
+  const firstTime = () => { try { if (sessionStorage.getItem('redle:synced')) return false; sessionStorage.setItem('redle:synced', '1'); return true; } catch { return false; } };
+  if (today && (!battle || battle.ended) && firstTime()) location.reload();
+}
 // Copia que se sube al terminar cada reto: estadísticas, últimos 3 días de cada modo, rachas, medallas y apodo.
 function backup() {
   if (PRACTICE || REPLAY) return;
@@ -2127,6 +2170,7 @@ $('#btn-stats').onclick = showResult;
 $('#btn-settings').onclick = () => { drawSettings(); $('#dlg-settings').showModal(); };
 drawSettings();
 backgroundMons();
+syncProgress().catch(() => {});
 // Etiquetas accesibles de los botones de iconos y fin de la pantalla de carga.
 for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats'], ['btn-news-top', 'newsLink']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();

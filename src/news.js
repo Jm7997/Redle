@@ -3,6 +3,13 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 17, date: '2026-11-07',
+    es: ['Nueva pestaña <b>Equipo rival</b> en el combate: vuelve a ver el equipo del campeón cuando quieras, con los que ya han caído apagados.',
+      '<b>Las rachas ya se mantienen entre dispositivos</b>: si usas el mismo código de entrenador en el móvil y en el ordenador, cada vez que abres Redle se sincroniza (la racha, los retos de hoy y las medallas). Gracias por avisar del fallo.'],
+    en: ['New <b>Rival team</b> tab during battle: check the champion\'s team whenever you want, with the fainted ones greyed out.',
+      '<b>Streaks now carry over between devices</b>: if you use the same trainer code on your phone and computer, Redle syncs every time you open it (streak, today\'s challenges and medals). Thanks for reporting the bug.'],
+  },
+  {
     id: 16, date: '2026-11-06',
     es: ['Ahora <b>las fichas de tu equipo y del rival salen desplegadas</b>: estadísticas, habilidad y ataques a la vista desde el principio. Mucha gente no los veía hasta perder el primer intento. Si las prefieres compactas, pliégalas y se recordará.',
       'Desde mañana, <b>los campeones ya no regalan turnos</b>: si pueden rematar con otro ataque, no usan Hiperrayo ni Gigaimpacto, y apenas los usan si en tu banquillo hay alguien listo para mejorarse. Gracias a un jugador de VGC por el aviso.'],
