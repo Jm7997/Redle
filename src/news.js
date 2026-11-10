@@ -3,6 +3,13 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 18, date: '2026-11-10',
+    es: ['<b>Ya no hace falta gastar los 3 intentos del reto</b> para jugar contra el resto de campeones: en cuanto terminas el primero (ganes o pierdas), se abren todos. Los intentos que te queden siguen ahí para cuando quieras volver.',
+      'En Discord, Pelipper trae ahora también <b>el resumen del reto de ayer</b>: cuántos jugaron, qué porcentaje ganó y quién lo hizo en menos turnos. ¡Ponte un apodo en tu tarjeta de entrenador para salir!'],
+    en: ['<b>No need to use up your 3 daily challenge tries</b> to play the other champions: as soon as you finish the first one (win or lose), they all open up. Your remaining tries stay there for whenever you want to come back.',
+      'On Discord, Pelipper now also brings <b>yesterday\'s challenge summary</b>: how many played, what percentage won and who did it in the fewest turns. Set a nickname on your trainer card to show up!'],
+  },
+  {
     id: 17, date: '2026-11-07',
     es: ['Nueva pestaña <b>Equipo rival</b> en el combate: vuelve a ver el equipo del campeón cuando quieras, con los que ya han caído apagados.',
       '<b>Las rachas ya se mantienen entre dispositivos</b>: si usas el mismo código de entrenador en el móvil y en el ordenador, cada vez que abres Redle se sincroniza (la racha, los retos de hoy y las medallas). Gracias por avisar del fallo.'],

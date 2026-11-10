@@ -83,7 +83,8 @@ const readJSON = k => { try { return JSON.parse(ls.get(k) || '{}') || {}; } catc
 // Reto del día (desde el 5-11-2026): sin modo en el enlace se juega el reto, y hasta terminarlo (ganar o gastar los
 // intentos) los demás rivales esperan. Su rival protagonista no tiene pestaña propia ese día: es el reto.
 const RETO_ON = retoOpen(TODAY), RETO_BOSS = RETO_ON ? retoBoss(TODAY) : null;
-const retoDone = () => !!readJSON(keyOf(RETO.id)).days?.[TODAY]?.closed;
+// Basta con haber terminado un intento (ganado o perdido): obligar a gastar los 3 con un equipo difícil echaba a la gente.
+const retoDone = () => { const d = readJSON(keyOf(RETO.id)).days?.[TODAY]; return !!(d?.closed || d?.result || (d?.attempt || 1) > 1); };
 const vs = params.get('vs');
 const asked = REPLAY ? REPLAY.mode : vs === 'liga' || vs === DOUBLES.id || BOSSES[vs] || vs === RETO.id && RETO_ON ? vs : RETO_ON ? RETO.id : 'red';
 const GATED = RETO_ON && !REPLAY && asked !== RETO.id && (asked === RETO_BOSS || !retoDone() && !params.has('practica'));
@@ -1432,6 +1433,8 @@ function finish(animate) {
     if (animate) jingle('lose'); else playMusic(null);
     $('#prompt').textContent = T.triesLeft(left);
     $('#moves').append(ballBtn(T.tryAgain(attempt() + 1, maxTries()), retry), ballBtn('▶ ' + T.replay, watchReplay, 'ballbtn alt'));
+    // Tras el primer intento del reto ya se puede ir a por otros campeones (los intentos que quedan siguen ahí).
+    if (IS_RETO && !PRACTICE && !REPLAY) { unlockTabs(); const more = moreBtn(); if (more) $('#moves').append(more); }
     return;
   }
   closeDay(r.result === 'win', LIGA ? (r.result === 'win' ? LEAGUE.rounds : round()) : 0);
@@ -1635,16 +1638,18 @@ function shareText() {
   const d = day(), url = `${location.origin}${location.pathname}?vs=${MODE}`;
   if (LIGA) {
     const marks = LINEUP.map((_, i) => d.rounds[i]?.result === 'win' ? '✅' : d.rounds[i]?.result === 'loss' ? '❌' : '⬜').join('');
-    return `Redle ${T.league} #${DAY} 🏟️\n${T.leagueShare(d.reached)}\n${marks}\n${LINEUP.map(id => BOSSES[id].name).join(' · ')}\n${globalLine()}${streakLine()}${url}`;
+    return `Redle ${T.league} #${DAY} 🏟️\n${T.leagueShare(d.reached)}\n${marks}\n${LINEUP.map(id => BOSSES[id].name).join(' · ')}\n${globalLine()}${streakLine()}${url}\n${DISCORD_LINE}`;
   }
   const mine = d.mine.map(f => (f === 0 ? '🟥' : f < 0.5 ? '🟨' : '🟩')).join('');
   const red = d.red.map(a => (a ? '🔴' : '⚫')).join('');
   const left = d.red.filter(Boolean).length;
   const head = d.result === 'win' ? T.shareWin(d.turns) : `${T.shareLoss(d.turns)} · ${T.shareLeft(left)}`;
-  return `Redle #${DAY}${IS_RETO ? ` ⭐ ${T.retoTab}` : ''} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${luckLine()}${globalLine()}${streakLine()}${url}`;
+  return `Redle #${DAY}${IS_RETO ? ` ⭐ ${T.retoTab}` : ''} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${luckLine()}${globalLine()}${streakLine()}${url}\n${DISCORD_LINE}`;
 }
 // La suerte del combate en una línea (solo con el combate cargado en esta visita, que es de donde sale).
 const luckLine = () => (battle?.ended ? T.luckShare[luckReport().verdict] + '\n' : '');
+// Cada resultado compartido invita también a la comunidad.
+const DISCORD_LINE = '💬 discord.gg/QF42NCg83v';
 let todayWinPct = null; // % del día que ganó, para picar a quien lo lea
 const globalLine = () => todayWinPct === null ? '' : T.shareGlobal(todayWinPct, LIGA) + '\n';
 const streakLine = () => { const s = playStreak(); return s.n > 1 ? T.shareStreak(s.n) + '\n' : ''; };

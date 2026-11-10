@@ -2,6 +2,7 @@
 // el reto del día. Lo lanza .github/workflows/pelipper.yml; la URL del webhook va en el secreto DISCORD_WEBHOOK.
 //   DISCORD_WEBHOOK=... node scripts/pelipper.mjs [--force]   (--force: publica aunque sea por la noche)
 import {today, dayNumber, retoOpen, retoBoss, ruleFor, BOSSES, doublesOpen, duoOf} from '../src/game.js';
+import {dailyStats, dailyTop} from '../src/stats.js';
 
 const SD = 'https://play.pokemonshowdown.com/';
 // Retrato de Pelipper de Mundo Misterioso (PMD SpriteCollab, CC BY-NC 4.0: uso sin ánimo de lucro y con crédito).
@@ -24,6 +25,17 @@ const him = ['cynthia', 'iris'].includes(boss.id) ? 'ella' : 'él', them = him =
 const fields = [];
 if (RULES[rule]) fields.push({name: '📜 Regla del día · Rule of the day', value: `${RULES[rule]} · ${RULES_EN[rule]}`, inline: true});
 if (sunday) fields.push({name: '🌀 ¡Es domingo! · It\'s Sunday!', value: `Combate Doble contra **${duoOf(date).name}** · Double Battle`, inline: true});
+// Cómo fue el reto de ayer: cuántos jugaron, qué % ganó y el más rápido (con su apodo, el mismo que sale en el top del
+// juego). Si las estadísticas no responden, se publica igual sin el resumen.
+const prev = new Date(Date.parse(date + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+try {
+  const g = retoOpen(prev) && (await dailyStats(prev))?.reto;
+  if (g?.players) {
+    const best = (await dailyTop(prev, 'reto'))?.find(r => r.won);
+    fields.push({name: '📊 Ayer · Yesterday', value: `**${BOSSES[retoBoss(prev)].name}**: ${g.players} entrenadores · ganó el ${Math.round(100 * g.wins / g.players)} %`
+      + (best ? `\n⚡ Más rápido · Fastest: **${best.nickname || 'Anónimo'}** (${best.turns} turnos)` : '')});
+  }
+} catch (e) { console.log('Sin resumen de ayer:', e.message); }
 
 const res = await fetch(`${hook}?wait=true`, {
   method: 'POST',
