@@ -3,6 +3,11 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 19, date: '2026-11-11',
+    es: ['<b>Compartir el reto del día ya no hace spoiler</b>: el resultado solo muestra los intentos, los turnos y cómo quedaron los dos equipos, sin decir qué Pokémon fue el MVP. Así puedes publicarlo sin destripar la estrategia a nadie. ¡Gracias por la idea!'],
+    en: ['<b>Sharing the daily challenge is now spoiler-free</b>: your result only shows tries, turns and how both teams ended up, without naming your MVP. Post it without giving the strategy away. Thanks for the idea!'],
+  },
+  {
     id: 18, date: '2026-11-10',
     es: ['<b>Ya no hace falta gastar los 3 intentos del reto</b> para jugar contra el resto de campeones: en cuanto terminas el primero (ganes o pierdas), se abren todos. Los intentos que te queden siguen ahí para cuando quieras volver.',
       'En Discord, Pelipper trae ahora también <b>el resumen del reto de ayer</b>: cuántos jugaron, qué porcentaje ganó y quién lo hizo en menos turnos. ¡Ponte un apodo en tu tarjeta de entrenador para salir!'],

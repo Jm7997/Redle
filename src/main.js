@@ -1644,7 +1644,7 @@ function shareText() {
   const red = d.red.map(a => (a ? '🔴' : '⚫')).join('');
   const left = d.red.filter(Boolean).length;
   const head = d.result === 'win' ? T.shareWin(d.turns) : `${T.shareLoss(d.turns)} · ${T.shareLeft(left)}`;
-  return `Redle #${DAY}${IS_RETO ? ` ⭐ ${T.retoTab}` : ''} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp ? `${T.mvp}: ${d.mvp}\n` : ''}${luckLine()}${globalLine()}${streakLine()}${url}\n${DISCORD_LINE}`;
+  return `Redle #${DAY}${IS_RETO ? ` ⭐ ${T.retoTab}` : ''} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp && !IS_RETO ? `${T.mvp}: ${d.mvp}\n` : ''}${luckLine()}${globalLine()}${streakLine()}${url}\n${DISCORD_LINE}`;
 }
 // La suerte del combate en una línea (solo con el combate cargado en esta visita, que es de donde sale).
 const luckLine = () => (battle?.ended ? T.luckShare[luckReport().verdict] + '\n' : '');
@@ -2080,7 +2080,8 @@ async function shareImage() {
     text(B.name, 120, 680, '900 44px Nunito', '#fff', '#0007', 'left');
     d.red.forEach((a, i) => ball(375 + i * 115, 665, 44, !!a));
     if (!d.result || d.result === 'loss') text(T.shareLeft(d.red.filter(Boolean).length), S / 2, 800, '900 42px Nunito', '#ffe08a', '#0007');
-    else if (d.mvp) text(`${T.mvp}: ${d.mvp}`, S / 2, 800, '900 46px Nunito', '#ffe08a', '#0007');
+    // En el reto el equipo es el mismo para todos: decir el MVP sería un spoiler.
+    else if (d.mvp && !IS_RETO) text(`${T.mvp}: ${d.mvp}`, S / 2, 800, '900 46px Nunito', '#ffe08a', '#0007');
   }
   const st = playStreak().n;
   if (st > 1) text(strip(T.shareStreak(st)), S / 2, 890, '900 42px Nunito', '#fff', '#0007');
