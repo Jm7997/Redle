@@ -3,6 +3,15 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 20, date: '2026-11-12',
+    es: ['<b>Pelipper se muda a la cabecera</b>: tócalo arriba del todo y te trae su correo, con el buzón para escribirme si algo falla o se te ocurre una idea, el Discord de Redle y estas novedades. Cuando trae algo nuevo, se pone a dar saltitos.',
+      'Si pierdes los 3 intentos, <b>ahora cuenta tu mejor intento</b> y no el último: el que más Pokémon rivales debilitó es el que sale en tu resultado y en la clasificación del día. Gracias por la idea.',
+      'Desde mañana, <b>cada turno tiene su propia suerte</b>. Los críticos, los fallos y los efectos secundarios siguen siendo los de siempre, pero cambiar una jugada ya no vuelve a repartir los dados de todo el combate: si en el turno 4 cambias de ataque, los turnos siguientes no se barajan de nuevo. Así, lo que aprendes en un intento te sirve en el siguiente. Gracias por avisar de que era imposible encontrar una línea.'],
+    en: ['<b>Pelipper has moved up to the header</b>: tap it at the very top and it brings you its mail, with the mailbox to write to me if something breaks or you have an idea, Redle\'s Discord and these updates. When it brings something new, it starts hopping around.',
+      'If you lose all 3 tries, <b>your best attempt now counts</b>, not the last one: the one where you knocked out the most rival Pokémon is the one shown in your result and in today\'s ranking. Thanks for the idea.',
+      'From tomorrow, <b>each turn has its own luck</b>. Critical hits, misses and side effects work as always, but changing one move no longer reshuffles the dice for the whole battle: if you change your attack on turn 4, the following turns aren\'t shuffled again. That way, what you learn in one try helps you in the next. Thanks for pointing out that it felt impossible to find a line.'],
+  },
+  {
     id: 19, date: '2026-11-11',
     es: ['<b>Compartir el reto del día ya no hace spoiler</b>: el resultado solo muestra los intentos, los turnos y cómo quedaron los dos equipos, sin decir qué Pokémon fue el MVP. Así puedes publicarlo sin destripar la estrategia a nadie. ¡Gracias por la idea!'],
     en: ['<b>Sharing the daily challenge is now spoiler-free</b>: your result only shows tries, turns and how both teams ended up, without naming your MVP. Post it without giving the strategy away. Thanks for the idea!'],

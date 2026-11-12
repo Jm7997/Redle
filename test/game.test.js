@@ -381,3 +381,31 @@ test('IA por fecha: 3 hasta el 5-11, 5 el 6-11 y 6 (sin regalar turnos con Hiper
   const v = date => newBattle(date, dailyPool(date, 'red'), 'red', 'none').aiV;
   assert.deepEqual(['2026-11-05', '2026-11-06', '2026-11-07', '2026-12-01'].map(v), [3, 5, 6, 6]);
 });
+
+test('desde el 13-11 cada turno tiene su propia suerte, y los críticos y las tiradas de daño siguen', async () => {
+  const {turnLuck, TURN_LUCK_FROM} = await import('../src/game.js');
+  assert.ok(!turnLuck('2026-11-12') && turnLuck(TURN_LUCK_FROM) && turnLuck('reto-2026-11-20~2') && turnLuck('practica-abc'));
+  // Dos combates iguales salvo la primera jugada: desde el turno siguiente, la suerte sale de la misma semilla.
+  const date = '2026-11-14', team = dailyPool(date, 'blue').slice(0, 6);
+  const seeds = (day, first) => {
+    const b = newBattle(day, dailyPool(day, 'blue').slice(0, 6), 'blue');
+    play(b, null);
+    play(b, first);
+    while (b.turn < 4 && !b.ended) play(b, 'default');
+    return b.prng.getSeed();
+  };
+  assert.equal(seeds(date, 'move 1'), seeds(date, 'switch 2'));
+  assert.notEqual(seeds('2026-11-12', 'move 1'), seeds('2026-11-12', 'switch 2'), 'antes, cambiar el turno 1 lo barajaba todo');
+  // Antes del 13-11, una sola semilla (los combates guardados se reproducen igual); después, la suerte es la de siempre.
+  let crits = 0, rolls = new Set();
+  for (let d = 0; d < 8; d++) {
+    const k = `${date}#${d}`, t = dailyPool(k, 'leon').slice(0, 6), b = newBattle(k, t, 'leon'), ch = [];
+    play(b, null);
+    while (!b.ended && ch.length < 300) { const x = aiChoice(b, 'p1') || 'default'; play(b, x); ch.push(x); }
+    crits += b.log.filter(l => l.startsWith('|-crit|')).length;
+    assert.equal(replay(k, t, ch, 'leon').turn, b.turn);
+  }
+  assert.ok(crits > 0, 'sigue habiendo golpes críticos');
+  for (let i = 0; i < 20; i++) rolls.add(newBattle(`${date}~${i}`, team, 'blue').randomizer(100));
+  assert.ok(rolls.size > 1, 'el daño sigue variando entre el 85 y el 100 %');
+});

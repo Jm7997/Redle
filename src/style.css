@@ -894,8 +894,12 @@ body.boss-cynthia {
 @media (prefers-reduced-motion: reduce) { .dex-new-mon em { animation: none; } }
 .dex-new button { border: 0; background: none; box-shadow: none; padding: 0; color: inherit; font: 900 14px var(--body); cursor: pointer; }
 
-/* Novedades: el "!" de cuando un entrenador te ve */
+/* El correo de Pelipper en la cabecera: Pelipper en su botón y, si trae algo nuevo, se pone a dar saltitos */
 .news-btn { position: relative; color: var(--dex); font-size: 17px; line-height: 1; }
+.news-btn .mb-mon { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.news-btn .mb-mon .icon-mon { margin: -7px 0 0 -6px; }
+#dlg-news .mail-card { margin-top: 8px; }
+.news-head { margin: 16px 0 8px; font: 700 18px var(--pixel); }
 .news-btn .news-dot { position: absolute; top: -3px; right: -3px; margin: 0; }
 .news-btn.has-news { background: #ffd23f; animation: news-alert 1.1s ease-in-out infinite; }
 @keyframes news-alert { 0%, 60%, 100% { transform: none; } 70% { transform: translateY(-4px) scale(1.12); } 85% { transform: translateY(0) scale(.96); } }
@@ -923,6 +927,11 @@ body.boss-cynthia {
 /* Tu equipo: los tipos junto al nombre */
 .tp-head .types { gap: 3px; }
 .tp-head .type { font-size: 9px; }
+
+/* El mejor intento, en el resultado: una nota como las de los objetos */
+#result-body .best-try { display: flex; align-items: center; gap: 10px; margin: 10px auto 0; max-width: 420px; padding: 8px 12px; border-radius: 12px; border: 2px solid #ffd23f;
+  background: var(--panel-2); font: 600 14px/1.4 var(--body); color: var(--text); text-align: left; }
+.best-try .icon-item { flex: 0 0 auto; }
 
 /* ================= Buzón Pelipper ================= */
 .mail-card { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 14px; padding: 10px 12px; border-radius: 16px; text-align: left;

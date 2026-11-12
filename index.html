@@ -36,7 +36,7 @@
     <div class="dex-lights" aria-hidden="true"><span class="lens"></span><i class="led r"></i><i class="led y"></i><i class="led g"></i></div>
     <h1 class="logo">Redle <span id="day-num"></span><em id="splash" aria-hidden="true"></em></h1>
     <div class="hbtns">
-      <button class="icon news-btn" id="btn-news-top" aria-label="!">!<i class="news-dot" hidden></i></button>
+      <button class="icon news-btn" id="btn-news-top" aria-label="✉"><span class="mb-mon" aria-hidden="true"></span><i class="news-dot" hidden></i></button>
       <button class="icon" id="btn-help" aria-label="?">?</button>
       <button class="icon" id="btn-settings" aria-label="⚙">⚙</button>
       <button class="icon" id="btn-mute" aria-label="♪">♪</button>
@@ -245,8 +245,13 @@
     <button data-close data-i18n="close"></button>
   </dialog>
 
-  <dialog id="dlg-news">
-    <h2 data-i18n="newsTitle"></h2>
+  <!-- El correo de Pelipper (botón de la cabecera): escribirle, el Discord y las novedades, todo en un sitio. -->
+  <dialog id="dlg-news" class="mail">
+    <div class="mail-head"><img class="pelipper" src="https://play.pokemonshowdown.com/sprites/ani/pelipper.gif" alt=""><h2 data-i18n="mailboxTitle"></h2></div>
+    <p class="small" data-i18n="mailboxIntro"></p>
+    <button class="mail-card" data-mail><span class="mail-mon" aria-hidden="true"></span><span class="mail-txt"><b data-i18n="mailAsk"></b><small data-i18n="mailSub"></small></span><span class="mail-btn" data-i18n="mailBtn"></span></button>
+    <a class="mail-card discord-card" href="https://discord.gg/QF42NCg83v" target="_blank" rel="noopener"><span class="mail-mon discord-mon"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M20.3 4.4A19.8 19.8 0 0 0 15.4 2.9l-.6 1.3a18.3 18.3 0 0 0-5.5 0L8.7 2.9a19.7 19.7 0 0 0-4.9 1.5C.7 9-.3 13.6.1 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.8 12.8 0 0 1-1.9-.9l.4-.3a14.2 14.2 0 0 0 12.1 0l.4.3c-.6.4-1.2.7-1.9.9l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.8-9.7-3.5-13.7ZM8 15.3c-1.2 0-2.2-1.1-2.2-2.4S6.8 10.5 8 10.5s2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z"/></svg></span><span class="mail-txt"><b data-i18n="discordAsk"></b><small data-i18n="discordSub"></small></span><span class="mail-btn discord-btn" data-i18n="discordBtn"></span></a>
+    <h3 class="news-head" data-i18n="newsTitle"></h3>
     <div id="news-list" class="news"></div>
     <button data-close data-i18n="close"></button>
   </dialog>

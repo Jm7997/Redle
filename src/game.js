@@ -507,6 +507,20 @@ function bossTeam(boss, plan, key) {
 export function battleGimmicks(key, boss) {
   return String(key).startsWith('liga') ? LEAGUE.gimmicks : configOf(boss).gimmicks || [];
 }
+// Suerte por turno (desde el 13-11; antes, una sola semilla para todo el combate, y así se siguen reproduciendo).
+// La suerte es la de siempre (críticos, tiradas de daño, fallos, efectos secundarios…), pero cada turno la saca de su
+// propia semilla: cambiar una decisión ya no baraja los dados de todo lo que viene después, así que se puede aprender
+// de un intento al siguiente. Antes, cambiar el primer turno lo cambiaba todo y parecía imposible encontrar una línea.
+export const TURN_LUCK_FROM = '2026-11-13';
+// La práctica (sin fecha en la clave) usa siempre las reglas de ahora.
+export const turnLuck = key => (String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9') >= TURN_LUCK_FROM;
+function seedEachTurn(battle, seedKey) {
+  const endTurn = battle.endTurn;
+  battle.endTurn = function () {
+    this.prng.setSeed(seedFor(`${seedKey}:turn:${this.turn + 1}`).join(','));
+    return endTurn.call(this);
+  };
+}
 export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   const gimmicks = battleGimmicks(key, boss), league = String(key).startsWith('liga');
   const config = configOf(boss), format = league ? 9 : config.format || 9;
@@ -521,6 +535,7 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   // turnos con Hiperrayo y compañía, desde el 7-11. Cada versión incluye las anteriores.
   battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-06' ? 3 : day < '2026-11-07' ? 5 : 6;
   battle.aiLegacy = battle.aiV === 1; // IA anterior (ver abilityBlocks)
+  if (turnLuck(key)) seedEachTurn(battle, `battle:${boss}:${key}`);
   battle.setPlayer('p2', {name: config.doubles ? duoOf(key).name : config.name, team: bossTeam(boss, battle.bossPlan, key)});
   // Dinamax en un combate de Gen 9 (solo la Liga): Showdown lo da por gastado desde el inicio fuera de Gen 8.
   if (format !== 8 && gimmicks.includes('dynamax')) {

@@ -2,7 +2,7 @@
 // resultado, repeticiones compartibles y ajustes.
 import {Dex} from '@pkmn/sim';
 import {Sprites, Icons} from '@pkmn/img';
-import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, DOUBLES, duoOf, nextSunday, doublesOpen, poolOf, pokedexList, play, replay, typeMultiplier, RETO, retoOpen, retoBoss, retoPool, bossPool, PICK} from './game.js';
+import {today, msToNext, dayNumber, dailyPool, leaguePool, leagueLineup, ruleFor, battleGimmicks, teamOf, BOSSES, LEAGUE, DOUBLES, duoOf, nextSunday, doublesOpen, poolOf, pokedexList, play, replay, typeMultiplier, RETO, retoOpen, retoBoss, retoPool, bossPool, PICK, turnLuck} from './game.js';
 import {SEASONS, seasonOf, seasonDaysLeft} from './seasons.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, abilityDesc, itemDesc, loadDescs, itemIcon, FIELD_ICON, FIELD_INFO, RULE_TEXT, RULE_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm, setTension} from './audio.js';
@@ -431,7 +431,7 @@ function renderDraft() {
     return s;
   }));
   $('#red-team').replaceChildren(...B.team.map(set => slot(set, 'div')));
-  $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules].filter(Boolean).join('<br>');
+  $('#stage-rules').innerHTML = [ruleHtml(RULE), T.stageRules, turnLuck(DATE) && T.turnLuckRule].filter(Boolean).join('<br>');
   $('#rules').hidden = !$('#stage-rules').innerHTML;
   // Aviso de entrenamiento: tu equipo al azar (Brazal Recio) frente al rival entrenado al máximo (Brazal Firme). En la Liga,
   // desde el 6-11, tú también llegas entrenado al máximo.
@@ -1437,6 +1437,7 @@ function finish(animate) {
     if (IS_RETO && !PRACTICE && !REPLAY) { unlockTabs(); const more = moreBtn(); if (more) $('#moves').append(more); }
     return;
   }
+  if (!LIGA && r.result === 'loss' && !r.closed) keepBestTry(r);
   closeDay(r.result === 'win', LIGA ? (r.result === 'win' ? LEAGUE.rounds : round()) : 0);
   if (animate) jingle(r.result === 'win' ? 'win' : 'lose');
   else playMusic(null);
@@ -1553,11 +1554,28 @@ function drawDex() {
   $('#dex-grid').querySelectorAll('button').forEach(b => { b.onclick = () => { sfx('click'); dexPick = b.dataset.n; drawDex(); }; });
 }
 
+// Si pierdes todos los intentos, cuenta el mejor y no el último: el que más Pokémon rivales debilitó y, si empatan,
+// el que más aguantó (el mismo orden que la clasificación del día). Los intentos de antes del 12-11 solo guardaban
+// turnos y K.O., así que de esos se rehacen las Poké Balls del rival.
+function keepBestTry(d) {
+  let best = null;
+  (d.tries || []).forEach((t, i) => {
+    const b = best || {kos: d.red.filter(a => !a).length, turns: d.turns};
+    if (t.kos > b.kos || t.kos === b.kos && t.turns > b.turns) best = {...t, n: i + 1};
+  });
+  if (!best) return;
+  d.bestTry = best.n;
+  d.turns = best.turns;
+  d.red = best.red || d.red.map((_, i) => (i < best.kos ? 0 : 1));
+  d.mine = best.mine || d.mine.map(() => 0); // perder es quedarse sin Pokémon
+  if (best.mvp) d.mvp = best.mvp; else delete d.mvp;
+}
+
 // Otro intento: se guarda el anterior y se vuelve a la pantalla de equipo (se puede elegir otro líder).
 function retry() {
   const d = day();
-  (d.tries ||= []).push({turns: d.turns, kos: d.red.filter(a => !a).length});
-  for (const k of ['result', 'turns', 'mine', 'red', 'mvp', 'started']) delete d[k];
+  (d.tries ||= []).push({turns: d.turns, kos: d.red.filter(a => !a).length, mine: d.mine, red: d.red, mvp: d.mvp});
+  for (const k of ['result', 'turns', 'mine', 'red', 'mvp', 'started', 'bestTry']) delete d[k];
   d.choices = [];
   d.attempt = (d.attempt || 1) + 1;
   save();
@@ -1643,8 +1661,8 @@ function shareText() {
   const mine = d.mine.map(f => (f === 0 ? '🟥' : f < 0.5 ? '🟨' : '🟩')).join('');
   const red = d.red.map(a => (a ? '🔴' : '⚫')).join('');
   const left = d.red.filter(Boolean).length;
-  const head = d.result === 'win' ? T.shareWin(d.turns) : `${T.shareLoss(d.turns)} · ${T.shareLeft(left)}`;
-  return `Redle #${DAY}${IS_RETO ? ` ⭐ ${T.retoTab}` : ''} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp && !IS_RETO ? `${T.mvp}: ${d.mvp}\n` : ''}${luckLine()}${globalLine()}${streakLine()}${url}\n${DISCORD_LINE}`;
+  const head = d.result === 'win' ? T.shareWin(d.turns) : `${T.shareLoss(d.turns)} · ${T.shareLeft(left)}${d.bestTry ? ` (${T.bestTry(d.bestTry)})` : ''}`;
+  return `Redle #${DAY}${IS_RETO ? ` ⭐ ${T.retoTab}` : ''} ${STAGE.emoji} vs ${B.name}${triesTag()}\n${head}\n${T.you}: ${mine}\n${T.red}: ${red}\n${d.mvp && !IS_RETO ? `${T.mvp}: ${d.mvp}\n` : ''}${d.bestTry ? '' : luckLine()}${globalLine()}${streakLine()}${url}\n${DISCORD_LINE}`;
 }
 // La suerte del combate en una línea (solo con el combate cargado en esta visita, que es de donde sale).
 const luckLine = () => (battle?.ended ? T.luckShare[luckReport().verdict] + '\n' : '');
@@ -1716,7 +1734,7 @@ function showResult() {
   $('#result-title').textContent = !done ? T.stats : LIGA ? (done === 'win' ? T.leagueWon : T.leagueLost(d.reached + 1)) : done === 'win' ? T.won : T.lost;
   $('#result-body').innerHTML = !done ? '' : LIGA
     ? `<div class="lineup small-lineup">${LINEUP.map((id, i) => `<figure class="${d.rounds[i]?.result === 'win' ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : ''}"><img src="${trainerImg(id)}" alt="" width="48" height="48"><figcaption><b>${BOSSES[id].name}</b></figcaption></figure>`).join('')}</div><p>${done === 'win' ? T.leagueWonSub : T.leagueLostSub}</p>`
-    : `<div class="result-faces">${(B.trainers || [OPP]).map(t => `<img class="result-red ${done}" src="${trainerImg(t)}" alt="${B.name}" width="96" height="96">`).join('')}</div><p>${done === 'win' ? T.wonSub : T.lostSub}</p>`;
+    : `<div class="result-faces">${(B.trainers || [OPP]).map(t => `<img class="result-red ${done}" src="${trainerImg(t)}" alt="${B.name}" width="96" height="96">`).join('')}</div><p>${done === 'win' ? T.wonSub : T.lostSub}</p>${d.bestTry ? `<p class="best-try">${itemIcon('Gold Bottle Cap')}<span>${T.bestTryNote(d.bestTry, d.red.filter(a => !a).length)}</span></p>` : ''}`;
   const s = store.stats, days = playStreak().n;
   const cells = LIGA
     ? [[s.played, T.played], [s.wins, T.champions], [`${s.bestRound || 0}/5`, T.bestRound], [days, T.playStreak]]
@@ -1729,7 +1747,7 @@ function showResult() {
   $('#summary').innerHTML = '';
   if (done && battle?.ended) {
     const rows = summary(), mvp = mvpOf(rows);
-    $('#summary').innerHTML = `<h3>${T.summary}</h3><table><tr><th></th><th>${T.kos}</th><th>${T.dmg}</th><th>${T.taken}</th></tr>${rows.map(r =>
+    $('#summary').innerHTML = `<h3>${d.bestTry ? T.lastTry : T.summary}</h3><table><tr><th></th><th>${T.kos}</th><th>${T.dmg}</th><th>${T.taken}</th></tr>${rows.map(r =>
       `<tr class="${r === mvp ? 'mvp' : ''}"><td>${icon(r.species)}${r.species}${r === mvp ? ` <b>${T.mvp}</b>` : ''}</td><td>${r.kos}</td><td>${Math.round(r.dmg)}%</td><td>${Math.round(r.taken)}%</td></tr>`).join('')}</table>${luckHtml(luckReport())}`;
   }
   drawDexNew(d);
@@ -1998,12 +2016,14 @@ document.querySelectorAll('#fb-kind button').forEach(b => (b.onclick = () => {
 // Buzón Pelipper: el pie de página y las tarjetas de la pantalla principal y del resultado lo abren.
 function openFeedback() {
   sfx('click');
+  if ($('#dlg-news').open) $('#dlg-news').close(); // desde el correo de Pelipper: la carta sustituye a la lista
   $('#fb-status').textContent = '';
   $('#dlg-feedback .pelipper').classList.remove('fly');
   $('#dlg-feedback').showModal();
 }
 $('#btn-feedback').onclick = openFeedback;
 document.querySelectorAll('[data-mail]').forEach(b => { b.onclick = openFeedback; b.querySelector('.mail-mon').innerHTML = `${icon('Pelipper')}<i>✉️</i>`; });
+$('#btn-news-top .mb-mon').innerHTML = icon('Pelipper');
 $('#btn-fb-send').onclick = async () => {
   const message = $('#fb-msg').value.trim(), b = $('#btn-fb-send');
   if (message.length < 3) return ($('#fb-status').textContent = T.fbShort);
@@ -2079,7 +2099,7 @@ async function shareImage() {
     });
     text(B.name, 120, 680, '900 44px Nunito', '#fff', '#0007', 'left');
     d.red.forEach((a, i) => ball(375 + i * 115, 665, 44, !!a));
-    if (!d.result || d.result === 'loss') text(T.shareLeft(d.red.filter(Boolean).length), S / 2, 800, '900 42px Nunito', '#ffe08a', '#0007');
+    if (!d.result || d.result === 'loss') text(T.shareLeft(d.red.filter(Boolean).length) + (d.bestTry ? ` (${T.bestTry(d.bestTry)})` : ''), S / 2, 800, '900 42px Nunito', '#ffe08a', '#0007');
     // En el reto el equipo es el mismo para todos: decir el MVP sería un spoiler.
     else if (d.mvp && !IS_RETO) text(`${T.mvp}: ${d.mvp}`, S / 2, 800, '900 46px Nunito', '#ffe08a', '#0007');
   }
@@ -2178,7 +2198,7 @@ drawSettings();
 backgroundMons();
 syncProgress().catch(() => {});
 // Etiquetas accesibles de los botones de iconos y fin de la pantalla de carga.
-for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats'], ['btn-news-top', 'newsLink']]) $('#' + id).setAttribute('aria-label', T[key]);
+for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats'], ['btn-news-top', 'mailboxTitle']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();
 document.querySelectorAll('img').forEach(im => { if (im.complete) im.classList.add('ok'); }); // las que llegaron antes
 // Las descripciones llegan aparte: si ya hay botones de ataque en pantalla, se repintan con ellas.
