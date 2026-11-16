@@ -468,9 +468,19 @@ const dateOf = key => String(key).match(/\d{4}-\d\d-\d\d/)?.[0];
 const DS_VGC = {Pikachu: ['Iron Tail', 'Electroweb'], Spiritomb: ['Shadow Ball', 'Snarl'], Druddigon: ['Fire Punch', 'Glare']};
 export function teamOf(boss, key) {
   const b = BOSSES[boss], d = dateOf(key);
-  if (boss === DOUBLES.id) return duoOf(key).team.map(s => (d >= DOUBLES_HARD_FROM && DS_VGC[s.species]
-    ? {...s, moves: s.moves.map(m => (m === DS_VGC[s.species][0] ? DS_VGC[s.species][1] : m))} : s));
-  return b.oldTeam && d && d < b.oldTeam.until ? b.oldTeam.team : b.team;
+  if (boss === DOUBLES.id) return uniqueNames(duoOf(key).team.map(s => (d >= DOUBLES_HARD_FROM && DS_VGC[s.species]
+    ? {...s, moves: s.moves.map(m => (m === DS_VGC[s.species][0] ? DS_VGC[s.species][1] : m))} : s)));
+  return uniqueNames(b.oldTeam && d && d < b.oldTeam.until ? b.oldTeam.team : b.team);
+}
+// Lance lleva tres Dragonite: en el registro del combate todos se llamaban igual y la interfaz mezclaba lo visto de
+// cada uno (los ataques del primero salían en la ficha del segundo) y cuál había caído. Los repetidos llevan un mote
+// que se ve igual (el nombre más espacios de anchura cero), y así cada uno es distinto. No cambia nada del combate.
+function uniqueNames(team) {
+  if (new Set(team.map(s => s.species)).size === team.length) return team;
+  return team.map((s, i) => {
+    const n = team.slice(0, i).filter(t => t.species === s.species).length;
+    return n ? {...s, name: s.species + '​'.repeat(n)} : s;
+  });
 }
 
 // `key` identifica el combate (fecha, práctica o ronda de Liga) y da la semilla; `rule` es la regla del día.

@@ -934,6 +934,19 @@ body.boss-cynthia {
 .best-try .icon-item { flex: 0 0 auto; }
 
 /* ================= Buzón Pelipper ================= */
+/* Tus cartas, con su sello de estado y la respuesta de Pelipper en un bocadillo */
+.letters { display: grid; gap: 8px; }
+.letters article { padding: 10px 12px; border-radius: 12px; background: #fff8ea; border: 2px solid #e8d6b0; color: #3a2e18; }
+.letters article.unseen { border-color: #ffd23f; box-shadow: 0 0 0 2px #ffd23f55; }
+.lt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 4px; }
+.lt-head small { color: #8a7448; font-size: 12px; }
+.lt-status { padding: 1px 8px; border-radius: 8px; font: 700 13px var(--pixel); background: #eadcbd; }
+.lt-status.working { background: #ffe08a; } .lt-status.done { background: #b9ebb0; } .lt-status.answered { background: #cfeaff; }
+.lt-msg { margin: 0; font-size: 13px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.lt-reply { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.lt-reply .icon-mon { flex: 0 0 auto; margin-top: -4px; }
+.lt-reply p { margin: 0; padding: 8px 10px; border-radius: 10px; background: #fbfbfb; color: #404040; box-shadow: inset 0 0 0 2px #6a7fa8;
+  font: 500 15px/1.3 var(--pixel); white-space: pre-line; overflow-wrap: anywhere; }
 .mail-card { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 14px; padding: 10px 12px; border-radius: 16px; text-align: left;
   border: 3px solid var(--line); background: var(--panel); box-shadow: 0 3px 0 var(--line); color: var(--text); transition: transform .12s, box-shadow .12s; }
 .mail-card:hover { transform: translateY(-2px); box-shadow: 0 5px 0 var(--line); }

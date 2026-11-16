@@ -68,6 +68,17 @@ export async function sendFeedback({kind, message, contact, context}) {
   } catch { return false; }
 }
 
+// Tus cartas al buzón con su estado y la respuesta de Pelipper: [{id, kind, message, status, reply, created_at, replied_at}] o null.
+export const myLetters = () => rpc('my_letters', {p_player: playerId()});
+
+// Resumen de una semana del reto del día (para Pelipper en Discord): {days: [{day, players, wins}], champs: [{nickname, wins}]} o null.
+export async function weeklyReto(from, to) {
+  const rows = await rpc('weekly_reto', {p_from: from, p_to: to});
+  if (!Array.isArray(rows)) return null;
+  return {days: rows.filter(r => r.day).map(r => ({day: r.day, players: r.players, wins: r.wins})).sort((a, b) => a.day.localeCompare(b.day)),
+    champs: rows.filter(r => r.nickname).map(r => ({nickname: r.nickname, wins: r.nick_wins})).sort((a, b) => b.wins - a.wins)};
+}
+
 // Copia del progreso ligada al código de entrenador, para seguir en otro dispositivo.
 export const saveProgress = async data => (await call('save_progress', {p_player: playerId(), p_data: data})).ok;
 // {ok, data}: data null = ese código no tiene copia.

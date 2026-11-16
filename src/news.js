@@ -1,7 +1,17 @@
-// Novedades que se ven en la web ("Novedades" en el pie). La más reciente, arriba; `id` creciente.
+// Novedades que se ven en la web (Correo de Pelipper y "Novedades" en el pie). Al subirlas, Pelipper las anuncia en
+// Discord (scripts/pelipper-news.mjs). La más reciente, arriba; `id` creciente.
 // Para publicar una nueva: añadirla al principio con el siguiente id, en los dos idiomas. Quien no la haya visto
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
+  {
+    id: 21, date: '2026-11-16',
+    es: ['<b>Pelipper ya trae respuestas</b>: si me escribes desde su buzón, en el Correo de Pelipper verás <b>Tus cartas</b>, cada una con su sello (Recibida, En ello, ¡Hecho! o Respondida) y mi respuesta. Cuando llegue una, Pelipper dará saltitos y te avisará: <b>¡Tienes correo!</b>',
+      'Y en Discord, Pelipper anuncia cada novedad del juego y, los lunes, trae el resumen de la semana: cómo fue cada reto, el más duro y quién ganó más (con apodo).',
+      'Arreglado: cuando un rival lleva <b>varios Pokémon de la misma especie</b> (los tres Dragonite de Lance), la ficha de cada uno mezclaba lo que habías visto de los otros, como el Trueno del primero en la ficha del segundo. Ahora cada uno tiene su ficha. Gracias por avisar.'],
+    en: ['<b>Pelipper now brings replies</b>: if you write to me from its mailbox, Pelipper Post will show <b>Your letters</b>, each with its stamp (Received, On it, Done! or Answered) and my reply. When one arrives, Pelipper will hop around and let you know: <b>You\'ve got mail!</b>',
+      'And on Discord, Pelipper announces every update and, on Mondays, brings the weekly recap: how each challenge went, the toughest one and who won the most (with a nickname).',
+      'Fixed: when a rival has <b>several Pokémon of the same species</b> (Lance\'s three Dragonite), each one\'s card mixed up what you had seen from the others, like the first one\'s Thunder showing on the second one\'s card. Now each has its own. Thanks for reporting it.'],
+  },
   {
     id: 20, date: '2026-11-12',
     es: ['<b>Pelipper se muda a la cabecera</b>: tócalo arriba del todo y te trae su correo, con el buzón para escribirme si algo falla o se te ocurre una idea, el Discord de Redle y estas novedades. Cuando trae algo nuevo, se pone a dar saltitos.',

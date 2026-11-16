@@ -1,0 +1,36 @@
+# Pelipper anuncia en Discord las novedades nuevas (ver scripts/pelipper-news.mjs) cada vez que se sube un cambio a
+# src/news.js. A mano (Actions → Pelipper novedades → Run workflow) vuelve a publicar la entrada que se le diga.
+name: Pelipper novedades
+
+on:
+  push:
+    branches: [main]
+    paths: [src/news.js]
+  workflow_dispatch:
+    inputs:
+      id:
+        description: 'id de la novedad que publicar'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # El id va por variable de entorno, no pegado en el comando.
+      - run: node scripts/pelipper-news.mjs ${NEWS_ID:+--id "$NEWS_ID"}
+        env:
+          NEWS_ID: ${{ inputs.id }}
+          BEFORE: ${{ github.event.before }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_NEWS_WEBHOOK: ${{ secrets.DISCORD_NEWS_WEBHOOK }}

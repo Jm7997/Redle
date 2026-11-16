@@ -7,7 +7,7 @@ import {SEASONS, seasonOf, seasonDaysLeft} from './seasons.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, abilityDesc, itemDesc, loadDescs, itemIcon, FIELD_ICON, FIELD_INFO, RULE_TEXT, RULE_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm, setTension} from './audio.js';
 import {NEWS} from './news.js';
-import {sendResult, dailyStats, dailyRank, dailyTop, dailyWins, sendFeedback, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
+import {sendResult, dailyStats, dailyRank, dailyTop, dailyWins, sendFeedback, myLetters, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
 const dex = Dex.forGen(9);
@@ -466,7 +466,8 @@ const slotSel = pos => `.${pos[1] === '1' ? 'me' : 'foe'}${pos[2] === 'b' ? '.b'
 const img = pos => $(`.mon${slotSel(pos)}`);
 const opposite = pos => POS.find(p => p[1] !== pos[1] && view[p].hp > 0) || POS.find(p => p[1] !== pos[1]);
 const wait = ms => sleep(ms / speed);
-const seenOf = species => (view.seen[species] ||= {moves: new Set()});
+// Lo visto de cada Pokémon rival, por su nombre en el combate (no por especie: Lance lleva tres Dragonite).
+const seenOf = name => (view.seen[name] ||= {moves: new Set()});
 // Lista de pistas del rival: empieza por una distinta cada día (y en cada ronda de la Liga) y al acabar una suena la siguiente.
 const playBattleMusic = () => playMusic(STAGE.music, DAY + round());
 
@@ -650,7 +651,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
   // Cartel del objeto o la habilidad que provoca el efecto.
   const item = fromTag(tags, 'item'), ability = fromTag(tags, 'ability');
   if ((item || ability) && cls) {
-    if (side === 'p2' && view[pos].species) Object.assign(seenOf(view[pos].species), item ? {item} : {ability});
+    if (side === 'p2' && view[pos].species) Object.assign(seenOf(view[pos].name), item ? {item} : {ability});
     if (animate) popup(cls, item ? `${itemIcon(item)}${itemName(item)}` : `<small>${parseId(a).name}</small>${abilityName(ability)}`);
   }
   switch (cmd) {
@@ -661,7 +662,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       // Relevo o Shed Tail (el log no lo vuelve a anunciar).
       const passed = ['Baton Pass', 'Shed Tail'].includes(view.lastMove?.move) && view.lastMove.pos === pos && view[pos].sub;
       Object.assign(view[pos], fresh(), {name, species, sub: passed, gender: details.find(d => d === 'M' || d === 'F') || '', level: +(details.find(d => /^L\d+$/.test(d)) || 'L100').slice(1)});
-      if (side === 'p2') seenOf(species);
+      if (side === 'p2') seenOf(name);
       const im = img(pos);
       im.classList.remove('faint', 'enter', 'under');
       const owner = B.trainers && side === 'p2' ? BOSSES[B.team.find(t => t.species === species || t.name === name)?.trainer]?.name : null; // en dobles, quién lo saca
@@ -689,7 +690,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       const target = c.startsWith('p') ? posOf(c) : opposite(pos);
       // Ataques a varios a la vez: el log trae todos los objetivos ([spread] p2a,p2b).
       const spread = (tags.match(/\[spread\] ([^|]*)/)?.[1] || '').split(',').filter(p => DOUBLE && POS.includes(p));
-      if (side === 'p2') seenOf(view[pos].species).moves.add(b);
+      if (side === 'p2') seenOf(view[pos].name).moves.add(b);
       img(pos).classList.remove('under'); // vuelve de Vuelo, Excavar…
       view.lastMove = {side, pos, move: b};
       await say(T.uses(who(a), `<i>${moveName(b)}</i>`), animate, cls);
@@ -797,11 +798,11 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       for (const k in view[pos].boosts) if (view[pos].boosts[k] < 0) delete view[pos].boosts[k];
       drawHud(pos); return;
     case '-enditem':
-      if (side === 'p2') seenOf(view[pos].species).item = b;
+      if (side === 'p2') seenOf(view[pos].name).item = b;
       if (animate) { popup(cls, `${itemIcon(b)}${itemName(b)}`); sfx('item'); }
       return say((tags.includes('[eat]') ? T.ate : T.usedItem)(who(a), itemName(b)), animate, cls);
     case '-item': { // un Pokémon consigue o enseña un objeto: Cosecha, Reciclaje, Truco, Ladrón, Recogida, Cacheo, Globo Helio
-      if (side === 'p2') seenOf(view[pos].species).item = b;
+      if (side === 'p2') seenOf(view[pos].name).item = b;
       if (animate) { popup(cls, `${itemIcon(b)}${itemName(b)}`); sfx('item'); }
       const item = itemName(b), from = fromTag(tags, 'ability') || fromTag(tags, 'move') || '';
       const of = tags.match(/\[of\] (p[12]a?: [^|]+)/)?.[1];
@@ -811,7 +812,7 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       return say(msg(who(a), item), animate, cls);
     }
     case '-ability':
-      if (side === 'p2') seenOf(view[pos].species).ability = b;
+      if (side === 'p2') seenOf(view[pos].name).ability = b;
       if (animate) { popup(cls, `<small>${parseId(a).name}</small>${abilityName(b)}`); sfx('item'); await wait(700); }
       return;
     case '-weather': // |-weather|TIPO|[upkeep]: el tipo va en el primer campo
@@ -1099,11 +1100,11 @@ document.querySelectorAll('.tabs button').forEach(b => (b.onclick = () => {
 // Pestaña "Equipo rival": las mismas fichas que antes del combate (es información que ya se ve al elegir), con los
 // debilitados apagados y el que está en el campo destacado.
 function drawFoePanel() {
-  const out = faintedMarks('p2', B.team), active = new Set(POS.filter(p => p[1] === '2').map(p => view[p].species));
+  const out = faintedMarks('p2', B.team), active = new Set(POS.filter(p => p[1] === '2').map(p => view[p].name));
   $('#foe-panel').replaceChildren(...B.team.map((set, i) => {
     const s = slot(set, 'div');
     s.classList.toggle('out', out[i]);
-    s.classList.toggle('lead', !out[i] && active.has(set.species));
+    s.classList.toggle('lead', !out[i] && active.has(set.name || set.species));
     return s;
   }));
 }
@@ -1333,7 +1334,7 @@ document.querySelectorAll('.hud.me').forEach(h => { h.onclick = () => { $('.tabs
 document.querySelectorAll('.hud.foe').forEach(h => { h.onclick = () => foeCard(view[h.classList.contains('b') ? 'p2b' : POS[POS.length / 2]]); });
 function foeCard(v) {
   if (!v.species) return;
-  const sp = dex.species.get(v.species), seen = seenOf(v.species);
+  const sp = dex.species.get(v.species), seen = seenOf(v.name);
   $('#foe-body').innerHTML = `
     <div class="foe-card"><img src="${spriteOf(v.species).url}" alt=""><div>
       <b>${v.name}</b> · ${T.level}${v.level}<div class="types">${sp.types.map(typeBadge).join('')}</div>
@@ -1341,7 +1342,7 @@ function foeCard(v) {
       ${seen.ability ? `<div>${abilityTip(seen.ability)}</div>` : ''}${seen.item ? `<div>${itemTip(seen.item)}</div>` : ''}
     </div></div>
     <p><b>${T.revealed}:</b> ${[...seen.moves].map(m => moveName(m)).join(', ') || T.none}</p>
-    <div class="icons">${faintedMarks('p2', B.team).map((o, i) => icon(B.team[i].species, o ? 'out' : view.seen[B.team[i].species] ? '' : 'unseen')).join('')}</div>`;
+    <div class="icons">${faintedMarks('p2', B.team).map((o, i) => icon(B.team[i].species, o ? 'out' : view.seen[B.team[i].name || B.team[i].species] ? '' : 'unseen')).join('')}</div>`;
   $('#dlg-foe').showModal();
 }
 
@@ -1992,15 +1993,40 @@ function backup() {
 const NEWS_NOW = NEWS.filter(n => n.date <= TODAY);
 const hasNews = () => (+ls.get('redle:news') || 0) < NEWS_NOW[0].id;
 function drawNewsDot() {
-  document.querySelectorAll('.news-dot').forEach(d => { d.hidden = !hasNews(); });
-  $('#btn-news-top').classList.toggle('has-news', hasNews());
+  const any = hasNews() || newReplies().length > 0;
+  document.querySelectorAll('.news-dot').forEach(d => { d.hidden = !any; });
+  $('#btn-news-top').classList.toggle('has-news', any);
+}
+
+// Tus cartas: lo que has mandado al buzón, en qué está y la respuesta. Las respuestas se escriben en Supabase (tabla
+// feedback: status y reply); al cambiarlas, replied_at avisa: Pelipper da saltitos y sale "¡Tienes correo!".
+let letters = [];
+const lettersSeen = () => ls.get('redle:letters') || '';
+const newReplies = () => letters.filter(l => l.replied_at && l.replied_at > lettersSeen());
+const LETTER_ICON = {received: '📨', working: '🔧', done: '✅', answered: '💬'};
+function drawLetters() {
+  const fmt = d => new Date(d).toLocaleDateString(LANG, {day: 'numeric', month: 'long'});
+  $('#letters').innerHTML = !letters.length ? '' : `<h3 class="news-head">${T.lettersTitle}</h3><div class="letters">${letters.map(l => `<article class="${l.replied_at && l.replied_at > lettersSeen() ? 'unseen' : ''}">
+    <p class="lt-head"><span class="lt-status ${l.status}">${LETTER_ICON[l.status] || ''} ${T.letterStatus[l.status] || ''}</span><small>${fmt(l.created_at)}</small></p>
+    <p class="lt-msg">${esc(l.message)}</p>${l.reply ? `<div class="lt-reply">${icon('Pelipper')}<p>${esc(l.reply)}</p></div>` : ''}</article>`).join('')}</div>`;
+}
+async function loadLetters() {
+  const r = await myLetters();
+  if (!Array.isArray(r)) return;
+  letters = r;
+  drawNewsDot();
+  if ($('#dlg-news').open) drawLetters();
+  else if (newReplies().length) toast(`${icon('Pelipper')} ${T.gotMail}`);
 }
 function openNews() {
   const seen = +ls.get('redle:news') || 0;
   const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString(LANG, {day: 'numeric', month: 'long'});
   $('#news-list').innerHTML = NEWS_NOW.map(n => `<section class="${n.id > seen ? 'unseen' : ''}"><h3>${fmt(n.date)}${n.id > seen ? ` <em>${T.newsNew}</em>` : ''}</h3>
     <ul>${(LANG === 'es' ? n.es : n.en).map(x => `<li>${x}</li>`).join('')}</ul></section>`).join('');
+  drawLetters();
   ls.set('redle:news', NEWS_NOW[0].id);
+  const last = letters.map(l => l.replied_at || '').sort().pop();
+  if (last) ls.set('redle:letters', last);
   drawNewsDot();
   $('#dlg-news').showModal();
 }
@@ -2036,6 +2062,7 @@ $('#btn-fb-send').onclick = async () => {
   $('#fb-msg').value = '';
   $('#dlg-feedback .pelipper').classList.add('fly'); // y se va volando con la carta
   cry('pelipper');
+  loadLetters(); // ya sale en "Tus cartas" como recibida
 };
 
 // Instalar Redle como app, para volver cada día con un toque. Se ofrece al terminar un reto (cuando más apetece
@@ -2197,6 +2224,7 @@ $('#btn-settings').onclick = () => { drawSettings(); $('#dlg-settings').showModa
 drawSettings();
 backgroundMons();
 syncProgress().catch(() => {});
+loadLetters();
 // Etiquetas accesibles de los botones de iconos y fin de la pantalla de carga.
 for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats'], ['btn-news-top', 'mailboxTitle']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();
