@@ -4,6 +4,17 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 22, date: '2026-11-21',
+    es: ['<b>Ganar el reto del día ya cuenta como victoria contra ese campeón</b>: su medalla se enciende en tu tarjeta de entrenador. Los retos que ya habías ganado también cuentan. Gracias por avisar.',
+      'Cuando <b>Absorbe Fuego</b> se traga un ataque de Fuego, ahora el combate lo dice: no le afecta y sus ataques de Fuego ganan potencia. Ya funcionaba, pero no salía ningún mensaje.',
+      'Cuando sale un Pokémon con <b>Rompemoldes</b> (como el Haxorus de Leon), el combate explica que sus ataques ignoran habilidades como Levitación. Por eso el Terremoto alcanzaba a vuestros Pokémon con Levitación.',
+      'Desde mañana, la <b>Ilusión de Zoroark</b> también engaña a los campeones: atacarán al Pokémon por el que se hace pasar, no al Zoroark de verdad.'],
+    en: ['<b>Winning the daily challenge now counts as a win against that champion</b>: their medal lights up on your trainer card. Challenges you had already won count too. Thanks for reporting it.',
+      'When <b>Flash Fire</b> absorbs a Fire attack, the battle now says so: it doesn\'t affect it and its Fire moves get stronger. It already worked, but no message appeared.',
+      'When a Pokémon with <b>Mold Breaker</b> comes out (like Leon\'s Haxorus), the battle explains that its moves ignore abilities like Levitate. That\'s why Earthquake was hitting your Levitate Pokémon.',
+      'From tomorrow, <b>Zoroark\'s Illusion</b> fools the champions too: they will attack the Pokémon it\'s disguised as, not the real Zoroark.'],
+  },
+  {
     id: 21, date: '2026-11-16',
     es: ['<b>Pelipper ya trae respuestas</b>: si me escribes desde su buzón, en el Correo de Pelipper verás <b>Tus cartas</b>, cada una con su sello (Recibida, En ello, ¡Hecho! o Respondida) y mi respuesta. Cuando llegue una, Pelipper dará saltitos y te avisará: <b>¡Tienes correo!</b>',
       'Y en Discord, Pelipper anuncia cada novedad del juego y, los lunes, trae el resumen de la semana: cómo fue cada reto, el más duro y quién ganó más (con apodo).',

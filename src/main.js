@@ -814,6 +814,8 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
     case '-ability':
       if (side === 'p2') seenOf(view[pos].name).ability = b;
       if (animate) { popup(cls, `<small>${parseId(a).name}</small>${abilityName(b)}`); sfx('item'); await wait(700); }
+      // Rompemoldes y compañía: explicar que ignora Levitación y demás (varias cartas creían que Levitación fallaba).
+      if (['Mold Breaker', 'Teravolt', 'Turboblaze'].includes(b)) return say(T.moldBreaker(who(a), abilityName(b)), animate, cls);
       return;
     case '-weather': // |-weather|TIPO|[upkeep]: el tipo va en el primer campo
       view.weather = a === 'none' ? '' : a;
@@ -921,6 +923,8 @@ async function step([cmd, a = '', b = '', c = '', ...rest], animate) {
       if (b.includes('Encore')) return say(T.encored(who(a)), animate, cls);
       if (b.includes('Yawn')) return say(T.drowsy(who(a)), animate, cls);
       if (/^perish\d/.test(b) && !tags.includes('[silent]')) return say(T.perish(who(a), b.slice(6)), animate, cls);
+      // Absorbe Fuego: el ataque de Fuego no le hace nada y potencia los suyos (antes no salía ningún mensaje).
+      if (b === 'ability: Flash Fire') { if (animate) sfx('boost'); return say(T.flashFire(who(a)), animate, cls); }
       return;
     case '-end':
       if (b === 'Dynamax') {
@@ -1365,7 +1369,8 @@ function closeDay(won, reached) {
   if (LIGA) s.bestRound = Math.max(s.bestRound || 0, reached);
   d.dexNew = dexNewToday(won);
   save();
-  if (won) { award(MODE); if (!LIGA) awardFeats(d, attempt()); if (SEASON) award(`season:${SEASON.id}:${TODAY.slice(0, 4)}`); }
+  // Ganar el reto del día cuenta también como victoria contra ese campeón (su medalla en la tarjeta de entrenador).
+  if (won) { award(MODE); if (IS_RETO) award(RETO_BOSS); if (!LIGA) awardFeats(d, attempt()); if (SEASON) award(`season:${SEASON.id}:${TODAY.slice(0, 4)}`); }
   bumpStreak();
   sendResult(myResult());
   backup();
@@ -1845,8 +1850,9 @@ function awardFeats(d, attempt, quiet) {
   if (Object.keys(BOSSES).every(id => medals()[id])) award('all', quiet);
 }
 // Medallas de lo ganado antes de que existieran (en el historial guardado de cada modo y la mejor racha).
-for (const id of MODES) for (const d of Object.values(readJSON(keyOf(id)).days || {})) if (d.result === 'win') {
+for (const id of MODES) for (const [date, d] of Object.entries(readJSON(keyOf(id)).days || {})) if (d.result === 'win') {
   award(id, true);
+  if (id === RETO.id && /^d{4}-dd-dd$/.test(date)) award(retoBoss(date), true); // los retos ganados antes del 21-11
   if (id !== 'liga') awardFeats(d, d.attempt || 1, true);
 }
 for (const [n] of STREAK_MEDALS) if ((readJSON('redle:streak').best || 0) >= n) award('streak' + n, true);

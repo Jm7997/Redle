@@ -377,9 +377,25 @@ test('desde el 6-11: contra cada campeón, 8 sin EVs para elegir (con los 6 equi
   assert.ok(leaguePool('2026-11-06').every(s => evs(s) === 508 && s.evs.spe === 252));
 });
 
-test('IA por fecha: 3 hasta el 5-11, 5 el 6-11 y 6 (sin regalar turnos con Hiperrayo) desde el 7-11', () => {
+test('IA por fecha: 3 hasta el 5-11, 5 el 6-11, 6 (sin regalar turnos con Hiperrayo) desde el 7-11 y 7 (Ilusión) desde el 22-11', () => {
   const v = date => newBattle(date, dailyPool(date, 'red'), 'red', 'none').aiV;
-  assert.deepEqual(['2026-11-05', '2026-11-06', '2026-11-07', '2026-12-01'].map(v), [3, 5, 6, 6]);
+  assert.deepEqual(['2026-11-05', '2026-11-06', '2026-11-07', '2026-11-21', '2026-11-22', '2026-12-01'].map(v), [3, 5, 6, 6, 7, 7]);
+});
+
+test('desde la IA 7, Ilusión engaña a la IA: ve los tipos del disfraz y después todo queda como estaba', async () => {
+  const {Battle} = await import('@pkmn/sim');
+  const pick = aiV => {
+    const b = new Battle({formatid: 'gen9customgame', seed: [1, 2, 3, 4]});
+    b.aiV = aiV;
+    b.setPlayer('p1', {name: 'a', team: [{species: 'Zoroark', ability: 'Illusion', moves: ['nightdaze'], level: 100}, {species: 'Gengar', ability: 'Cursed Body', moves: ['shadowball'], level: 100}]});
+    b.setPlayer('p2', {name: 'b', team: [{species: 'Lucario', ability: 'Inner Focus', moves: ['aurasphere', 'shadowball', 'flashcannon', 'nastyplot'], level: 100}]});
+    b.choose('p1', 'default'); b.choose('p2', 'default');
+    const c = aiChoice(b, 'p2');
+    assert.deepEqual(b.p1.active[0].getTypes(), ['Dark'], 'el Zoroark de verdad no cambia');
+    return c;
+  };
+  assert.equal(pick(6), 'move 1'); // antes: Esfera Aural, eficaz contra el Zoroark que no se ve
+  assert.notEqual(pick(7), 'move 1'); // ahora cree que es Gengar, inmune a Lucha
 });
 
 test('desde el 13-11 cada turno tiene su propia suerte, y los críticos y las tiradas de daño siguen', async () => {

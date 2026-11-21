@@ -542,8 +542,9 @@ export function newBattle(key, team, boss = 'red', rule = ruleFor(key, boss)) {
   // 1 = hasta el 14-10 (aiLegacy), 2 = desde el 15-10 (habilidades, clima, frenar mejoras), 3 = desde el 24-10 (Sustituto y Drenadoras).
   const day = String(key).match(/\d{4}-\d\d-\d\d/)?.[0] || '9';
   // 4 = dobles de VGC (iba a estrenarse el 8-11), 5 = individuales más listos desde el 6-11 (incluye la 4) y 6 = sin regalar
-  // turnos con Hiperrayo y compañía, desde el 7-11. Cada versión incluye las anteriores.
-  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-06' ? 3 : day < '2026-11-07' ? 5 : 6;
+  // turnos con Hiperrayo y compañía, desde el 7-11; 7 = Ilusión de Zoroark: la IA ve el disfraz, no al de verdad,
+  // desde el 22-11. Cada versión incluye las anteriores.
+  battle.aiV = day < '2026-10-15' ? 1 : day < '2026-10-24' ? 2 : day < '2026-11-06' ? 3 : day < '2026-11-07' ? 5 : day < '2026-11-22' ? 6 : 7;
   battle.aiLegacy = battle.aiV === 1; // IA anterior (ver abilityBlocks)
   if (turnLuck(key)) seedEachTurn(battle, `battle:${boss}:${key}`);
   battle.setPlayer('p2', {name: config.doubles ? duoOf(key).name : config.name, team: bossTeam(boss, battle.bossPlan, key)});
@@ -803,7 +804,20 @@ function scoreMove(user, target, slot, threat) {
 }
 
 // Elección del jugador `side` dada la petición actual. Determinista.
+// Ilusión (desde la IA 7): mientras decide, el Zoroark disfrazado del otro lado tiene los tipos de su disfraz, como lo
+// vería un jugador (antes la IA lo "veía" y le tiraba ataques eficaces contra el Zoroark de verdad). Se deshace al acabar.
 export function aiChoice(battle, sideId = 'p2') {
+  const fooled = battle.aiV >= 7 ? battle.sides.filter(s => s.id !== sideId).flatMap(s => s.active).filter(p => p?.illusion && !p.fainted) : [];
+  for (const p of fooled) {
+    const fake = p.illusion;
+    p.getTypes = (...args) => fake.getTypes(...args);
+    p.hasType = type => fake.hasType(type);
+  }
+  try { return decide(battle, sideId); } finally {
+    for (const p of fooled) { delete p.getTypes; delete p.hasType; }
+  }
+}
+function decide(battle, sideId) {
   const side = battle[sideId];
   const req = side.activeRequest;
   if (!req || req.wait) return null;
