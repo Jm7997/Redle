@@ -739,6 +739,13 @@ body.boss-cynthia {
 .duo-when { margin: 10px 0; font-weight: 900; color: var(--dex); }
 .duo-rules { margin: 10px auto; max-width: 520px; padding-left: 20px; text-align: left; line-height: 1.4; }
 .duo-back { display: inline-block; text-decoration: none; }
+/* La revancha del domingo pasado: una tarjeta de entrenamiento, como el gimnasio de práctica de los juegos */
+.rematch { max-width: 520px; margin: 14px auto 16px; padding: 12px 14px 14px; border-radius: 16px; border: 3px solid var(--line); background: var(--panel); box-shadow: 0 3px 0 var(--line); }
+.rematch h3 { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 0 4px; font: 700 19px var(--pixel); }
+.rematch-faces { display: flex; justify-content: center; gap: 4px; }
+.rematch-faces img { image-rendering: pixelated; filter: grayscale(.35) drop-shadow(0 3px 0 #0002); }
+.rematch p { margin: 6px 0 12px; font-size: 14px; line-height: 1.4; }
+.rematch .ballbtn { width: 100%; }
 
 .slot .set-trainer { position: absolute; left: -4px; top: -8px; width: 34px; height: 34px; image-rendering: pixelated; filter: drop-shadow(0 1px 0 #0006); z-index: 1; }
 .result-faces { display: flex; justify-content: center; }
@@ -1040,6 +1047,18 @@ body:has(#world.ready) footer { margin-bottom: 12px; border-radius: 14px; color:
 .tm-who em { font-style: normal; font-size: 13px; color: #8a5cf6; font-weight: 800; }
 .tm-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 13px; }
 .tm-stats span { display: inline-flex; align-items: center; gap: 4px; }
+/* El primer día de un entrenador: que se note que esto vuelve cada día */
+.tomorrow.first { border-color: #ffd23f; box-shadow: 0 0 0 3px #ffd23f44; }
+.tm-first { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: #fff8ea; color: #3a2e18; border: 2px solid #e8d6b0; font-size: 14px; line-height: 1.4; }
+
+/* Avisos de Pelipper */
+.push-slot .mail-card { margin-top: 10px; }
+@media (max-width: 420px) { .push-card .mail-btn { display: none; } } /* en el móvil, toda la tarjeta es el botón */
+.push-on { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+#dlg-news .push-on { margin: 8px 0 0; }
+.push-ctl { display: flex; gap: 6px; align-items: center; }
+.push-ctl select { min-height: 40px; font: 800 13px var(--body); padding: 6px 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--panel); color: inherit; }
+.push-note { margin: -4px 0 10px; }
 
 /* Informe de suerte */
 .luck .luck-verdict { margin: 0 0 6px; font: 700 15px var(--pixel); }

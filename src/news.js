@@ -4,6 +4,15 @@
 // verá un punto rojo junto al enlace hasta que abra la lista.
 export const NEWS = [
   {
+    id: 23, date: '2026-11-21',
+    es: ['🔔 <b>Avisos de Pelipper</b>: si quieres, Pelipper te trae cada día una notificación cuando sale el reto, a la hora que elijas (y no te molesta si ya has jugado). Actívalo al terminar el reto, en su Correo o en Ajustes. Sin cuentas ni correo. En iPhone, primero añade Redle a la pantalla de inicio.',
+      '<b>Revancha del domingo pasado</b>: entre semana, en la pestaña de Dobles, puedes volver a enfrentarte a la dupla del domingo con el mismo equipo de aquel día. Es entrenamiento: no cuenta para tus estadísticas. Gracias por la idea.',
+      'En la <b>Liga</b>, si caes en una ronda, ahora puedes <b>reintentar solo ese combate</b> (como práctica), sin tener que volver a ganar a los anteriores. Gracias por la idea.'],
+    en: ['🔔 <b>Pelipper reminders</b>: if you like, Pelipper brings you a daily notification when the challenge is out, at the time you choose (and it won\'t bother you if you\'ve already played). Turn it on after the challenge, in Pelipper Post or in Settings. No account, no email. On iPhone, add Redle to your Home Screen first.',
+      '<b>Last Sunday\'s rematch</b>: during the week, in the Doubles tab, you can take on last Sunday\'s duo again with the same team as that day. It\'s training: it doesn\'t count for your stats. Thanks for the idea.',
+      'In the <b>League</b>, if you fall in a round, you can now <b>retry just that battle</b> (as practice), without beating the earlier ones again. Thanks for the idea.'],
+  },
+  {
     id: 22, date: '2026-11-21',
     es: ['<b>Ganar el reto del día ya cuenta como victoria contra ese campeón</b>: su medalla se enciende en tu tarjeta de entrenador. Los retos que ya habías ganado también cuentan. Gracias por avisar.',
       'Cuando <b>Absorbe Fuego</b> se traga un ataque de Fuego, ahora el combate lo dice: no le afecta y sus ataques de Fuego ganan potencia. Ya funcionaba, pero no salía ningún mensaje.',

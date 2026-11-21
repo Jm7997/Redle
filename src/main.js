@@ -7,6 +7,7 @@ import {SEASONS, seasonOf, seasonDaysLeft} from './seasons.js';
 import {T, LANG, setLang, setBoss, ruleHtml, typeName, moveName, itemName, abilityName, moveDesc, abilityDesc, itemDesc, loadDescs, itemIcon, FIELD_ICON, FIELD_INFO, RULE_TEXT, RULE_ICON} from './i18n.js';
 import {audio, setMusic, setSfx, playMusic, jingle, sfx, cry, lowHpAlarm, setTension} from './audio.js';
 import {NEWS} from './news.js';
+import {PUSH_HOURS, pushSupported, pushIsOn, pushHour, pushOn, pushOff, pushRefresh} from './push.js';
 import {sendResult, dailyStats, dailyRank, dailyTop, dailyWins, sendFeedback, myLetters, saveProgress, loadProgress, setNickname, deleteMyData, playerId, UUID_RE} from './stats.js';
 import {setupFx, setSpeed, animateMove, floatText, statFx, popup, flash, sparkle, center, throwBall} from './fx.js';
 
@@ -91,29 +92,35 @@ const GATED = RETO_ON && !REPLAY && asked !== RETO.id && (asked === RETO_BOSS ||
 const MODE = GATED ? RETO.id : asked;
 if (GATED && vs) history.replaceState(null, '', `${location.pathname}?vs=${RETO.id}`);
 const LIGA = MODE === 'liga', DOUBLE = MODE === DOUBLES.id, IS_RETO = MODE === RETO.id;
-// Los dobles solo se juegan los domingos: el resto de la semana su pestaña enseña quién viene.
-const LOCKED = DOUBLE && !REPLAY && !doublesOpen(TODAY);
+// Los dobles solo se juegan los domingos: el resto de la semana su pestaña enseña quién viene y ofrece la revancha
+// del domingo pasado (?vs=dobles&revancha=semilla): su dupla, su equipo y su regla, como práctica que no cuenta.
+const LAST_SUNDAY = new Date(Date.parse(nextSunday(TODAY) + 'T12:00:00Z') - 7 * 864e5).toISOString().slice(0, 10);
+const REMATCH = DOUBLE && !REPLAY && !doublesOpen(TODAY) && doublesOpen(LAST_SUNDAY) && /^[a-z0-9]{1,12}$/.test(params.get('revancha') || '') ? params.get('revancha') : null;
+const LOCKED = DOUBLE && !REPLAY && !REMATCH && !doublesOpen(TODAY);
 const KEY = keyOf(MODE);
 const store = Object.assign({stats: {played: 0, wins: 0, streak: 0, best: 0, bestRound: 0, last: null}, days: {}}, readJSON(KEY));
 
 // Modo práctica (?practica=semilla&equipo=hoy|semilla): no se guarda ni cuenta para las estadísticas.
 // Solo tras jugar el reto: si perdiste, con el mismo equipo del día; si ganaste, también con equipos aleatorios.
 const dailyResult = store.days[TODAY]?.closed ? store.days[TODAY].result : null; // hecho = ganado o sin intentos
-const PRACTICE = !REPLAY && dailyResult ? params.get('practica') : null;
+const PRACTICE = REMATCH || (!REPLAY && dailyResult ? params.get('practica') : null);
 const TEAM = PRACTICE && dailyResult === 'win' ? params.get('equipo') || 'hoy' : 'hoy';
-const POOL_DATE = REPLAY ? REPLAY.date : TEAM === 'hoy' ? TODAY : 'equipo-' + TEAM;
-const RULE_DATE = REPLAY ? REPLAY.date : TODAY; // la práctica conserva la regla del día
+const POOL_DATE = REPLAY ? REPLAY.date : REMATCH ? LAST_SUNDAY : TEAM === 'hoy' ? TODAY : 'equipo-' + TEAM;
+const RULE_DATE = REPLAY ? REPLAY.date : REMATCH ? LAST_SUNDAY : TODAY; // la práctica conserva la regla del día
 // En dobles la clave de práctica lleva la fecha: de ella sale la dupla del domingo.
-const DATE = REPLAY ? REPLAY.date : PRACTICE ? `practica-${PRACTICE}${DOUBLE ? '-' + TODAY : ''}` : TODAY;
+const DATE = REPLAY ? REPLAY.date : PRACTICE ? `practica-${PRACTICE}${DOUBLE ? '-' + (REMATCH ? LAST_SUNDAY : TODAY) : ''}` : TODAY;
+// Práctica de la Liga desde una ronda (?ronda=N): para reintentar solo el combate en el que caíste.
+const START_ROUND = LIGA && PRACTICE ? Math.min(Math.max(parseInt(params.get('ronda'), 10) || 0, 0), LEAGUE.rounds - 1) : 0;
 // En el reto, el rival sale de la fecha del reto (no de la clave de práctica) y el equipo son 8 para elegir 6.
 const LINEUP = LIGA ? leagueLineup(REPLAY ? REPLAY.date : TODAY) : IS_RETO ? [retoBoss(RULE_DATE)] : [MODE];
 const POOL = LIGA ? leaguePool(POOL_DATE) : IS_RETO ? retoPool(POOL_DATE, LINEUP[0]) : DOUBLE ? dailyPool(POOL_DATE, MODE) : bossPool(POOL_DATE, MODE);
 // Te tocan 8 y eliges 6 (contra cada campeón desde el 6-11; el reto, solo el día del estreno): se eligen a mano y en orden.
 const PICKING = POOL.length > PICK.pick;
 const rand = () => Math.random().toString(36).slice(2, 8);
-const goPractice = team => { location.search = `?vs=${MODE}&practica=${rand()}&equipo=${team}`; };
+const goPractice = (team, ronda) => { location.search = `?vs=${MODE}&practica=${rand()}&equipo=${team}${ronda ? `&ronda=${ronda}` : ''}`; };
+const goRematch = () => { location.search = `?vs=${DOUBLES.id}&revancha=${rand()}`; };
 const goToday = () => { location.href = `${location.pathname}?vs=${MODE}`; };
-if (params.has('practica') && !PRACTICE && !REPLAY) history.replaceState(null, '', `${location.pathname}?vs=${MODE}`);
+if ((params.has('practica') || params.has('revancha')) && !PRACTICE && !REPLAY) history.replaceState(null, '', `${location.pathname}?vs=${MODE}`);
 let speed = +(ls.get('redle:speed') || 2); // rápido por defecto: quien repite quiere ir al grano
 setSpeed(speed);
 
@@ -121,7 +128,7 @@ if (PRACTICE || REPLAY) delete store.days[DATE];
 const save = () => { if (!PRACTICE && !REPLAY) ls.set(KEY, JSON.stringify(store)); };
 const defaultPicks = () => (PICKING ? [] : POOL.map((_, i) => i));
 // El día guarda una partida (rival) o varias rondas (Liga); `rec()` es siempre el combate en curso.
-const day = () => store.days[DATE] ||= LIGA ? {round: 0, rounds: []} : {picks: defaultPicks(), choices: []};
+const day = () => store.days[DATE] ||= LIGA ? {round: START_ROUND, rounds: []} : {picks: defaultPicks(), choices: []};
 const round = () => LIGA ? day().round : 0;
 const rec = () => LIGA ? (day().rounds[day().round] ||= {picks: defaultPicks(), choices: []}) : day();
 if (REPLAY) Object.assign(LIGA ? (day().round = REPLAY.round, rec()) : day(), {picks: REPLAY.picks, choices: [], started: true});
@@ -357,7 +364,7 @@ function drawLineup() {
   if (!LIGA) return;
   const d = day();
   box.innerHTML = LINEUP.map((id, i) => {
-    const r = d.rounds[i]?.result, cls = r === 'win' ? 'beaten' : r === 'loss' ? 'lost' : i === d.round ? 'current' : '';
+    const r = d.rounds[i]?.result, cls = r === 'win' || i < START_ROUND ? 'beaten' : r === 'loss' ? 'lost' : i === d.round ? 'current' : '';
     return `<figure class="${cls}"><img src="${trainerImg(id)}" alt="" width="56" height="56"><figcaption><b>${BOSSES[id].name}</b><small>${i === 4 ? T.champion : T.eliteN(i + 1)}</small></figcaption></figure>`;
   }).join('');
 }
@@ -369,7 +376,7 @@ function drawLeagueBar() {
   if (!LIGA) return;
   const d = day(), n = round();
   // En una repetición solo existe la ronda que se ve: las anteriores se ganaron por fuerza.
-  const state = i => d.rounds[i]?.result === 'win' || (REPLAY && i < n) ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : i === n ? 'current' : '';
+  const state = i => d.rounds[i]?.result === 'win' || (REPLAY && i < n) || i < START_ROUND ? 'beaten' : d.rounds[i]?.result === 'loss' ? 'lost' : i === n ? 'current' : '';
   bar.innerHTML = `<div class="steps">${LINEUP.map((id, i) => `<span class="${state(i)}${i === 4 ? ' champ' : ''}"><img src="${trainerImg(id)}" alt="${BOSSES[id].name}" width="36" height="36"></span>`).join('<i></i>')}</div>
     <small>${T.leagueProgress(n + 1, LEAGUE.rounds - 1 - n)}</small>`;
 }
@@ -386,7 +393,20 @@ function renderTeaser() {
     <p class="duo-name">${T.duoName[B.duo]}</p><p>${T.duoIdea[B.duo]}</p>
     <p class="duo-when">${T.sundayIn(days)}</p>
     <ul class="duo-rules">${T.sundayRules.map(r => `<li>${r}</li>`).join('')}</ul>
+    ${rematchCard()}
     <a class="primary duo-back" href="?vs=red">${T.sundayBack}</a>`;
+  $('#btn-rematch')?.addEventListener('click', () => { sfx('click'); goRematch(); });
+}
+// Mientras llega el domingo: la dupla del domingo pasado, para entrenar dobles (y lo que te pasó aquel día).
+function rematchCard() {
+  if (!doublesOpen(LAST_SUNDAY)) return '';
+  const duo = duoOf(LAST_SUNDAY), then = store.days[LAST_SUNDAY]?.result;
+  return `<div class="rematch">
+    <h3>${itemIcon('Muscle Band')} ${T.rematchTitle}</h3>
+    <div class="rematch-faces">${duo.trainers.map(t => `<img src="${trainerImg(t)}" alt="" width="72" height="72">`).join('')}</div>
+    <p>${T.rematchText(duo.name)}${then ? ` <b>${then === 'win' ? T.rematchWon : T.rematchLost}</b>` : ''}</p>
+    <button class="ballbtn" id="btn-rematch" type="button"><span class="ball" aria-hidden="true"></span><span class="txt">${T.rematchBtn}</span></button>
+  </div>`;
 }
 
 function renderDraft() {
@@ -1594,8 +1614,12 @@ function retry() {
 // Qué práctica se ofrece al acabar: el mismo equipo siempre; uno aleatorio solo si ya ganaste el reto de hoy.
 function practiceOptions() {
   if (REPLAY) return [];
+  if (REMATCH) return [[T.rematchAgain, goRematch]];
   const won = (PRACTICE ? dailyResult : store.days[TODAY]?.result) === 'win';
   const opts = [[T.retrySame, () => goPractice(TEAM)]];
+  // Liga perdida más allá de la primera ronda: lo primero, reintentar solo ese combate (sin volver a ganar a los anteriores).
+  const fell = LIGA && (PRACTICE ? day() : store.days[TODAY])?.result === 'loss' ? round() : 0;
+  if (fell > 0) opts.unshift([T.retryRound(BOSSES[LINEUP[fell]].name), () => goPractice(TEAM, fell), T.retryRoundNote]);
   if (won) opts.push([PRACTICE ? T.newRandom : T.practiceRandom, () => goPractice(rand())]);
   return opts;
 }
@@ -1700,9 +1724,48 @@ function drawTomorrow(done) {
   if (box.hidden) return;
   const next = new Date(Date.parse(TODAY + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10);
   const boss = retoOpen(next) ? retoBoss(next) : null, streak = playStreak().n, p = dexProgress();
-  box.innerHTML = `${boss ? `<div class="tm-who"><img src="${trainerImg(boss)}" alt="" width="64" height="64"><span><small>${T.tomorrowLabel}</small><b>${T.tomorrowReto(BOSSES[boss].name)}</b>${doublesOpen(next) ? `<em>${T.tomorrowDoubles}</em>` : ''}</span></div>` : ''}
-    <div class="tm-stats"><span>🔥 <b>${streak}</b> ${T.tomorrowStreak(streak)}</span><span>${itemIcon('Poke Ball')} <b>${p.won}/${p.total}</b> ${T.tomorrowDex}</span></div>`;
+  // El primer día de un entrenador nuevo, dejar claro que esto es diario (4 de cada 5 no volvían).
+  const first = new Set(playedDays().map(e => e.date)).size <= 1;
+  box.classList.toggle('first', first);
+  box.innerHTML = `${first ? `<p class="tm-first">${T.firstDay}</p>` : ''}${boss ? `<div class="tm-who"><img src="${trainerImg(boss)}" alt="" width="64" height="64"><span><small>${T.tomorrowLabel}</small><b>${T.tomorrowReto(BOSSES[boss].name)}</b>${doublesOpen(next) ? `<em>${T.tomorrowDoubles}</em>` : ''}</span></div>` : ''}
+    <div class="tm-stats"><span>🔥 <b>${streak}</b> ${T.tomorrowStreak(streak)}</span><span>${itemIcon('Poke Ball')} <b>${p.won}/${p.total}</b> ${T.tomorrowDex}</span></div>
+    <div class="push-slot"></div>`;
+  drawPush();
 }
+
+// ---------- avisos de Pelipper ----------
+// Una tarjeta para pedirlos (al acabar el reto y en el Correo de Pelipper) o, si ya están, a qué hora llegan.
+const hourLabel = h => new Date(2000, 0, 1, h).toLocaleTimeString(LANG, {hour: '2-digit', minute: '2-digit'});
+function drawPush() {
+  const on = pushIsOn();
+  document.querySelectorAll('.push-slot').forEach(slot => {
+    slot.innerHTML = on ? `<p class="push-on">${T.pushOnLine(hourLabel(pushHour()))}</p>`
+      : `<button class="mail-card push-card" type="button"><span class="mail-mon" aria-hidden="true">${icon('Pelipper')}<i>🔔</i></span><span class="mail-txt"><b>${T.pushAsk}</b><small>${T.pushAskSub}</small></span><span class="mail-btn">${T.pushBtn}</span></button>`;
+    slot.querySelector('.push-card')?.addEventListener('click', () => turnPush(true));
+  });
+  $('#btn-push').textContent = on ? T.pushTurnOff : T.pushTurnOn;
+  $('#push-hour').value = String(pushHour());
+  const note = !pushSupported() ? (isIOS() ? T.pushIOS : T.pushNo) : Notification.permission === 'denied' ? T.pushDenied : '';
+  $('#push-note').hidden = !note;
+  $('#push-note').textContent = note;
+}
+async function turnPush(on, hour) {
+  sfx('click');
+  if (!on) { await pushOff(); drawPush(); return; }
+  if (!pushSupported()) return toast(isIOS() ? T.pushIOS : T.pushNo);
+  const r = await pushOn(LANG, hour);
+  if (r === 'on') { toast(`${icon('Pelipper')} ${T.pushDone(hourLabel(pushHour()))}`); cry('pelipper'); }
+  else toast(r === 'denied' ? T.pushDenied : T.pushError);
+  drawPush();
+}
+$('#push-hour').innerHTML = PUSH_HOURS.map(h => `<option value="${h}">${hourLabel(h)}</option>`).join('');
+$('#push-hour').setAttribute('aria-label', T.pushHourAria);
+$('#push-hour').onchange = () => {
+  const h = +$('#push-hour').value;
+  if (pushIsOn()) turnPush(true, h);
+  else ls.set('redle:push-hour', String(h));
+};
+$('#btn-push').onclick = () => turnPush(!pushIsOn(), pushHour());
 function dexProgress() {
   const base = s => dex.species.get(s).baseSpecies, won = new Set(playedDays().filter(e => e.won).flatMap(e => e.team.map(base)));
   const all = pokedexList();
@@ -1761,7 +1824,7 @@ function showResult() {
   // Lo primero al acabar: seguir con otro campeón (o, si no queda ninguno, volver a intentarlo), grande y a mano.
   const [again, ...others] = done ? practiceOptions() : [];
   const more = done ? moreBtn() : null;
-  $('#result-again').replaceChildren(...(more ? [more] : again ? [ballBtn(`${T.again}<small>${T.againNote}</small>`, again[1], 'ballbtn again')] : []));
+  $('#result-again').replaceChildren(...(more ? [more] : again ? [ballBtn(again[2] ? `${again[0]}<small>${again[2]}</small>` : `${T.again}<small>${T.againNote}</small>`, again[1], 'ballbtn again')] : []));
   if (more && again) others.unshift(again);
   $('#result-actions').innerHTML = '';
   if (done) {
@@ -1816,8 +1879,9 @@ async function drawGlobal(done) {
 // ganado todavía, las de ayer, para que siempre haya algo que mirar y aprender.
 async function drawWins(box, today) {
   const ok = list => (list || []).filter(w => /^[\w-]{1,6000}$/.test(w.replay || ''));
-  let wins = ok(today ?? await dailyWins(TODAY, MODE)), title = LIGA ? T.winsTitleLiga : T.winsTitle;
-  if (!wins.length) {
+  // En la revancha, las victorias de aquel domingo.
+  let wins = ok(today ?? await dailyWins(REMATCH ? LAST_SUNDAY : TODAY, MODE)), title = REMATCH ? T.rematchWins : LIGA ? T.winsTitleLiga : T.winsTitle;
+  if (!wins.length && !REMATCH) {
     wins = ok(await dailyWins(YESTERDAY, MODE));
     title = wins.length ? T.winsYesterday : '';
   }
@@ -2199,7 +2263,7 @@ $('#btn-mute').onclick = () => {
 };
 
 // ---------- arranque ----------
-$('#day-num').textContent = PRACTICE ? T.practiceBadge : REPLAY ? '▶' : '#' + DAY;
+$('#day-num').textContent = REMATCH ? T.rematchBadge : PRACTICE ? T.practiceBadge : REPLAY ? '▶' : '#' + DAY;
 // La frase del día, la misma para todo el mundo. Los domingos avisa de los dobles; en temporada, se turna con la suya.
 $('#splash').textContent = SUNDAY ? T.splashSunday : SEASON && DAY % 2 ? T.season[SEASON.id][1] : T.splash[DAY * 7 % T.splash.length];
 if (SEASON) {
@@ -2221,6 +2285,7 @@ $('#btn-legal').onclick = () => $('#dlg-legal').showModal();
 // Borrar todo lo que Redle guarda en este navegador (progreso, estadísticas y ajustes).
 $('#btn-wipe').onclick = async () => {
   if (!confirm(T.wipeConfirm)) return;
+  await Promise.race([pushOff(), sleep(2000)]); // el navegador deja de recibir avisos
   await Promise.race([deleteMyData(), sleep(4000)]); // también en el servidor (sin esperar para siempre)
   try { Object.keys(localStorage).filter(k => k.startsWith('redle:')).forEach(k => localStorage.removeItem(k)); } catch {}
   location.href = location.pathname;
@@ -2231,6 +2296,8 @@ drawSettings();
 backgroundMons();
 syncProgress().catch(() => {});
 loadLetters();
+drawPush();
+pushRefresh(LANG);
 // Etiquetas accesibles de los botones de iconos y fin de la pantalla de carga.
 for (const [id, key] of [['btn-help', 'aHelp'], ['btn-settings', 'settings'], ['btn-mute', 'aSound'], ['btn-stats', 'stats'], ['btn-news-top', 'mailboxTitle']]) $('#' + id).setAttribute('aria-label', T[key]);
 $('#loading').remove();

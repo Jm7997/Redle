@@ -79,6 +79,12 @@ export async function weeklyReto(from, to) {
     champs: rows.filter(r => r.nickname).map(r => ({nickname: r.nickname, wins: r.nick_wins})).sort((a, b) => b.wins - a.wins)};
 }
 
+// Avisos de Pelipper (ver src/push.js): la clave pública del remitente, y apuntarse o borrarse con este código.
+export const pushPublicKey = () => rpc('push_public_key', {});
+export const pushSubscribe = async ({endpoint, keys}, lang, tz, hour) =>
+  (await call('push_subscribe', {p_player: playerId(), p_endpoint: endpoint, p_p256dh: keys.p256dh, p_auth: keys.auth, p_lang: lang, p_tz: tz, p_hour: hour})).data === true;
+export const pushUnsubscribe = endpoint => call('push_unsubscribe', {p_player: playerId(), p_endpoint: endpoint});
+
 // Copia del progreso ligada al código de entrenador, para seguir en otro dispositivo.
 export const saveProgress = async data => (await call('save_progress', {p_player: playerId(), p_data: data})).ok;
 // {ok, data}: data null = ese código no tiene copia.
